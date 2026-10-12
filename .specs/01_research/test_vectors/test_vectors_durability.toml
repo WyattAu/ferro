@@ -1,0 +1,104 @@
+# Test Vectors: Durability (Events/Outbox, Cache, Tenancy)
+# Companion to YP-EVENT-DURABILITY-001, YP-CONSISTENCY-CACHE-001, YP-TENANCY-ISOLATION-001.
+
+[evt_crash_before_dispatch]
+id = "TV-EVT-001"
+theorem = "THM-OUTBOX-ATOMICITY"
+setup = "kill -9 after commit, before relay tick"
+expect = "event dispatched on restart exactly once (lease reclaim); no loss"
+
+[evt_crash_mid_handler]
+id = "TV-EVT-002"
+theorem = "THM-EXACTLY-ONCE-EFFECT"
+setup = "kill -9 mid-webhook delivery"
+expect = "lease expires; redelivery; receiver dedup via Event-Id; exactly-once observable effect"
+
+[evt_replay_watermark]
+id = "TV-EVT-003"
+theorem = "THM-REPLAY-NO-DUPLICATION"
+setup = "replay() with existing handler watermarks"
+expect = "zero duplicate dispatches (regression for bus.rs:322-341)"
+
+[evt_aborted_tx]
+id = "TV-EVT-004"
+theorem = "THM-OUTBOX-ATOMICITY"
+setup = "transaction rollback after outbox insert"
+expect = "no event ever dispatched"
+
+[evt_dlq_after_backoff]
+id = "TV-EVT-005"
+constraint = "DC-EVT-003"
+setup = "receiver down; 8 attempts, 2s..300s backoff"
+expect = "parked in persistent DLQ table; admin re-drive succeeds later"
+
+[evt_idempotency_key]
+id = "TV-EVT-006"
+constraint = "DC-EVT-003"
+setup = "same Idempotency-Key replayed; same key different body"
+expect = "stored response returned; 409 on parameter mismatch"
+
+[evt_cron_catchup]
+id = "TV-EVT-007"
+constraint = "DC-EVT-006"
+setup = "3 missed cron ticks during downtime"
+expect = "exactly one catch-up run on boot (coalesced), jitter applied"
+
+[cache_revoke_epoch]
+id = "TV-CACHE-001"
+theorem = "THM-AUTHZ-COHERENCE"
+setup = "cached allow decision; revoke permission; immediate read"
+expect = "epoch mismatch -> MISS -> deny. Holds at ANY TTL (0 ms, 60 s, 1 h)"
+
+[cache_sieve_vs_lru]
+id = "TV-CACHE-002"
+constraint = "DC-CACHE-002"
+setup = "skewed + scan fixture traces"
+expect = "SIEVE hit ratio >= LRU; O(1) ops (no O(n) reindex); knob-free"
+
+[cache_evict_not_error]
+id = "TV-CACHE-003"
+constraint = "DC-CACHE-003"
+setup = "insert into full cache; insert single entry over total budget"
+expect = "victims evicted until fit; single-oversize -> Err(SizeExceeded); never silent drop"
+
+[cache_singleflight]
+id = "TV-CACHE-004"
+theorem = "THM-STAMPEDE-BOUND"
+setup = "1000 concurrent misses on cold key"
+expect = "exactly 1 recompute; 999 followers share result"
+
+[cache_swr_bound]
+id = "TV-CACHE-005"
+theorem = "THM-SWR-BOUNDED-STALENESS"
+setup = "entry aged T+epsilon with SWR window S"
+expect = "served stale once + background revalidate; age never exceeds T+S"
+
+[tenant_symlink_race]
+id = "TV-TENANT-001"
+theorem = "THM-PREFIX-CONTAINMENT"
+setup = "symlink created between resolve and open; deep path forcing canonicalize failure"
+expect = "fail-closed denial; openat2 RESOLVE_BENEATH blocks escape"
+
+[tenant_quota_boundary]
+id = "TV-TENANT-002"
+theorem = "THM-QUOTA-OVERSHOOT-BOUND"
+setup = "uploads driving used within B_max of quota"
+expect = "admission rejects at used+in_flight > quota; overshoot <= B_max; exact after reconcile"
+
+[tenant_quota_restart]
+id = "TV-TENANT-003"
+constraint = "DC-TENANT-004"
+setup = "restart server mid-usage"
+expect = "quota counters intact (durable); no drift vs storage scan"
+
+[tenant_noisy_neighbor]
+id = "TV-TENANT-004"
+theorem = "THM-NOISY-NEIGHBOR-BOUND"
+setup = "tenant A floods batch OCR; tenant B does interactive sync"
+expect = "B's p99 <= L + c throughout; A's batch paused as needed"
+
+[tenant_plugin_escape]
+id = "TV-TENANT-005"
+theorem = "THM-PLUGIN-CONTAINMENT"
+setup = "plugin attempts path traversal via preopen; infinite loop"
+expect = "preopen escape denied; fuel exhaustion interrupts; no memory outside instance"

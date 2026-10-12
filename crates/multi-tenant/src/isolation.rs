@@ -62,6 +62,18 @@ impl DefaultResourceIsolation {
             tenant_storage_base: tenant_storage_base.to_string(),
         }
     }
+
+    /// Canonical storage layout (DC-TENANT-002): `{base}/tenants/{tenant_id}`.
+    /// The organization is a policy fact carried in `TenantContext`, never a
+    /// path segment — mixing the two made the layout ambiguous between
+    /// `TenantPathResolver` (org-less) and this guard (org-ful).
+    fn expected_prefix(&self, ctx: &TenantContext) -> String {
+        format!(
+            "{}/tenants/{}",
+            self.tenant_storage_base.trim_end_matches('/'),
+            ctx.tenant_id.0
+        )
+    }
 }
 
 impl ResourceIsolation for DefaultResourceIsolation {
@@ -98,19 +110,23 @@ impl ResourceIsolation for DefaultResourceIsolation {
     }
 
     fn enforce_path_prefix(&self, ctx: &TenantContext, full_path: &str) -> Result<(), TenantError> {
-        let expected_prefix = format!(
-            "{}/tenants/{}/{}",
-            self.tenant_storage_base, ctx.organization_id.0, ctx.tenant_id.0
-        );
+        let expected_prefix = normalize_slashes(&self.expected_prefix(ctx));
+        let expected_prefix = expected_prefix.trim_end_matches('/').to_string();
+
+        // Canonicalize when the target exists — this resolves symlinks and is
+        // the only way to catch a symlink escaping the tenant subtree.
+        // When it fails (path not yet created — the normal pre-create check),
+        // fall back to LEXICAL normalization instead of trusting the raw
+        // string: `..` components are collapsed before the prefix compare, so
+        // traversal can never smuggle through the fallback.
+        // (DC-TENANT-001: the check fails CLOSED — no raw-path bypass, no
+        // blanket denial of not-yet-existing files.)
         let canonical = match PathBuf::from(full_path).canonicalize() {
-            Ok(p) => p.to_string_lossy().to_string(),
-            Err(_) => full_path.to_string(),
+            Ok(p) => normalize_slashes(&p.to_string_lossy()),
+            Err(_) => lexical_normalize(full_path),
         };
 
-        let canonical = canonical.replace('\\', "/");
-        let expected_prefix = expected_prefix.replace('\\', "/");
-
-        if canonical.starts_with(&expected_prefix) {
+        if path_under_prefix(&canonical, &expected_prefix) {
             Ok(())
         } else {
             Err(TenantError::PermissionDenied {
@@ -120,6 +136,44 @@ impl ResourceIsolation for DefaultResourceIsolation {
             })
         }
     }
+}
+
+fn normalize_slashes(p: &str) -> String {
+    p.replace('\\', "/")
+}
+
+/// Collapse `.` and `..` components textually (no filesystem access).
+fn lexical_normalize(path: &str) -> String {
+    let mut components: Vec<&str> = Vec::new();
+    for comp in path.split('/') {
+        match comp {
+            "" | "." => {}
+            ".." => {
+                components.pop();
+            }
+            c => components.push(c),
+        }
+    }
+    let mut out = String::new();
+    for c in &components {
+        out.push('/');
+        out.push_str(c);
+    }
+    if out.is_empty() {
+        out.push('/');
+    }
+    out
+}
+
+/// Prefix containment WITH a boundary check (THM-PREFIX-CONTAINMENT).
+/// `canonical.starts_with(prefix)` alone is unsound: tenant `t1` would match
+/// tenant `t10`'s paths. The next character after the prefix must be `/`
+/// (or the paths must be equal).
+fn path_under_prefix(canonical: &str, prefix: &str) -> bool {
+    if canonical == prefix {
+        return true;
+    }
+    canonical.starts_with(prefix) && canonical.as_bytes().get(prefix.len()) == Some(&b'/')
 }
 
 pub struct TenantPathResolver {
@@ -133,6 +187,9 @@ impl TenantPathResolver {
         }
     }
 
+    /// Resolve a tenant-relative path to its canonical storage location
+    /// (DC-TENANT-002): `{base}/tenants/{tenant_id}/{relative}` — the SAME
+    /// layout `DefaultResourceIsolation::enforce_path_prefix` expects.
     pub fn resolve(&self, tenant_id: &str, relative_path: &str) -> Result<String, TenantError> {
         if relative_path.contains("..") {
             return Err(TenantError::PermissionDenied {
@@ -142,7 +199,7 @@ impl TenantPathResolver {
             });
         }
 
-        let base = format!("{}/tenants/{}", self.storage_base, tenant_id);
+        let base = format!("{}/tenants/{}", self.storage_base.trim_end_matches('/'), tenant_id);
         let normalized = relative_path.trim_start_matches('/');
         let resolved = format!("{base}/{normalized}");
 
@@ -239,7 +296,7 @@ mod tests {
     fn test_check_read_access_readonly_allowed() {
         let isolation = DefaultResourceIsolation::new("/data");
         let ctx = make_ctx("t1", "org-1", "user-1", OrganizationRole::ReadOnly);
-        let result = isolation.check_read_access(&ctx, "/data/tenants/org-1/t1/file.txt");
+        let result = isolation.check_read_access(&ctx, "/data/tenants/t1/file.txt");
         assert!(result.is_ok());
     }
 
@@ -247,7 +304,7 @@ mod tests {
     fn test_check_write_access_readonly_denied() {
         let isolation = DefaultResourceIsolation::new("/data");
         let ctx = make_ctx("t1", "org-1", "user-1", OrganizationRole::ReadOnly);
-        let result = isolation.check_write_access(&ctx, "/data/tenants/org-1/t1/file.txt");
+        let result = isolation.check_write_access(&ctx, "/data/tenants/t1/file.txt");
         assert!(result.is_err());
     }
 
@@ -255,7 +312,74 @@ mod tests {
     fn test_enforce_path_prefix_wrong_tenant() {
         let isolation = DefaultResourceIsolation::new("/data");
         let ctx = make_ctx("t1", "org-1", "user-1", OrganizationRole::Member);
-        let result = isolation.enforce_path_prefix(&ctx, "/data/tenants/org-1/t2/file.txt");
+        let result = isolation.enforce_path_prefix(&ctx, "/data/tenants/t2/file.txt");
         assert!(result.is_err());
+    }
+
+    /// TV-TENANT-001a: the prefix-boundary regression. Tenant `t1` must NOT
+    /// match tenant `t10`'s paths — `starts_with` without a boundary check
+    /// allowed exactly that.
+    #[test]
+    fn test_prefix_boundary_t1_vs_t10() {
+        let isolation = DefaultResourceIsolation::new("/data");
+        let ctx = make_ctx("t1", "org-1", "user-1", OrganizationRole::Member);
+        // t10's path must be denied for t1's context, even though the path
+        // does not exist (lexical fallback path).
+        let result = isolation.enforce_path_prefix(&ctx, "/data/tenants/t10/file.txt");
+        assert!(result.is_err(), "t1 must not access t10 via prefix collision");
+
+        // And the reverse direction: t10's context cannot use t1's files.
+        let ctx10 = make_ctx("t10", "org-1", "user-2", OrganizationRole::Member);
+        let result = isolation.enforce_path_prefix(&ctx10, "/data/tenants/t1/file.txt");
+        assert!(result.is_err());
+    }
+
+    /// TV-TENANT-001b (THM-PREFIX-CONTAINMENT): `..` traversal in the
+    /// full path is collapsed lexically before the prefix compare — the
+    /// fallback for not-yet-existing paths can never smuggle traversal.
+    #[test]
+    fn test_traversal_via_dotdot_denied() {
+        let isolation = DefaultResourceIsolation::new("/data");
+        let ctx = make_ctx("t1", "org-1", "user-1", OrganizationRole::Member);
+        // Resolves lexically to /data/tenants/t2/file.txt — outside t1.
+        let result = isolation.enforce_path_prefix(&ctx, "/data/tenants/t1/../t2/file.txt");
+        assert!(result.is_err());
+    }
+
+    /// TV-TENANT-001c: a symlink escaping the tenant subtree is caught by
+    /// canonicalization when the FULL path exists (the normal case for reads
+    /// of existing content). Known limitation (DC-TENANT-003): a symlink whose
+    /// final component does not yet exist falls back to lexical checks, which
+    /// cannot resolve intermediate symlinks — the kernel-level fix is
+    /// openat2 RESOLVE_BENEATH in worker paths.
+    #[cfg(unix)]
+    #[test]
+    fn test_symlink_escape_denied() {
+        let base = tempfile::TempDir::new().unwrap();
+        let base_path = base.path().to_string_lossy().to_string();
+        let tenant_dir = base.path().join("tenants/t1");
+        std::fs::create_dir_all(&tenant_dir).unwrap();
+        let outside = base.path().join("outside");
+        std::fs::create_dir_all(&outside).unwrap();
+        // The escape target must exist for canonicalize to resolve through
+        // the symlink.
+        std::fs::write(outside.join("secret.txt"), b"secret").unwrap();
+        std::os::unix::fs::symlink(&outside, tenant_dir.join("escape")).unwrap();
+
+        let isolation = DefaultResourceIsolation::new(&base_path);
+        let ctx = make_ctx("t1", "org-1", "user-1", OrganizationRole::Member);
+        let escape_path = format!("{}/tenants/t1/escape/secret.txt", base_path);
+        let result = isolation.enforce_path_prefix(&ctx, &escape_path);
+        assert!(result.is_err(), "symlink escape must be denied");
+    }
+
+    /// Not-yet-existing files inside the tenant subtree remain creatable:
+    /// the lexical fallback must not blanket-deny pre-create checks.
+    #[test]
+    fn test_new_file_inside_tenant_allowed() {
+        let isolation = DefaultResourceIsolation::new("/data");
+        let ctx = make_ctx("t1", "org-1", "user-1", OrganizationRole::Member);
+        let result = isolation.check_write_access(&ctx, "/data/tenants/t1/docs/new-file.pdf");
+        assert!(result.is_ok());
     }
 }

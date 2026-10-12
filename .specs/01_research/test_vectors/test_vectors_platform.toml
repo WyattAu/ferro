@@ -1,0 +1,138 @@
+# Test Vectors: Platform (Search, WOPI/Collab, AuthZ)
+# Companion to YP-SEARCH-RETRIEVAL-001, YP-COLLAB-WOPI-001, YP-AUTHZ-POLICY-001.
+
+[search_acl_leak_regression]
+id = "TV-SEARCH-001"
+theorem = "THM-SEARCH-AUTHZ"
+setup = "user B queries a string unique to user A's document (B has no access)"
+expect = "zero results; no path leakage in any response field"
+
+[search_filter_mandatory]
+id = "TV-SEARCH-002"
+theorem = "THM-SEARCH-AUTHZ-SOUNDNESS"
+setup = "search called from every endpoint code path"
+expect = "no code path reaches the index without a Principal (type-enforced); compile failure otherwise"
+
+[search_rrf_invariance]
+id = "TV-SEARCH-003"
+theorem = "THM-SEARCH-FUSION-RANK-INVARIANT"
+setup = "fused query with monotone-transformed arm scores"
+expect = "identical fused ranking"
+
+[search_semantic_perturbation]
+id = "TV-SEARCH-004"
+constraint = "DC-SEARCH-004"
+setup = "perturb semantic arm only"
+expect = "fused output changes (fusion is live, not decorative); golden test"
+
+[search_degraded_fallback]
+id = "TV-SEARCH-005"
+constraint = "DC-SEARCH-004"
+setup = "semantic arm timeout"
+expect = "BM25-only results returned; degradation logged"
+
+[search_pagination_stability]
+id = "TV-SEARCH-006"
+theorem = "THM-SEARCH-TOTAL-ORDER"
+setup = "same query, repeated pages"
+expect = "deterministic order; no dup/skip across pages"
+
+[search_cjk]
+id = "TV-SEARCH-007"
+constraint = "DC-SEARCH-005"
+setup = "CJK document content and query"
+expect = "jieba segmentation round-trip; relevant hits"
+
+[wopi_missing_proof]
+id = "TV-WOPI-001"
+theorem = "THM-WOPI-NO-FALLTHROUGH"
+setup = "valid token, missing X-WOPI-Proof"
+expect = "401 + X-WOPI-ItemError; no token-only acceptance"
+
+[wopi_stale_timestamp]
+id = "TV-WOPI-002"
+theorem = "THM-WOPI-PROOF-SAFETY"
+setup = "valid HMAC, timestamp 21 minutes old"
+expect = "rejected (tolerance 20 min); boundary at exactly 20 min accepted"
+
+[wopi_wrong_url]
+id = "TV-WOPI-003"
+setup = "HMAC computed over different URL"
+expect = "rejected"
+
+[wopi_token_prefix_collision]
+id = "TV-WOPI-004"
+constraint = "DC-WOPI-003"
+setup = "two tokens sharing a long prefix (GHSA-c3jm-gv5r-9wcp regression)"
+expect = "full-token comparison; wrong token rejected"
+
+[wopi_view_writes]
+id = "TV-WOPI-005"
+theorem = "THM-WOPI-SCOPE"
+setup = "view-scope session attempts write (PutFile)"
+expect = "rejected; operation outside permittedOps(scope)"
+
+[wopi_key_rotation]
+id = "TV-WOPI-006"
+setup = "proof computed with old key after rotation"
+expect = "accepted via old-key leg during rotation window; rejected after old key retired"
+
+[collab_delta_minimality]
+id = "TV-COLLAB-001"
+theorem = "THM-COLLAB-SYNC-SOUND"
+setup = "client with state vector 90% behind head"
+expect = "server emits only missing delta; full document never serialized (byte-count assertion)"
+
+[collab_convergence]
+id = "TV-COLLAB-002"
+theorem = "THM-COLLAB-CONVERGENCE"
+setup = "4 replicas, 200 interleaved ops incl. concurrent inserts"
+expect = "identical final state on all replicas"
+
+[collab_revoked_session]
+id = "TV-COLLAB-003"
+theorem = "THM-COLLAB-AUTHZ"
+setup = "membership revoked mid-session; client continues sending updates"
+expect = "updates rejected after re-evaluation; document state unchanged"
+
+[collab_awareness_abuse]
+id = "TV-COLLAB-004"
+constraint = "DC-COLLAB-003"
+setup = "oversized awareness frame; flood at 100 msg/s; script payload"
+expect = "frame rejected (4 KiB cap); rate limited; payload escaped on render"
+
+[authz_typo_write_rejected]
+id = "TV-AUTHZ-001"
+theorem = "THM-AUTHZ-VALIDATION-SOUNDNESS"
+setup = "policy referencing nonexistent attribute (principal.isAcve)"
+expect = "write rejected with validation errors; no silent no-op"
+
+[authz_startup_fail]
+id = "TV-AUTHZ-002"
+constraint = "DC-AUTHZ-002"
+setup = "generated auto-policy invalid under schema"
+expect = "startup fails loudly; server does not serve with silently-weakened policy set"
+
+[authz_wildcard_matrix]
+id = "TV-AUTHZ-003"
+theorem = "THM-AUTHZ-PATH-NO-WILDCARD"
+setup = "roles on /spaces/a; probes /spaces/ab and /spaces/a/b"
+expect = "no over-match; entity-relation checks only (path like prohibited)"
+
+[authz_no_escalation]
+id = "TV-AUTHZ-004"
+theorem = "THM-AUTHZ-NO-ESCALATION"
+setup = "manager attempts changePermissions above own level"
+expect = "denied"
+
+[authz_home_differential]
+id = "TV-AUTHZ-005"
+theorem = "THM-AUTHZ-HOME-RULE"
+setup = "old Rust-bypass decisions vs new Cedar home policy on 1000-path matrix"
+expect = "identical decisions (differential test); Rust bypass deleted"
+
+[authz_version_monotone]
+id = "TV-AUTHZ-006"
+constraint = "DC-AUTHZ-006"
+setup = "N policy writes under load"
+expect = "policy_set_version strictly monotone; decisions tagged consistently"

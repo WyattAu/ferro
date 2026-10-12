@@ -1,0 +1,115 @@
+# Test Vectors: Sync Stack (Sync/Conflict, CDC/Dedup, Mesh)
+# Companion to YP-SYNC-CONFLICT-001, YP-DEDUP-CDC-001, YP-MESH-TRANSPORT-001.
+
+[sync_silent_loss_regression]
+id = "TV-SYNC-001"
+theorem = "THM-NO-SILENT-LOSS"
+setup = "two devices, identical mtime, divergent content, same path"
+expect = "conflict copy produced; loser materialized at conflict path; no silent overwrite"
+
+[sync_move_vs_move]
+id = "TV-SYNC-002"
+theorem = "THM-MOVE-IDENTITY"
+setup = "concurrent Move(a->b) and Move(b->c) applied in both orders"
+expect = "identical materialized path sets in both orders; exactly one copy per node"
+
+[sync_lamport_tiebreak]
+id = "TV-SYNC-003"
+theorem = "THM-CONFLICT-DETERMINISM"
+setup = "two writes with equal lamport, different device_id"
+expect = "winner is argmax(lamport, device_id); deterministic across replays"
+
+[sync_max_conflicts]
+id = "TV-SYNC-004"
+constraint = "DC-SYNC-002"
+setup = "33 conflicts in one directory"
+expect = "cap at 32; forced resolution beyond cap; no nested conflict suffixes"
+
+[sync_gc_safety]
+id = "TV-SYNC-005"
+theorem = "THM-CAUSAL-STABILITY-GC"
+setup = "op with unsettled ack from one device"
+expect = "conflict material NOT reclaimed; reclaimed after ack meet"
+
+[sync_mtime_ban]
+id = "TV-SYNC-006"
+constraint = "DC-SYNC-001"
+setup = "identical mtime+size, different content, concurrent VV contexts"
+expect = "conflict detected (today: silently lost — regression guard)"
+
+[cdc_chunk_expectation]
+id = "TV-CDC-001"
+theorem = "THM-CHUNK-BOUNDARY-INVARIANT"
+setup = "256 MiB pseudo-random fixtures"
+expect = "E[chunk] in [0.9, 1.1] x avg (1 MiB); min<=len<=max for all but final chunk; zero orphan sub-min chunks"
+
+[cdc_edit_locality]
+id = "TV-CDC-002"
+setup = "single-byte edit at random offsets across fixtures"
+expect = "perturbed boundaries <= ceil(delta/W) + B where B = max/avg x 2"
+
+[cdc_manifest_reconstruction]
+id = "TV-DEDUP-001"
+theorem = "THM-DEDUP-SOUNDNESS"
+setup = "files of 0 B, 255 KiB, 256 KiB, 1 MiB+1 B, 17 MiB"
+expect = "manifest (profile + (index,hash,length) triples) reconstructs byte-exact on a peer with no prior revision"
+
+[cdc_param_consistency]
+id = "TV-DEDUP-002"
+constraint = "DC-DEDUP-002"
+setup = "client block.rs vs server sync-handlers chunker on identical input"
+expect = "identical chunk boundaries (single shared constant; drift = build failure)"
+
+[dedup_prefix_dispatch]
+id = "TV-DEDUP-003"
+constraint = "DC-DEDUP-006"
+setup = "lookup of 0x01||0xB3||... and 0x12||0x20||... IDs in one store"
+expect = "both resolve to correct algorithm; unknown prefix rejected"
+
+[dedup_fips_block]
+id = "TV-DEDUP-004"
+constraint = "DC-DEDUP-006"
+setup = "FipsMode::Strict + BLAKE3 admission"
+expect = "rejected; SHA-256 path accepted"
+
+[dedup_noninterference]
+id = "TV-DEDUP-005"
+theorem = "THM-DEDUP-NONINTERFERENCE"
+setup = "tenant T probes hash h held only by tenant T'"
+expect = "response distribution statistically indistinguishable from probe of absent hash (constant shape)"
+
+[mesh_announce_size]
+id = "TV-MESH-001"
+theorem = "THM-INVENTORY-EFFICIENCY"
+setup = "13,000-block inventory"
+expect = "announce <= 32 KiB (vs ~2.5 MB raw today); registry stores zero hashes"
+
+[mesh_registry_down]
+id = "TV-MESH-002"
+theorem = "THM-MESH-DEGRADATION"
+setup = "registry unavailable; two LAN peers with mDNS"
+expect = "discovery + block transfer within 5 s of both ready"
+
+[mesh_cert_identity]
+id = "TV-MESH-003"
+theorem = "THM-MESH-AUTHENTICITY"
+setup = "connection with cert not on accept-list; announce with mismatched claimed ID"
+expect = "connection rejected; announce rejected (ID deduced from cert, never trusted from payload)"
+
+[mesh_block_verify]
+id = "TV-MESH-004"
+theorem = "THM-MESH-INTEGRITY"
+setup = "malicious peer serves wrong bytes for key k"
+expect = "BLAKE3 mismatch -> discard + audit; store unchanged"
+
+[mesh_holder_constant_shape]
+id = "TV-MESH-005"
+constraint = "DC-MESH-004"
+setup = "holder query for present vs absent hash, cross-tenant"
+expect = "identical response size and timing distribution"
+
+[mesh_mdns_flood]
+id = "TV-MESH-006"
+constraint = "DC-MESH-005"
+setup = "50 peers announcing simultaneously"
+expect = "known-answer/duplicate-question suppression active; record cap enforced"

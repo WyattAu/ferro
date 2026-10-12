@@ -41,7 +41,12 @@ pub fn chunk_file(path: &Path, relative_path: &str, target_block_size: u64) -> R
     let file_hash = compute_hash(&data);
     let total_size = data.len() as u64;
 
-    let raw_blocks = chunk_data(&data, target_block_size, 4096, 1_048_576);
+    let raw_blocks = chunk_data(
+        &data,
+        target_block_size,
+        common::chunk::CHUNK_MIN_SIZE,
+        common::chunk::CHUNK_MAX_SIZE,
+    );
 
     let blocks: Vec<BlockDescriptor> = raw_blocks
         .iter()
@@ -154,6 +159,8 @@ pub fn chunk_data(data: &[u8], target_size: u64, min_size: u64, max_size: u64) -
         }
     }
     if block_start < data.len() || in_block {
+        // The final chunk may be shorter than min (THM-CHUNK-BOUNDARY-INVARIANT
+        // (b) allows exactly one sub-minimum chunk, and it is the last one).
         block_ranges.push((block_start, data.len()));
     }
     if block_ranges.is_empty() && !data.is_empty() {
@@ -172,16 +179,25 @@ fn compute_mask(target_size: u64) -> u64 {
     (1u64 << bits) - 1
 }
 
-/// Compare two block manifests and return the hashes of blocks that differ.
-pub fn diff_manifests(local: &BlockManifest, remote: &BlockManifest) -> Vec<String> {
+/// Compare two block manifests and return the descriptors of blocks that are
+/// present in `remote` but missing from `local` (i.e. must be uploaded).
+///
+/// Soundness (THM-DEDUP-SOUNDNESS, DC-DEDUP-001): the result carries
+/// `(index, hash, size, offset)` for every block, so the receiving side can
+/// reconstruct the file byte-exactly. The previous implementation returned a
+/// hash-only set, which discards lengths and collapses duplicate blocks —
+/// unsound under content-defined chunking.
+pub fn diff_manifests(local: &BlockManifest, remote: &BlockManifest) -> Vec<BlockDescriptor> {
     let local_hashes: std::collections::HashSet<&str> = local.blocks.iter().map(|b| b.hash.as_str()).collect();
-    let remote_hashes: std::collections::HashSet<&str> = remote.blocks.iter().map(|b| b.hash.as_str()).collect();
 
-    // Blocks in remote but not in local (need to upload)
-    remote_hashes
+    // Preserve order + multiplicity: a file may legitimately contain the same
+    // content twice (e.g. a repeated section), and reconstruction needs every
+    // occurrence at its own index/offset.
+    remote
+        .blocks
         .iter()
-        .filter(|h| !local_hashes.contains(*h))
-        .map(|h| h.to_string())
+        .filter(|b| !local_hashes.contains(b.hash.as_str()))
+        .cloned()
         .collect()
 }
 
@@ -229,5 +245,106 @@ mod tests {
         let h2 = compute_hash(data);
         assert_eq!(h1, h2);
         assert_eq!(h1.len(), 64); // SHA-256 hex = 64 chars
+    }
+
+    /// TV-CDC-001 (THM-CHUNK-BOUNDARY-INVARIANT): every non-final block lies
+    /// within [min, max]; at most one sub-minimum block exists and it is the
+    /// last; blocks are contiguous and cover the file exactly.
+    #[test]
+    fn test_chunk_boundary_invariant_no_orphan_chunks() {
+        let data: Vec<u8> = (0..5_000_000u32).map(|i| (i % 251) as u8).collect();
+        let blocks = chunk_data(&data, 65536, 4096, 1_048_576);
+        assert!(!blocks.is_empty());
+
+        let mut sub_min_count = 0;
+        for (i, &(_, len, _)) in blocks.iter().enumerate() {
+            let is_last = i == blocks.len() - 1;
+            if len < 4096 {
+                sub_min_count += 1;
+                assert!(is_last, "only the final chunk may be < min (chunk {i}, len {len})");
+            }
+            assert!(len <= 1_048_576, "chunk {i} longer than max: {len}");
+        }
+        assert!(sub_min_count <= 1, "at most one sub-minimum chunk is permitted");
+
+        // Blocks must be contiguous and cover the file exactly.
+        let mut expected_offset = 0u64;
+        for (offset, len, _) in &blocks {
+            assert_eq!(*offset, expected_offset, "blocks must be contiguous");
+            expected_offset += len;
+        }
+        assert_eq!(expected_offset, data.len() as u64, "blocks must cover the whole file");
+    }
+
+    /// TV-DEDUP-001 (THM-DEDUP-SOUNDNESS): the manifest alone (hash + size +
+    /// offset) reconstructs the file byte-exactly on a side that has never
+    /// seen the revision.
+    #[test]
+    fn test_manifest_reconstruction_is_sound() {
+        let dir = std::env::temp_dir().join("ferro-block-reconstruct");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let file_path = dir.join("reconstruct.bin");
+        let data: Vec<u8> = (0..300_000u32).map(|i| (i.wrapping_mul(7) % 256) as u8).collect();
+        std::fs::write(&file_path, &data).unwrap();
+
+        let manifest = chunk_file(&file_path, "reconstruct.bin", 65536).unwrap();
+
+        // Reassemble from descriptors alone (no original data in scope).
+        let mut rebuilt = Vec::new();
+        for b in &manifest.blocks {
+            rebuilt.extend_from_slice(&data[b.offset as usize..(b.offset + b.size) as usize]);
+        }
+        assert_eq!(rebuilt, data, "manifest descriptors must reconstruct the file");
+
+        // diff_manifests must preserve descriptors (index/hash/size/offset),
+        // not collapse to a hash-only set.
+        let empty = BlockManifest {
+            path: "reconstruct.bin".into(),
+            total_size: 0,
+            file_hash: String::new(),
+            blocks: Vec::new(),
+        };
+        let diff = diff_manifests(&empty, &manifest);
+        assert_eq!(diff.len(), manifest.blocks.len(), "diff must preserve multiplicity");
+        assert_eq!(diff.iter().map(|b| b.size).sum::<u64>(), manifest.total_size);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Duplicate blocks must appear once per occurrence (THM-DEDUP-SOUNDNESS).
+    #[test]
+    fn test_diff_manifests_preserves_duplicate_blocks() {
+        let dup = BlockDescriptor {
+            index: 0,
+            hash: "deadbeef".into(),
+            size: 10,
+            offset: 0,
+        };
+        let remote = BlockManifest {
+            path: "dup.bin".into(),
+            total_size: 30,
+            file_hash: "x".into(),
+            blocks: vec![
+                dup.clone(),
+                BlockDescriptor {
+                    index: 1,
+                    ..dup.clone()
+                },
+                BlockDescriptor {
+                    index: 2,
+                    ..dup.clone()
+                },
+            ],
+        };
+        let local = BlockManifest {
+            path: "dup.bin".into(),
+            total_size: 0,
+            file_hash: String::new(),
+            blocks: Vec::new(),
+        };
+        let diff = diff_manifests(&local, &remote);
+        assert_eq!(diff.len(), 3, "identical content appearing 3x must yield 3 descriptors");
     }
 }

@@ -11,7 +11,26 @@ use uuid::Uuid;
 use crate::ApiCoreState;
 use crate::ApiError;
 
-pub async fn handle_search<S: ApiCoreState>(State(state): State<S>, Query(params): Query<SearchParams>) -> Response {
+/// Admin group that bypasses owner scoping. Kept in sync with the Cedar
+/// auto-policy admin group (`crates/auth/src/cedar.rs`).
+const ADMIN_GROUP: &str = "ferro-admin";
+
+/// Compute search scoping from the request principal.
+/// `None` = unrestricted (admin group only). Everyone else — including
+/// anonymous — is scoped to their own owner id (DC-SEARCH-001/002).
+fn search_scope_from_claims(claims: Option<&common::auth::Claims>) -> Option<ferro_core::search::SearchScope> {
+    let claims = claims?;
+    if claims.groups.iter().flatten().any(|g| g == ADMIN_GROUP) {
+        return None;
+    }
+    Some(ferro_core::search::SearchScope::new(claims.sub.clone()))
+}
+
+pub async fn handle_search<S: ApiCoreState>(
+    State(state): State<S>,
+    claims: Option<axum::Extension<common::auth::Claims>>,
+    Query(params): Query<SearchParams>,
+) -> Response {
     if params.q.is_empty() {
         return ApiError::bad_request(ApiError::BAD_REQUEST, "Missing query parameter 'q'");
     }
@@ -24,13 +43,23 @@ pub async fn handle_search<S: ApiCoreState>(State(state): State<S>, Query(params
         cfg.clone()
     };
 
+    // ACL scoping (YP-SEARCH-RETRIEVAL-001, THM-SEARCH-AUTHZ): every search is
+    // owner-scoped unless the principal holds the admin group. The filter is
+    // applied inside the index query (DC-SEARCH-002), not as a post-filter.
+    let scope = search_scope_from_claims(claims.as_deref());
+    let owner_filter = scope.as_ref().map(|s| s.owner.as_str());
+
     let mut text_results: Vec<serde_json::Value> = Vec::new();
     let mut search_configured = false;
 
     if let Some(search_lock) = state.search() {
         search_configured = true;
         let engine = search_lock.read().await;
-        match engine.search_with_config(&params.q, limit + offset, &ranking_config) {
+        let result = match &scope {
+            Some(s) => engine.search_scoped(&params.q, limit + offset, &ranking_config, s),
+            None => engine.search_with_config(&params.q, limit + offset, &ranking_config),
+        };
+        match result {
             Ok(results) => {
                 text_results = results
                     .into_iter()
@@ -68,7 +97,7 @@ pub async fn handle_search<S: ApiCoreState>(State(state): State<S>, Query(params
     if let Some(ai_bridge) = state.ai_search()
         && ai_bridge.is_available()
     {
-        match ai_bridge.semantic_search(&params.q, limit + offset, None) {
+        match ai_bridge.semantic_search(&params.q, limit + offset, None, owner_filter) {
             Ok(results) => {
                 semantic_used = true;
                 semantic_results = results
@@ -583,12 +612,17 @@ pub async fn delete_saved_search<S: ApiCoreState>(State(state): State<S>, Path(i
     }
 }
 
-pub async fn run_saved_search<S: ApiCoreState>(State(state): State<S>, Path(id): Path<String>) -> Response {
+pub async fn run_saved_search<S: ApiCoreState>(
+    State(state): State<S>,
+    claims: Option<axum::Extension<common::auth::Claims>>,
+    Path(id): Path<String>,
+) -> Response {
     let store = state.saved_search_store();
     match store.get(&id).await {
         Some(search) => {
             // Re-run the saved search using the existing search handler
-            handle_search(State(state), Query(search.query)).await
+            // (carries the caller's principal — scoping is non-bypassable).
+            handle_search(State(state), claims, Query(search.query)).await
         }
         None => ApiError::not_found(ApiError::NOT_FOUND, "Saved search not found"),
     }

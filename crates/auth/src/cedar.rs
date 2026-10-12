@@ -1,11 +1,67 @@
 use axum::response::IntoResponse;
-use cedar_policy::{Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request, RestrictedExpression};
+use cedar_policy::{
+    Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request, RestrictedExpression, Schema,
+    ValidationMode, Validator,
+};
 use common::auth::{AuthDecision, AuthRequest, Claims, is_public_auth_path};
 use common::error::{FerroError, Result};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
+
+// ---------------------------------------------------------------------------
+// Cedar schema (YP-AUTHZ-POLICY-001, DC-AUTHZ-001/002)
+//
+// Evaluation never consults the schema; it exists so every policy write can
+// be VALIDATED: without it, a typo'd attribute (`principal.isAcve`) parses
+// fine, then errors at evaluation and is silently dropped from every
+// decision — a silent permission loss with no log line. The schema mirrors
+// the shapes actually used by the middleware and auto-policies:
+//   principal = User::"<sub>", resource = File::"<path>",
+//   context   = {ip, method, resource, sub, path, groups}
+// ---------------------------------------------------------------------------
+
+pub const CEDAR_SCHEMA_JSON: &str = r#"{
+    "": {
+        "entityTypes": {
+            "User": { "shape": { "type": "Record", "attributes": {} } },
+            "File": { "shape": { "type": "Record", "attributes": {} } }
+        },
+        "actions": {
+            "read":     { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } },
+            "list":     { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } },
+            "write":    { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } },
+            "create":   { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } },
+            "update":   { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } },
+            "delete":   { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } },
+            "share":    { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } },
+            "manage":   { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } }
+        }
+    }
+}"#;
+
+/// Build the validator schema; fails only if the embedded JSON is malformed
+/// (a programming error caught by tests, never by user input).
+pub fn validator_schema() -> Result<Schema> {
+    let fragment = cedar_policy::SchemaFragment::from_json_str(CEDAR_SCHEMA_JSON)
+        .map_err(|e| FerroError::Internal(format!("Cedar schema error: {e:?}")))?;
+    Schema::from_schema_fragments([fragment]).map_err(|e| FerroError::Internal(format!("Cedar schema error: {e:?}")))
+}
+
+/// Validate a parsed policy set against the schema. Returns fatal
+/// diagnostics (empty = valid). Warnings (e.g. the deny-all policy's
+/// impossible `when { false }`) are logged, never fatal.
+pub fn validate_policy_set(ps: &PolicySet) -> Result<Vec<String>> {
+    let schema = validator_schema()?;
+    let validator = Validator::new(schema);
+    let result = validator.validate(ps, ValidationMode::Strict);
+    for w in result.validation_warnings() {
+        tracing::warn!("Cedar policy validation warning: {w}");
+    }
+    let diagnostics: Vec<String> = result.validation_errors().map(|err| err.to_string()).collect();
+    Ok(diagnostics)
+}
 
 /// Cedar policy configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,15 +114,36 @@ impl CedarAuthorizer {
     }
 
     /// Append a single policy to the current policy set.
+    ///
+    /// DC-AUTHZ-001: every policy write passes Cedar schema validation.
+    /// Unvalidated policies can silently no-op at evaluation time (Cedar
+    /// drops erroring policies from decisions without a log), so a typo'd
+    /// attribute would quietly revoke or grant nothing until manually
+    /// noticed. Validation rejects the write up front instead.
     pub async fn add_policy(&self, policy_text: &str) -> Result<()> {
         let ps: PolicySet = policy_text
             .parse()
             .map_err(|e| FerroError::Internal(format!("Policy parse error: {e:?}")))?;
 
+        let diagnostics = validate_policy_set(&ps)?;
+        if !diagnostics.is_empty() {
+            return Err(FerroError::Internal(format!(
+                "Policy failed schema validation: {}",
+                diagnostics.join("; ")
+            )));
+        }
+
         let mut guard = self.policy_set.write().await;
         for policy in ps.policies() {
+            // cedar-policy 4.x's `PolicySet::from_str` IGNORES `@id(...)`
+            // annotations and auto-assigns policy0, policy1, ... — which
+            // collides with the deny-all default (also `policy0`) and made
+            // every API add fail with AlreadyDefined. Assign a unique id per
+            // added policy instead.
+            let unique_id = format!("user-{}", uuid::Uuid::new_v4().simple());
+            let renamed = policy.new_id(cedar_policy::PolicyId::new(unique_id));
             guard
-                .add(policy.clone())
+                .add(renamed)
                 .map_err(|e| FerroError::Internal(format!("Add policy error: {e:?}")))?;
         }
 
@@ -456,7 +533,11 @@ mod tests {
             }],
         );
         assert!(policies.iter().any(|p| p.contains("context.sub == \"admin-sub\"")));
-        assert!(policies.iter().any(|p| p.contains("\"ferro-admin\" in context.groups")));
+        assert!(
+            policies
+                .iter()
+                .any(|p| p.contains("context.groups.contains(\"ferro-admin\")"))
+        );
         assert!(policies.iter().any(|p| p.contains("/_spaces/pep")));
     }
 
@@ -738,6 +819,81 @@ mod tests {
         let result = authorizer.load_policies(&[p1.to_string(), p2.to_string()]).await;
         assert!(result.is_ok());
     }
+    /// TV-AUTHZ-001 (THM-AUTHZ-VALIDATION-SOUNDNESS, DC-AUTHZ-001): a policy
+    /// referencing a nonexistent attribute must be REJECTED at write time —
+    /// never silently no-op at evaluation time.
+    #[tokio::test]
+    async fn test_add_policy_with_typo_rejected() {
+        let authorizer = CedarAuthorizer::new().unwrap();
+        // `context.subb` is a typo for `context.sub` — parses fine, would
+        // silently error-and-drop at evaluation without schema validation.
+        let result = authorizer
+            .add_policy("permit(principal, action, resource) when { context.subb == \"x\" };")
+            .await;
+        assert!(result.is_err(), "typo'd policy must be rejected at write time");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("validation"),
+            "rejection should come from schema validation, got: {msg}"
+        );
+    }
+
+    /// TV-AUTHZ-001 (positive): a well-formed policy writes cleanly.
+    #[tokio::test]
+    async fn test_add_policy_valid_accepted() {
+        let authorizer = CedarAuthorizer::new().unwrap();
+        let result = authorizer
+            .add_policy(
+                "@id(\"test_allow_alice\") permit(principal, action, resource) when { context.sub == \"alice\" };",
+            )
+            .await;
+        assert!(result.is_ok(), "valid policy rejected: {:?}", result.err());
+    }
+
+    /// TV-AUTHZ-002 (DC-AUTHZ-002): the auto-generated policy set MUST pass
+    /// schema validation — guards against schema/policy drift breaking
+    /// startup.
+    #[test]
+    fn test_generated_auto_policies_pass_schema_validation() {
+        let policies = generate_auto_policies(
+            "92823fc5-admin",
+            &[
+                SpaceMembership {
+                    space: "pep".to_string(),
+                    viewers: vec![],
+                    managers: vec!["92823fc5-admin".to_string()],
+                    editors: vec!["joshkad".to_string()],
+                },
+                SpaceMembership {
+                    space: "homebite".to_string(),
+                    viewers: vec![],
+                    managers: vec!["92823fc5-admin".to_string()],
+                    editors: vec!["jeff".to_string()],
+                },
+            ],
+        );
+        assert!(!policies.is_empty());
+
+        let joined = policies.join("\n");
+        let ps: PolicySet = joined.parse().expect("generated policies must parse");
+        let diagnostics = validate_policy_set(&ps).expect("validator must build");
+        assert!(
+            diagnostics.is_empty(),
+            "generated auto-policies failed schema validation: {diagnostics:?}"
+        );
+    }
+
+    /// The deny-all default policy also validates against the schema.
+    #[tokio::test]
+    async fn test_default_deny_policy_validates() {
+        let authorizer = CedarAuthorizer::new().unwrap();
+        let guard = authorizer.policy_set.read().await;
+        let diagnostics = validate_policy_set(&guard).expect("validator must build");
+        assert!(
+            diagnostics.is_empty(),
+            "default policy failed validation: {diagnostics:?}"
+        );
+    }
 }
 
 /// Generated-policy input: one editable space with its member subs.
@@ -776,7 +932,7 @@ pub fn generate_auto_policies(admin_sub: &str, spaces: &[SpaceMembership]) -> Ve
 
     // Keycloak group admins: members of the ferro-admin group (claim mapped
     // into the token by the ferro-groups mapper) get the same reach.
-    out.push("permit(principal, action, resource) when { \"ferro-admin\" in context.groups };".to_string());
+    out.push("permit(principal, action, resource) when { context.groups.contains(\"ferro-admin\") };".to_string());
 
     // Shared spaces: read for every authenticated user
     out.push(

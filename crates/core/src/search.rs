@@ -73,6 +73,21 @@ pub struct SearchResult {
     pub match_locations: MatchLocations,
 }
 
+/// Owner scoping for search (YP-SEARCH-RETRIEVAL-001).
+/// `None` at the call site means "unrestricted" (admins only);
+/// `Some(scope)` filters the index query itself by owner, never as a
+/// post-filter, so the ACL cannot be skipped by a code path (THM-SEARCH-AUTHZ).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchScope {
+    pub owner: String,
+}
+
+impl SearchScope {
+    pub fn new(owner: impl Into<String>) -> Self {
+        Self { owner: owner.into() }
+    }
+}
+
 pub struct SearchEngine {
     index: Index,
     writer: IndexWriter,
@@ -262,12 +277,49 @@ impl SearchEngine {
         limit: usize,
         config: &SearchRankingConfig,
     ) -> Result<Vec<SearchResult>> {
+        self.run_query(query_str, query_str, limit, config, false)
+    }
+
+    /// Owner-scoped search: the ACL filter is part of the index query itself
+    /// (a MUST clause on the `owner` field), so it cannot be skipped by a
+    /// caller that forgets to filter. See YP-SEARCH-RETRIEVAL-001,
+    /// THM-SEARCH-AUTHZ-SOUNDNESS.
+    pub fn search_scoped(
+        &self,
+        query_str: &str,
+        limit: usize,
+        config: &SearchRankingConfig,
+        scope: &SearchScope,
+    ) -> Result<Vec<SearchResult>> {
+        // Strip query-syntax characters from the owner value; principals are
+        // opaque ids (UUID subs, "anonymous"), so this only ever removes chars
+        // that could turn the clause into something other than a phrase query.
+        let owner_escaped: String = scope
+            .owner
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_' || *c == '@' || *c == '.')
+            .collect();
+        let scoped = format!("({}) AND owner:\"{}\"", query_str, owner_escaped);
+        self.run_query(&scoped, query_str, limit, config, true)
+    }
+
+    fn run_query(
+        &self,
+        parse_str: &str,
+        display_str: &str,
+        limit: usize,
+        config: &SearchRankingConfig,
+        include_owner_field: bool,
+    ) -> Result<Vec<SearchResult>> {
         let searcher = self.reader.searcher();
 
-        let query_parser =
-            QueryParser::for_index(&self.index, vec![self.content_field, self.name_field, self.path_field]);
+        let mut parser_fields = vec![self.content_field, self.name_field, self.path_field];
+        if include_owner_field {
+            parser_fields.push(self.owner_field);
+        }
+        let query_parser = QueryParser::for_index(&self.index, parser_fields);
         let query = query_parser
-            .parse_query(query_str)
+            .parse_query(parse_str)
             .map_err(|e| FerroError::Internal(format!("Query parse error: {e}")))?;
 
         let top_docs: Vec<(Score, DocAddress)> = searcher
@@ -277,7 +329,7 @@ impl SearchEngine {
         let now_epoch = chrono::Utc::now().timestamp();
         let recent_threshold_secs = (config.recent_file_threshold_days as i64) * 86400;
 
-        let query_lower = query_str.to_lowercase();
+        let query_lower = display_str.to_lowercase();
         let query_terms: Vec<&str> = query_lower.split_whitespace().collect();
 
         let mut results: Vec<SearchResult> = top_docs
@@ -375,7 +427,7 @@ impl SearchEngine {
 
         debug!(
             "Search '{}' returned {} results (config: name_boost={}, path_boost={}, content_boost={})",
-            query_str,
+            display_str,
             results.len(),
             config.file_name_boost,
             config.path_boost,
@@ -460,6 +512,61 @@ mod tests {
         let results = engine.search("report", 10).unwrap();
         assert_eq!(results.len(), 1);
         assert!(results[0].path.contains("report"));
+    }
+
+    /// TV-SEARCH-001 (YP-SEARCH-RETRIEVAL-001): user B querying a string unique
+    /// to user A's document must get zero results; user A gets their own doc.
+    #[test]
+    fn test_scoped_search_hides_other_users_documents() {
+        let (mut engine, _tmp) = make_search_engine();
+
+        let meta_a = FileMetadata::new(
+            "/private/alice-salary-review.pdf".to_string(),
+            ContentHash::new("a".repeat(64)).unwrap(),
+            100,
+            "92823fc5-alice-sub".to_string(),
+        );
+        let meta_b = FileMetadata::new(
+            "/private/bob-notes.txt".to_string(),
+            ContentHash::new("b".repeat(64)).unwrap(),
+            100,
+            "33374d21-bob-sub".to_string(),
+        );
+        engine.index_metadata(&meta_a).unwrap();
+        engine.index_metadata(&meta_b).unwrap();
+        engine.commit().unwrap();
+
+        let alice = SearchScope::new("92823fc5-alice-sub");
+        let bob = SearchScope::new("33374d21-bob-sub");
+
+        // Alice searches a term unique to her own document.
+        let results = engine
+            .search_scoped("alice-salary-review", 10, &SearchRankingConfig::default(), &alice)
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].path.contains("alice-salary-review"));
+
+        // Bob searches the same term: must NOT see Alice's document.
+        let results = engine
+            .search_scoped("alice-salary-review", 10, &SearchRankingConfig::default(), &bob)
+            .unwrap();
+        assert!(
+            results.is_empty(),
+            "scoped search leaked another user's document: {:?}",
+            results.iter().map(|r| r.path.clone()).collect::<Vec<_>>()
+        );
+
+        // Bob still finds his own files.
+        let results = engine
+            .search_scoped("bob-notes", 10, &SearchRankingConfig::default(), &bob)
+            .unwrap();
+        assert_eq!(results.len(), 1);
+
+        // Scoped query must not crash on query-syntax characters in the term.
+        let results = engine
+            .search_scoped("salary AND (review)", 10, &SearchRankingConfig::default(), &bob)
+            .unwrap();
+        assert!(results.is_empty());
     }
 
     #[test]

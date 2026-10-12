@@ -1,0 +1,155 @@
+# Domain Constraints: Platform (Search, Collaboration/WOPI, AuthZ)
+# Format: TOML
+# Derived from YP-SEARCH-RETRIEVAL-001, YP-COLLAB-WOPI-001, YP-AUTHZ-POLICY-001.
+
+[dc_search_principal]
+id = "DC-SEARCH-001"
+domain = "Search"
+component = "API Surface"
+description = "Every search path takes a Principal; the type system prevents un-principaled search"
+central_entry = "SearchService::search(principal, query)"
+principal_optional = false
+
+[dc_search_acl]
+id = "DC-SEARCH-002"
+domain = "Search"
+component = "ACL Filtering"
+description = "ACL filter is an index-scan MUST-clause, never a post-filter alone"
+acl_fields = ["owner_uid", "space_ids", "visibility"]
+filter_location = "inverted_index_scan"
+post_verify = "Cedar re-check of top-k before return"
+regression_test = "user B querying a string unique to user A's document returns zero results"
+
+[dc_search_model]
+id = "DC-SEARCH-003"
+domain = "Search"
+component = "Semantic Layer"
+description = "MockEmbeddingModel must not be reachable in release builds"
+mock_gate = "cfg(debug_assertions)"
+production_fallback = "BM25-only (fail closed)"
+encoder = "bge-small-en-v1.5 (384-dim) or all-MiniLM-L6-v2"
+hnsw_params = { M = 16, ef_construction = 200, ef_search = 64 }
+encoder_weights_vendored = true
+
+[dc_search_fusion]
+id = "DC-SEARCH-004"
+domain = "Search"
+component = "Fusion"
+description = "Fusion must be rank-based (RRF k=60) by default; raw score sums prohibited"
+default = "RRF"
+k = 60
+convex_flag = "tunable convex combination behind feature flag"
+pipeline = "BM25 top-100 || HNSW top-100 -> RRF -> Cedar re-verify -> top-20"
+degraded_fallback = "BM25-only on semantic-arm timeout"
+
+[dc_search_index_ops]
+id = "DC-SEARCH-005"
+domain = "Search"
+component = "Index Lifecycle"
+writer_heap = "256MB-1GB"
+migration = "blue/green directories with atomic symlink flip"
+tokenizer_content = "snowball english stemming (content only)"
+tokenizer_cjk = "jieba"
+stemming_prohibited_fields = ["path", "name", "path_id"]
+
+[dc_wopi_proof]
+id = "DC-WOPI-001"
+domain = "WOPI"
+component = "Request Proof"
+description = "No WOPI request is served without valid proof + freshness + scope"
+proof_headers = ["X-WOPI-Proof", "X-WOPI-TimeStamp"]
+hmac = "HMAC-SHA256(url || token || timestamp)"
+timestamp_tolerance_minutes = 20
+key_rotation = "current + old pair"
+scope_check = "before any file lookup"
+
+[dc_wopi_fallthrough]
+id = "DC-WOPI-002"
+domain = "WOPI"
+component = "Failure Semantics"
+description = "Proof failure must not fall through to token-only acceptance"
+fallthrough_allowed = false
+error_response = "401 + X-WOPI-ItemError"
+
+[dc_wopi_token]
+id = "DC-WOPI-003"
+domain = "WOPI"
+component = "Token Comparison"
+description = "Token comparison must be full-token including suffix"
+comparison = "full"
+regression = "GHSA-c3jm-gv5r-9wcp"
+
+[dc_collab_authz]
+id = "DC-COLLAB-001"
+domain = "Collaboration"
+component = "Session Authorization"
+description = "Sessions carry a Cedar decision re-evaluated on revocation and token expiry"
+evaluate_on = ["document_open", "membership_change", "token_expiry"]
+revoked_session_updates = "rejected"
+
+[dc_collab_sync]
+id = "DC-COLLAB-002"
+domain = "Collaboration"
+component = "Update Sync"
+description = "Full-document serialization to clients must not occur on sync"
+sync = "state-vector delta only"
+compaction = "merge log at 2k entries or 24h"
+full_history_bytes_measured = "146406415 JSON vs 6132895 binary vs 104852 text (Kleppmann 2020)"
+
+[dc_collab_awareness]
+id = "DC-COLLAB-003"
+domain = "Collaboration"
+component = "Awareness Channel"
+description = "Awareness is untrusted input"
+frame_cap_bytes = 4096
+rate_limit_per_session = 10
+render = "escape; never innerHTML"
+authorization_source = "never from awareness"
+
+[dc_authz_validation]
+id = "DC-AUTHZ-001"
+domain = "AuthZ"
+component = "Policy Writes"
+description = "Every policy write passes Cedar schema validation; errors reject the write"
+validator = "cedar-policy 4.x validate API"
+reject_on_error = true
+
+[dc_authz_startup]
+id = "DC-AUTHZ-002"
+domain = "AuthZ"
+component = "Startup"
+description = "Startup fails on invalid generated policies; never continue silently"
+fail_startup_on_invalid = true
+revalidate_on_schema_change = true
+
+[dc_authz_no_path]
+id = "DC-AUTHZ-003"
+domain = "AuthZ"
+component = "Authorization Keys"
+description = "No authorization decision consults raw path strings"
+prohibited = ["context.path like", "starts_with prefix checks"]
+replacement = "entity relations (space_ids membership)"
+
+[dc_authz_home]
+id = "DC-AUTHZ-004"
+domain = "AuthZ"
+component = "Home Rule"
+description = "The own-home bypass lives in Cedar, not Rust"
+rust_bypass = "delete after Cedar policy covers it"
+ci_test = "bypass-set == policy-set differential"
+
+[dc_authz_groups]
+id = "DC-AUTHZ-005"
+domain = "AuthZ"
+component = "Claims Typing"
+description = "context.groups is schema-typed and source-validated"
+type = "Set<String>"
+magic_strings = { ferro-admin = "moved to config; asserted at startup" }
+
+[dc_authz_versioning]
+id = "DC-AUTHZ-006"
+domain = "AuthZ"
+component = "Policy Set"
+description = "Policy set is versioned monotonically; decisions tagged with version"
+version_field = true
+purpose = "multi-instance coherence readiness (SpiceDB-style modes vocabulary)"

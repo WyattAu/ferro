@@ -247,9 +247,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
             .await
             .map_err(|e| FerroError::NotFound(format!("{path}: {e}")))?;
         let stream = result.into_stream().map_err(std::io::Error::other);
-        Ok(StorageReader::new(Box::pin(tokio_util::io::StreamReader::new(
-            stream,
-        ))))
+        Ok(StorageReader::new(Box::pin(tokio_util::io::StreamReader::new(stream))))
     }
 
     async fn delete(&self, path: &str) -> Result<()> {

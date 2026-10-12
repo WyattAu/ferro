@@ -7,7 +7,6 @@ use std::io::Cursor;
 use std::pin::Pin;
 use tokio::io::{AsyncRead, AsyncReadExt, ReadBuf};
 
-
 #[doc = "An async reader wrapping Bytes for streaming file content."]
 pub struct StorageReader {
     inner: Pin<Box<dyn AsyncRead + Send>>,

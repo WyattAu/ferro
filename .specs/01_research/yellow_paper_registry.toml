@@ -2,8 +2,8 @@
 # Tracks all Yellow Papers and their relationships
 
 [metadata]
-last_updated = "2026-04-18T00:00:00Z"
-total_papers = 3
+last_updated = "2026-10-09T00:00:00Z"
+total_papers = 15
 
 [[yellow_paper]]
 id = "YP-WEBDAV-PROTOCOL-001"
@@ -19,8 +19,8 @@ tqa_level = 3
 domain = "WebDAV Protocol"
 algorithms = ["ALG-PROPFIND-001", "ALG-LOCK-001", "ALG-COPY-001"]
 theorems = ["THM-PROPFIND-COMPLETENESS", "THM-LOCK-SAFETY", "THM-COPY-ATOMICITY"]
-test_vector_file = "test_vectors_webdav.toml"
-constraints_file = "domain_constraints_webdav.toml"
+test_vector_file = "test_vectors/test_vectors_webdav.toml"
+constraints_file = "domain_constraints/domain_constraints_webdav.toml"
 
 [yellow_paper.dependencies]
 axioms_from = ["RFC-4918", "RFC-3253", "RFC-3744"]
@@ -43,8 +43,8 @@ tqa_level = 4
 domain = "Storage Systems"
 algorithms = ["ALG-CAS-PUT-001", "ALG-CAS-GET-001", "ALG-PRESIGN-001"]
 theorems = ["THM-SHA256-COLLISION", "THM-DEDUP-CORRECTNESS", "THM-PRESIGN-SECURITY"]
-test_vector_file = "test_vectors_cas.toml"
-constraints_file = "domain_constraints_storage.toml"
+test_vector_file = "test_vectors/test_vectors_cas.toml"
+constraints_file = "domain_constraints/domain_constraints_storage.toml"
 
 [yellow_paper.dependencies]
 axioms_from = ["SHA-256-SPEC", "OBJECT-STORE-API"]
@@ -67,8 +67,8 @@ tqa_level = 4
 domain = "Identity & Access Management"
 algorithms = ["ALG-OIDC-VALIDATE-001", "ALG-CEDAR-EVAL-001"]
 theorems = ["THM-OIDC-TOKEN-SECURITY", "THM-CEDAR-EVALUATION-CORRECTNESS"]
-test_vector_file = "test_vectors_auth.toml"
-constraints_file = "domain_constraints_auth.toml"
+test_vector_file = "test_vectors/test_vectors_auth.toml"
+constraints_file = "domain_constraints/domain_constraints_auth.toml"
 
 [yellow_paper.dependencies]
 axioms_from = ["OIDC-CORE-1.0", "CEDAR-SPEC"]
@@ -76,3 +76,291 @@ lemmas_from = []
 
 [yellow_paper.consumers]
 blue_papers = ["BP-AUTH-MIDDLEWARE-001", "BP-CEDAR-ENGINE-001"]
+
+[[yellow_paper]]
+id = "YP-SYNC-CONFLICT-001"
+title = "File Sync, Version Vectors & Conflict Resolution"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-10-09T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.94
+tqa_level = 4
+
+[yellow_paper.scope]
+domain = "Sync & Replication"
+algorithms = ["ALG-OPLOG-001", "ALG-LAMPORT-001", "ALG-LOCK-ADV-001"]
+theorems = ["THM-CONFLICT-CONVERGENCE", "THM-NO-SILENT-LOSS", "THM-MOVE-IDENTITY", "THM-CONFLICT-DETERMINISM", "THM-CAUSAL-STABILITY-GC"]
+test_vector_file = "test_vectors/test_vectors_sync_stack.toml"
+constraints_file = "domain_constraints/domain_constraints_sync_stack.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["TPDS-2021-MOVE-OP", "LAMPORT-1978"]
+lemmas_from = ["YP-DEDUP-CDC-001"]
+
+[yellow_paper.consumers]
+blue_papers = ["BP-SYNC-ENGINE-001"]
+
+[[yellow_paper]]
+id = "YP-DEDUP-CDC-001"
+title = "Content-Defined Chunking, Hash Agility & Deduplication Scope"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-10-09T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.96
+tqa_level = 4
+
+[yellow_paper.scope]
+domain = "Storage Systems / Deduplication"
+algorithms = ["ALG-FastCDC-001", "ALG-MANIFEST-001", "ALG-HASHID-001", "ALG-DEDUPSCOPE-001"]
+theorems = ["THM-DEDUP-SOUNDNESS", "THM-CHUNK-BOUNDARY-INVARIANT", "THM-CAS-INTEGRITY", "THM-DEDUP-NONINTERFERENCE", "THM-CHUNKING-DETERMINISM"]
+test_vector_file = "test_vectors/test_vectors_sync_stack.toml"
+constraints_file = "domain_constraints/domain_constraints_sync_stack.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["ATC16-FASTCDC", "BLAKE3-SPEC", "ePrint-2016-977"]
+lemmas_from = ["YP-STORAGE-CAS-001"]
+
+[yellow_paper.consumers]
+blue_papers = ["BP-STORAGE-ENGINE-001", "BP-CAS-DEDUP-001", "BP-SYNC-ENGINE-001"]
+
+[[yellow_paper]]
+id = "YP-MESH-TRANSPORT-001"
+title = "Mesh Sync — Transport, Discovery & Peer Security"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-10-09T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.92
+tqa_level = 3
+
+[yellow_paper.scope]
+domain = "Distributed Systems / P2P"
+algorithms = ["ALG-ANNOUNCE-001", "ALG-DISCOVER-001", "ALG-TRANSPORT-001", "ALG-NAT-001"]
+theorems = ["THM-MESH-AUTHENTICITY", "THM-MESH-INTEGRITY", "THM-MESH-NO-EXISTENCE-ORACLE", "THM-INVENTORY-EFFICIENCY", "THM-MESH-DEGRADATION"]
+test_vector_file = "test_vectors/test_vectors_sync_stack.toml"
+constraints_file = "domain_constraints/domain_constraints_sync_stack.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["RFC-9000", "RFC-6762", "RFC-8445", "RFC-5389"]
+lemmas_from = ["YP-DEDUP-CDC-001"]
+
+[yellow_paper.consumers]
+blue_papers = ["BP-MESH-TRANSPORT-001"]
+
+[[yellow_paper]]
+id = "YP-SEARCH-RETRIEVAL-001"
+title = "Hybrid Search, ACL-Safe Retrieval & Fusion Theory"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-10-09T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.93
+tqa_level = 3
+
+[yellow_paper.scope]
+domain = "Information Retrieval"
+algorithms = ["ALG-ACLQUERY-001", "ALG-RRF-001", "ALG-INDEXOPS-001"]
+theorems = ["THM-SEARCH-AUTHZ", "THM-SEARCH-AUTHZ-SOUNDNESS", "THM-SEARCH-FUSION-RANK-INVARIANT", "THM-SEARCH-TOPK-BOUND", "THM-SEARCH-TOTAL-ORDER"]
+test_vector_file = "test_vectors/test_vectors_platform.toml"
+constraints_file = "domain_constraints/domain_constraints_platform.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["SIGIR2009-RRF", "BM25-FNTIR"]
+lemmas_from = ["YP-AUTHZ-POLICY-001"]
+
+[yellow_paper.consumers]
+blue_papers = ["BP-SEARCH-SERVICE-001"]
+
+[[yellow_paper]]
+id = "YP-COLLAB-WOPI-001"
+title = "Office Collaboration, WOPI Proof Security & Session Authorization"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-10-09T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.9
+tqa_level = 4
+
+[yellow_paper.scope]
+domain = "Collaboration / Document Editing Security"
+algorithms = ["ALG-WOPIPROOF-001", "ALG-SESSIONAUTHZ-001", "ALG-DELTASYNC-001"]
+theorems = ["THM-WOPI-PROOF-SAFETY", "THM-WOPI-NO-FALLTHROUGH", "THM-WOPI-SCOPE", "THM-COLLAB-CONVERGENCE", "THM-COLLAB-AUTHZ", "THM-COLLAB-SYNC-SOUND"]
+test_vector_file = "test_vectors/test_vectors_platform.toml"
+constraints_file = "domain_constraints/domain_constraints_platform.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["MS-WOPI", "RFC-6962"]
+lemmas_from = ["YP-AUTHZ-POLICY-001"]
+
+[yellow_paper.consumers]
+blue_papers = ["BP-WOPI-HOST-001"]
+
+[[yellow_paper]]
+id = "YP-AUTHZ-POLICY-001"
+title = "Cedar Schema Validation, Entity Modeling & Meta-Permissions"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-10-09T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.95
+tqa_level = 4
+
+[yellow_paper.scope]
+domain = "Identity & Access Management"
+algorithms = ["ALG-SCHEMAVAL-001", "ALG-ENTITIES-001", "ALG-METAPERM-001"]
+theorems = ["THM-AUTHZ-DENY-BY-DEFAULT", "THM-AUTHZ-VALIDATION-SOUNDNESS", "THM-AUTHZ-SINGLE-LANGUAGE", "THM-AUTHZ-PATH-NO-WILDCARD", "THM-AUTHZ-HOME-RULE", "THM-AUTHZ-NO-ESCALATION"]
+test_vector_file = "test_vectors/test_vectors_platform.toml"
+constraints_file = "domain_constraints/domain_constraints_platform.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["CEDAR-SPEC-4.5", "OOPSLA2024-CEDAR", "ATC2019-ZANZIBAR"]
+lemmas_from = ["YP-AUTH-OIDC-CEDAR-001"]
+
+[yellow_paper.consumers]
+blue_papers = ["BP-AUTH-MIDDLEWARE-001", "BP-CEDAR-ENGINE-001"]
+
+[[yellow_paper]]
+id = "YP-EVENT-DURABILITY-001"
+title = "Transactional Outbox, Idempotent Effects & Durable Jobs"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-10-09T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.94
+tqa_level = 4
+
+[yellow_paper.scope]
+domain = "Distributed Systems / Reliability"
+algorithms = ["ALG-OUTBOX-001", "ALG-RELAY-001", "ALG-IDEMPOTENCY-001"]
+theorems = ["THM-DUALWRITE-IMPOSSIBLE", "THM-OUTBOX-ATOMICITY", "THM-EXACTLY-ONCE-EFFECT", "THM-DEDUP-BOUND", "THM-REPLAY-NO-DUPLICATION"]
+test_vector_file = "test_vectors/test_vectors_durability.toml"
+constraints_file = "domain_constraints/domain_constraints_durability.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["arXiv-2608.00501", "microservices-outbox"]
+lemmas_from = ["YP-LIFECYCLE-COMPLIANCE-001"]
+
+[yellow_paper.consumers]
+blue_papers = ["BP-EVENT-BUS-001"]
+
+[[yellow_paper]]
+id = "YP-CONSISTENCY-CACHE-001"
+title = "Cache Coherence, Read-Your-Writes & Eviction Theory"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-10-09T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.93
+tqa_level = 3
+
+[yellow_paper.scope]
+domain = "Distributed Systems / Caching"
+algorithms = ["ALG-EPOCH-001", "ALG-SIEVE-001", "ALG-SINGLEFLIGHT-001"]
+theorems = ["THM-RYW-VISIBILITY", "THM-AUTHZ-COHERENCE", "THM-SWR-BOUNDED-STALENESS", "THM-STAMPEDE-BOUND", "THM-CAUSAL-AVAILABILITY"]
+test_vector_file = "test_vectors/test_vectors_durability.toml"
+constraints_file = "domain_constraints/domain_constraints_durability.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["RFC-5861", "RFC-9111", "NSDI24-SIEVE", "TR-11-22"]
+lemmas_from = ["YP-AUTHZ-POLICY-001"]
+
+[yellow_paper.consumers]
+blue_papers = ["BP-CACHE-LAYER-001", "BP-SEARCH-SERVICE-001"]
+
+[[yellow_paper]]
+id = "YP-TENANCY-ISOLATION-001"
+title = "Multi-Tenant Path Isolation, Quotas & Workload Isolation"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-10-09T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.92
+tqa_level = 4
+
+[yellow_paper.scope]
+domain = "Multi-Tenancy / Isolation"
+algorithms = ["ALG-RESOLVE-001", "ALG-QUOTA-001", "ALG-BATCHPOOL-001"]
+theorems = ["THM-PREFIX-CONTAINMENT", "THM-QUOTA-OVERSHOOT-BOUND", "THM-NOISY-NEIGHBOR-BOUND", "THM-PLUGIN-CONTAINMENT", "THM-TENANT-POLICY-SOUNDNESS"]
+test_vector_file = "test_vectors/test_vectors_durability.toml"
+constraints_file = "domain_constraints/domain_constraints_durability.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["ATC18-PERFISO", "PLDI2017-WASM"]
+lemmas_from = ["YP-AUTHZ-POLICY-001", "YP-EVENT-DURABILITY-001"]
+
+[yellow_paper.consumers]
+blue_papers = ["BP-TENANT-ISOLATION-001"]
+
+[[yellow_paper]]
+id = "YP-CRYPTO-PQ-001"
+title = "Post-Quantum Readiness, Honest FIPS Posture & Crypto Agility"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-10-09T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.93
+tqa_level = 4
+
+[yellow_paper.scope]
+domain = "Cryptography / Compliance"
+algorithms = ["ALG-TLS-001", "ALG-HEADER-001", "ALG-AUDITSIG-001"]
+theorems = ["THM-PQ-HYBRID-SEC", "THM-FIPS-APPROVED-ONLY", "THM-CRYPTO-AGILITY-COST", "THM-HNDL-BOUND"]
+test_vector_file = "test_vectors/test_vectors_infra.toml"
+constraints_file = "domain_constraints/domain_constraints_infra.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["FIPS-203", "FIPS-204", "FIPS-205", "NIST-IR-8547", "RFC-9881"]
+lemmas_from = ["YP-LIFECYCLE-COMPLIANCE-001"]
+
+[yellow_paper.consumers]
+blue_papers = ["BP-CRYPTO-PROVIDER-001", "BP-FIPS-MODE-001"]
+
+[[yellow_paper]]
+id = "YP-MEDIA-DERIV-001"
+title = "Media Derivatives, Thumbnails & On-Demand Streaming"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-10-09T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.91
+tqa_level = 3
+
+[yellow_paper.scope]
+domain = "Media Pipeline / Streaming"
+algorithms = ["ALG-INGEST-001", "ALG-THUMB-001", "ALG-VOD-001"]
+theorems = ["THM-DERIV-DETERMINISM", "THM-ORIGINAL-IMMUTABILITY", "THM-LADDER-PARETO", "THM-CACHE-COMPLETENESS", "THM-THUMB-PRIVACY"]
+test_vector_file = "test_vectors/test_vectors_infra.toml"
+constraints_file = "domain_constraints/domain_constraints_infra.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["RFC-8216", "ISO-23000-19"]
+lemmas_from = ["YP-DEDUP-CDC-001", "YP-TENANCY-ISOLATION-001"]
+
+[yellow_paper.consumers]
+blue_papers = ["BP-MEDIA-PIPELINE-001"]
+
+[[yellow_paper]]
+id = "YP-LIFECYCLE-COMPLIANCE-001"
+title = "WORM, Legal Hold, Crypto-Shredding & Tamper-Evident Audit"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-10-09T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.94
+tqa_level = 4
+
+[yellow_paper.scope]
+domain = "Compliance / Data Lifecycle"
+algorithms = ["ALG-WORMHOLD-001", "ALG-EPOCHLOG-001", "ALG-ERASE-001"]
+theorems = ["THM-AUDIT-TAMPER-EVIDENT", "THM-AUDIT-FORWARD-INTEGRITY", "THM-CRYPTO-SHRED", "THM-ERASURE-COMPLETENESS", "THM-WORM-HOLD-PRECEDENCE", "THM-GDPR-AUDIT-COMPATIBILITY"]
+test_vector_file = "test_vectors/test_vectors_infra.toml"
+constraints_file = "domain_constraints/domain_constraints_infra.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["RFC-9162", "TISSEC1999-SCHNEIER-KELSEY", "GDPR-2016-679", "SP-800-88R2"]
+lemmas_from = ["YP-CRYPTO-PQ-001", "YP-EVENT-DURABILITY-001"]
+
+[yellow_paper.consumers]
+blue_papers = ["BP-COMPLIANCE-ENGINE-001", "BP-AUDIT-LOG-001"]

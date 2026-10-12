@@ -36,6 +36,7 @@ use crate::groups_api;
 use crate::guests;
 use crate::link_analytics_api;
 use crate::mail_api;
+use crate::mesh_peers;
 use crate::metrics;
 use crate::move_copy;
 use crate::notes_api;
@@ -62,7 +63,6 @@ use crate::shares;
 use crate::shares_ext;
 use crate::simple_auth;
 use crate::snapshots;
-use crate::mesh_peers;
 use crate::space_members_api;
 use crate::storage_health;
 use crate::streaming;
@@ -1145,7 +1145,9 @@ pub fn build_router_with_static(
     // Always register WebDAV catch-all at /
     // Static file serving (when --static-dir is set) handles common extensions,
     // but WebDAV methods (PROPFIND, MKCOL, etc.) go to the WebDAV handler
-    router_builder = router_builder.route("/", any(webdav::handle_any::<AppState>));
+    router_builder = router_builder.route("/", axum::routing::any(root_handler));
+    // Browser GET / → redirect to the web UI
+
     let router = router_builder
         .route("/.well-known/ferro", axum::routing::get(health_check))
         // RFC 6764 service discovery for CalDAV/CardDAV clients
@@ -1223,13 +1225,9 @@ pub fn build_router_with_static(
         )
         .route(
             "/api/mesh/peers",
-            axum::routing::post(mesh_peers::register_peer)
-                .get(mesh_peers::list_peers),
+            axum::routing::post(mesh_peers::register_peer).get(mesh_peers::list_peers),
         )
-        .route(
-            "/api/mesh/peers/blocks",
-            axum::routing::get(mesh_peers::query_block),
-        )
+        .route("/api/mesh/peers/blocks", axum::routing::get(mesh_peers::query_block))
         .route(
             "/fed/actor/:username",
             axum::routing::get(federation::get_actor::<AppState>),
@@ -1730,6 +1728,25 @@ fn rate_limit_identity(
         Ok(client) => client.ip.to_string(),
         Err(ferro_rate_limiter::MissingClientIdentity) => "unknown".to_string(),
     }
+}
+
+/// Root handler: browsers GET / → redirect to /ui/files/.
+/// WebDAV methods (PROPFIND etc.) pass through to the DAV handler.
+async fn root_handler(
+    method: axum::http::Method,
+    uri: axum::http::Uri,
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+    body: axum::body::Body,
+) -> axum::response::Response {
+    use axum::response::IntoResponse;
+    if method == axum::http::Method::GET {
+        let accept = headers.get("accept").and_then(|v| v.to_str().ok()).unwrap_or("");
+        if accept.contains("text/html") {
+            return axum::response::Redirect::temporary("/ui/files/").into_response();
+        }
+    }
+    webdav::handle_any::<AppState>(method, uri, State(state), None, headers, body).await
 }
 
 #[cfg(test)]

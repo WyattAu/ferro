@@ -1,0 +1,116 @@
+# Test Vectors: Infrastructure (Crypto/PQ, Media, Compliance)
+# Companion to YP-CRYPTO-PQ-001, YP-MEDIA-DERIV-001, YP-LIFECYCLE-COMPLIANCE-001.
+
+[crypto_strict_gate]
+id = "TV-CRYPTO-001"
+theorem = "THM-FIPS-APPROVED-ONLY"
+setup = "FipsMode::Strict; call HKDF-XOR-pad wrap (legacy op)"
+expect = "aborted before processing sensitive data; is_valid() unaffected otherwise"
+
+[crypto_kat_vectors]
+id = "TV-CRYPTO-002"
+constraint = "DC-CRYPTO-001"
+setup = "power-on self-tests"
+expect = "SHA-256('abc') = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad; HMAC-SHA256 key='Jefe' data='what do ya want for nothing?' = 5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843"
+
+[crypto_kw_roundtrip]
+id = "TV-CRYPTO-003"
+constraint = "DC-CRYPTO-003"
+setup = "AES-KW-256 wrap/unwrap of 256-bit DK (RFC 3394 vectors)"
+expect = "round-trip equality; legacy XOR-pad wrap rejected in Strict"
+
+[crypto_gcm_large_chunk]
+id = "TV-CRYPTO-004"
+constraint = "DC-CRYPTO-002"
+setup = "encrypt 1 MiB chunk (past the 8160-byte HKDF ceiling)"
+expect = "GCM round-trip byte-exact; header carries alg_id; tamper -> auth failure"
+
+[crypto_unknown_alg]
+id = "TV-CRYPTO-005"
+constraint = "DC-CRYPTO-002"
+setup = "ciphertext with unknown alg_id"
+expect = "rejected with clear error (forward-compat guard)"
+
+[crypto_hybrid_sig]
+id = "TV-CRYPTO-006"
+constraint = "DC-CRYPTO-006"
+setup = "audit head signed Ed25519+ML-DSA-65; remove either signature"
+expect = "verification requires BOTH; missing leg rejected"
+
+[crypto_tls_negotiation]
+id = "TV-CRYPTO-007"
+constraint = "DC-CRYPTO-004"
+setup = "clients supporting X25519MLKEM768 / X25519-only / TLS 1.2"
+expect = "PQ hybrid chosen when offered; X25519 fallback; TLS 1.2 refused"
+
+[media_orientation_roundtrip]
+id = "TV-MEDIA-001"
+constraint = "DC-MEDIA-003"
+setup = "images with EXIF orientation 1..8"
+expect = "thumbnails upright exactly once; no double rotation; Orientation preserved in metadata"
+
+[media_gps_absent]
+id = "TV-MEDIA-002"
+theorem = "THM-THUMB-PRIVACY"
+setup = "byte-scan of all derivative outputs for GPS IFD markers"
+expect = "no GPS data in any derivative; originals untouched"
+
+[media_derive_determinism]
+id = "TV-MEDIA-003"
+theorem = "THM-DERIV-DETERMINISM"
+setup = "same input, same preset, same encoder version, 3 runs"
+expect = "identical derivative bytes; identical cache key"
+
+[media_original_immutable]
+id = "TV-MEDIA-004"
+theorem = "THM-ORIGINAL-IMMUTABILITY"
+setup = "thumbnail + transcode jobs over master set"
+expect = "CAS hashes of originals unchanged (byte-level assertion)"
+
+[media_hls_serve]
+id = "TV-MEDIA-005"
+constraint = "DC-MEDIA-005"
+setup = "first play of 4 GB home video"
+expect = "HLS playlist + 4 s segments; seek works; second play served from cache (no re-encode)"
+
+[comp_worm_refuse]
+id = "TV-COMP-001"
+theorem = "THM-WORM-HOLD-PRECEDENCE"
+setup = "delete on WORM-compliance object; then governance bypass"
+expect = "delete refused + audited; governance bypass succeeds with mandatory audit entry incl. reason"
+
+[comp_hold_beats_all]
+id = "TV-COMP-002"
+constraint = "DC-COMP-002"
+setup = "legal hold + expired retention + user delete request"
+expect = "deletion blocked by hold; decision + basis audited"
+
+[comp_merkle_proof]
+id = "TV-COMP-003"
+theorem = "THM-AUDIT-TAMPER-EVIDENT"
+setup = "valid inclusion proof vs tampered entry (edit/delete/insert) in closed epoch"
+expect = "valid proof verifies; every tamper detected; forged head fails dual-signature verify"
+
+[comp_forward_integrity]
+id = "TV-COMP-004"
+theorem = "THM-AUDIT-FORWARD-INTEGRITY"
+setup = "adversary holds current epoch key SK_t; attempts to forge epoch t-1 entry"
+expect = "forgery impossible (SK_{t-1} not derivable from SK_t); epochs >= t forgeable (documented)"
+
+[comp_pii_purge]
+id = "TV-COMP-005"
+theorem = "THM-GDPR-AUDIT-COMPATIBILITY"
+setup = "audit entries aged past T_PII=30d"
+expect = "ip/user_agent purged; pseudonymous actor_id and content_hash retained"
+
+[comp_crypto_shred]
+id = "TV-COMP-006"
+theorem = "THM-CRYPTO-SHRED"
+setup = "Art.17 erasure; then offline read of CAS chunks/versions/derivatives with destroyed KEK"
+expect = "all copies ciphertext-only; plaintext recovery fails; ErasureCompleted certificate in audit log"
+
+[comp_storage_class_registry]
+id = "TV-COMP-007"
+theorem = "THM-ERASURE-COMPLETENESS"
+setup = "new storage class registered without encryption adapter"
+expect = "CI failure (invariant: every class registers an adapter)"

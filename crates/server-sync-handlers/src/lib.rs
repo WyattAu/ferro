@@ -128,7 +128,6 @@ pub fn chunk_data(data: &[u8], target_size: u64, min_size: u64, max_size: u64) -
         })
         .collect();
 
-
     blocks
 }
 

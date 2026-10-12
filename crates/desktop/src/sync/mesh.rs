@@ -34,15 +34,19 @@ pub struct MeshConfig {
 }
 
 /// Register this peer with the server's mesh index.
-pub async fn register(config: &MeshConfig, block_hashes: &[String]) -> Result<()> {
-    let http = reqwest::Client::builder()
-        .timeout(Duration::from_secs(15))
-        .build()?;
+///
+/// SECURITY (YP-MESH-TRANSPORT-001, THM-MESH-NO-EXISTENCE-ORACLE): the raw
+/// block-hash inventory is NEVER sent — the old behaviour handed the registry
+/// a complete map of this device's contents every cycle. Peers may send a
+/// compact Bloom-filter summary (`inventory_bloom_b64`) instead; the registry
+/// treats it as opaque and never answers per-hash queries.
+pub async fn register(config: &MeshConfig, inventory_bloom_b64: Option<&str>) -> Result<()> {
+    let http = reqwest::Client::builder().timeout(Duration::from_secs(15)).build()?;
     let body = serde_json::json!({
         "device_name": config.device_name,
         "addresses": config.local_addresses,
         "port": config.listen_port,
-        "block_hashes": block_hashes,
+        "inventory_bloom": inventory_bloom_b64,
     });
     let resp = http
         .post(format!("{}/api/mesh/peers", config.server_url.trim_end_matches('/')))
@@ -59,13 +63,14 @@ pub async fn register(config: &MeshConfig, block_hashes: &[String]) -> Result<()
 }
 
 /// Query which registered peers hold a given block hash.
-pub async fn query_block_holders(
-    config: &MeshConfig,
-    hash: &str,
-) -> Result<Vec<PeerInfo>> {
-    let http = reqwest::Client::builder()
-        .timeout(Duration::from_secs(10))
-        .build()?;
+///
+/// RETIRED (YP-MESH-TRANSPORT-001, DC-MESH-004): the registry no longer
+/// tracks per-hash holdings, so this always returns an empty list. Kept for
+/// protocol compatibility — callers must fall back to server-mediated fetch
+/// (relay-first mesh design). Peer-to-peer reconciliation will use Bloom
+/// filters between peers directly, not a registry lookup.
+pub async fn query_block_holders(config: &MeshConfig, hash: &str) -> Result<Vec<PeerInfo>> {
+    let http = reqwest::Client::builder().timeout(Duration::from_secs(10)).build()?;
     let resp = http
         .get(format!(
             "{}/api/mesh/peers/blocks",
@@ -80,19 +85,12 @@ pub async fn query_block_holders(
         anyhow::bail!("mesh block query: {}", resp.status());
     }
     let v: serde_json::Value = resp.json().await?;
-    let holders = v
-        .get("holders")
-        .cloned()
-        .unwrap_or(serde_json::Value::Array(vec![]));
+    let holders = v.get("holders").cloned().unwrap_or(serde_json::Value::Array(vec![]));
     serde_json::from_value(holders).context("failed to parse holders")
 }
 
 /// Fetch a block from a LAN peer directly (GET /blocks/{hash}).
-pub async fn fetch_block_from_peer(
-    peer_address: &str,
-    port: u16,
-    hash: &str,
-) -> Result<Vec<u8>> {
+pub async fn fetch_block_from_peer(peer_address: &str, port: u16, hash: &str) -> Result<Vec<u8>> {
     let url = format!("http://{peer_address}:{port}/blocks/{hash}");
     let resp = reqwest::get(&url)
         .await
@@ -105,10 +103,7 @@ pub async fn fetch_block_from_peer(
 /// Local LAN address discovery — enumerates non-loopback IPv4 addresses.
 pub fn discover_local_addresses() -> Vec<String> {
     let mut out = Vec::new();
-    if let Ok(addrs) = std::net::ToSocketAddrs::to_socket_addrs(&(
-        std::env::var("HOSTNAME").unwrap_or_default(),
-        0,
-    )) {
+    if let Ok(addrs) = std::net::ToSocketAddrs::to_socket_addrs(&(std::env::var("HOSTNAME").unwrap_or_default(), 0)) {
         for a in addrs {
             if let std::net::IpAddr::V4(v4) = a.ip() {
                 if !v4.is_loopback() && !out.contains(&v4.to_string()) {
@@ -127,10 +122,7 @@ pub fn discover_local_addresses() -> Vec<String> {
 /// Serve blocks from a local cache map on an ephemeral LAN port.
 /// Called as a background task during sync; the listener dies when the
 /// returned shutdown handle is dropped or triggered.
-pub async fn serve_blocks(
-    port: u16,
-    cache: HashMap<String, Vec<u8>>,
-) -> Result<u16> {
+pub async fn serve_blocks(port: u16, cache: HashMap<String, Vec<u8>>) -> Result<u16> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;
     let bound = listener.local_addr()?.port();

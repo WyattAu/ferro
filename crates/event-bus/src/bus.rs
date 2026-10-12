@@ -74,6 +74,7 @@ impl EventBusBuilder {
             store,
             interceptor: Arc::new(Mutex::new(self.interceptor)),
             event_queue: Arc::new(EventQueue::new(1024)),
+            delivered: std::sync::Mutex::new(std::collections::HashSet::new()),
         }
     }
 }
@@ -90,6 +91,14 @@ pub struct EventBus {
     store: Option<Arc<crate::replay::EventStore>>,
     interceptor: Arc<Mutex<Option<Box<dyn EventInterceptor>>>>,
     event_queue: Arc<EventQueue>,
+    /// Delivery watermarks: (event_id, handler_name) pairs whose handler has
+    /// ALREADY succeeded. Guard both live delivery and replay so a replay can
+    /// never re-apply an event to a handler that processed it
+    /// (THM-REPLAY-NO-DUPLICATION, DC-EVT-005; YP-EVENT-DURABILITY-001).
+    /// Failed deliveries are NOT watermarked — they land in the DLQ and are
+    /// retried. Bounded in practice by corpus size; the SQLite outbox with
+    /// persistent watermarks supersedes this in-memory set.
+    delivered: std::sync::Mutex<std::collections::HashSet<(String, String)>>,
 }
 
 impl EventBus {
@@ -123,6 +132,9 @@ impl EventBus {
             }
         };
         let timestamp = event.timestamp();
+        // The event id is minted BEFORE delivery so live successes and the
+        // stored event share one identity — the basis of replay dedup.
+        let event_id = uuid::Uuid::new_v4().to_string();
 
         let queued = QueuedEvent {
             event_type: event_type.clone(),
@@ -152,6 +164,7 @@ impl EventBus {
                 let name = handler.name().to_string();
                 match handler.handle_erased(&event_json, &event_type).await {
                     Ok(()) => {
+                        self.mark_delivered(&event_id, &name);
                         results.push(HandlerResult::ok(&name));
                     }
                     Err(err) => {
@@ -187,7 +200,7 @@ impl EventBus {
                 event_json,
                 event_type,
                 timestamp,
-                id: uuid::Uuid::new_v4().to_string(),
+                id: event_id,
             });
         }
     }
@@ -201,6 +214,7 @@ impl EventBus {
             }
         };
         let timestamp = event.timestamp();
+        let event_id = uuid::Uuid::new_v4().to_string();
 
         let queued = QueuedEvent {
             event_type: event_type.clone(),
@@ -229,6 +243,7 @@ impl EventBus {
                 let name = handler.name().to_string();
                 match handler.handle_erased(&event_json, &event_type).await {
                     Ok(()) => {
+                        self.mark_delivered(&event_id, &name);
                         results.push(HandlerResult::ok(&name));
                     }
                     Err(err) => {
@@ -260,7 +275,7 @@ impl EventBus {
                 event_json,
                 event_type,
                 timestamp,
-                id: uuid::Uuid::new_v4().to_string(),
+                id: event_id,
             });
         }
 
@@ -319,6 +334,13 @@ impl EventBus {
         }
     }
 
+    /// Replay stored events through their handlers.
+    ///
+    /// THM-REPLAY-NO-DUPLICATION (DC-EVT-005): deliveries already succeeded
+    /// live (or in an earlier replay) are skipped via the
+    /// `(event_id, handler_name)` watermark; a handler that FAILED is
+    /// re-delivered on the next replay. Watermarks commit only after the
+    /// handler returns Ok.
     pub async fn replay(&self, filter: &crate::replay::EventFilter) {
         let Some(store) = &self.store else {
             return;
@@ -328,16 +350,37 @@ impl EventBus {
             let event_type = stored.event_type.clone();
             if let Some(handlers) = self.handlers.get(&event_type) {
                 for handler in handlers.iter() {
-                    let _ = handler
-                        .handle_erased(&stored.event_json, &event_type)
-                        .await
-                        .map_err(|e| {
+                    if self.was_delivered(&stored.id, handler.name()) {
+                        continue;
+                    }
+                    let result = handler.handle_erased(&stored.event_json, &event_type).await;
+                    match result {
+                        Ok(()) => {
+                            self.mark_delivered(&stored.id, handler.name());
+                        }
+                        Err(e) => {
                             tracing::warn!(event_type = %event_type, error = %e, "event replay handler failed");
-                            e
-                        });
+                        }
+                    }
                 }
             }
         }
+    }
+
+    /// Record a successful (event_id, handler_name) delivery.
+    fn mark_delivered(&self, event_id: &str, handler_name: &str) {
+        self.delivered
+            .lock()
+            .expect("delivery watermark mutex")
+            .insert((event_id.to_string(), handler_name.to_string()));
+    }
+
+    /// Has this handler already succeeded for this event?
+    fn was_delivered(&self, event_id: &str, handler_name: &str) -> bool {
+        self.delivered
+            .lock()
+            .expect("delivery watermark mutex")
+            .contains(&(event_id.to_string(), handler_name.to_string()))
     }
 }
 
@@ -352,6 +395,7 @@ mod tests {
     use super::*;
     use crate::event::FileEvent;
     use crate::handler::EventHandler;
+    use std::sync::atomic::Ordering;
 
     struct CounterHandler {
         name: String,
@@ -548,5 +592,101 @@ mod tests {
         bus.subscribe("file.created", Box::new(CounterHandler::new("h")));
         let event = FileEvent::new("file.created", "/test.txt", "user1");
         bus.publish(event).await;
+    }
+
+    /// Shared-count handler for replay tests (subscribe takes Box<dyn ...>,
+    /// so observability rides an Arc).
+    struct SharedCounter {
+        name: &'static str,
+        count: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+        fail_first: std::sync::atomic::AtomicBool,
+    }
+
+    impl SharedCounter {
+        fn counting(count: std::sync::Arc<std::sync::atomic::AtomicUsize>) -> Box<Self> {
+            Box::new(Self {
+                name: "shared-counter",
+                count,
+                fail_first: std::sync::atomic::AtomicBool::new(false),
+            })
+        }
+
+        fn flaky(count: std::sync::Arc<std::sync::atomic::AtomicUsize>) -> Box<Self> {
+            Box::new(Self {
+                name: "shared-counter",
+                count,
+                fail_first: std::sync::atomic::AtomicBool::new(true),
+            })
+        }
+    }
+
+    #[async_trait]
+    impl EventHandler<FileEvent> for SharedCounter {
+        async fn handle(&self, _event: &FileEvent) -> Result<(), EventBusError> {
+            if self
+                .fail_first
+                .compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst)
+                .is_ok()
+            {
+                return Err(EventBusError::handler_failed(
+                    self.name,
+                    "file.created",
+                    "flaky first attempt",
+                ));
+            }
+            self.count.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+
+        fn name(&self) -> &str {
+            self.name
+        }
+    }
+
+    /// TV-EVT-003 (THM-REPLAY-NO-DUPLICATION, DC-EVT-005): a handler that
+    /// ALREADY succeeded live must not be re-applied by replay.
+    #[tokio::test]
+    async fn test_replay_does_not_duplicate_delivered_events() {
+        let bus = EventBus::builder().with_store().build();
+        let count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        bus.subscribe("file.created", SharedCounter::counting(count.clone()));
+
+        bus.publish(FileEvent::new("file.created", "/docs/a.txt", "u1")).await;
+        assert_eq!(count.load(Ordering::SeqCst), 1, "live delivery");
+
+        // Old behaviour: replay re-ran every handler for every stored event.
+        bus.replay(&crate::replay::EventFilter::new()).await;
+        assert_eq!(
+            count.load(Ordering::SeqCst),
+            1,
+            "replay duplicated an already-delivered event"
+        );
+
+        // Repeated replays stay inert.
+        bus.replay(&crate::replay::EventFilter::new()).await;
+        bus.replay(&crate::replay::EventFilter::new()).await;
+        assert_eq!(count.load(Ordering::SeqCst), 1);
+    }
+
+    /// TV-EVT-003b: a FAILED delivery is retried exactly once by replay —
+    /// success watermarks commit only after Ok, so the retry lands, and a
+    /// further replay does not duplicate it.
+    #[tokio::test]
+    async fn test_replay_retries_failed_delivery_exactly_once() {
+        let bus = EventBus::builder().with_store().build();
+        let count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        bus.subscribe("file.created", SharedCounter::flaky(count.clone()));
+
+        // Live delivery fails (flaky first attempt) — not watermarked.
+        bus.publish(FileEvent::new("file.created", "/docs/b.txt", "u2")).await;
+        assert_eq!(count.load(Ordering::SeqCst), 0, "flaky handler failed live");
+
+        // First replay: the failed delivery is retried and succeeds.
+        bus.replay(&crate::replay::EventFilter::new()).await;
+        assert_eq!(count.load(Ordering::SeqCst), 1, "replay retried the failed delivery");
+
+        // Second replay: success is now watermarked — no duplicate.
+        bus.replay(&crate::replay::EventFilter::new()).await;
+        assert_eq!(count.load(Ordering::SeqCst), 1, "replay duplicated after retry success");
     }
 }

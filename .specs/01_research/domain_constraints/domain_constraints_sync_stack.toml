@@ -1,0 +1,173 @@
+# Domain Constraints: Sync Stack (Sync/Conflict, CDC/Dedup, Mesh Transport)
+# Format: TOML
+# These constraints are inviolable invariants for Ferro's sync, chunking, and mesh layers.
+# Derived from YP-SYNC-CONFLICT-001, YP-DEDUP-CDC-001, YP-MESH-TRANSPORT-001.
+
+[dc_sync_conflict]
+id = "DC-SYNC-001"
+domain = "Sync"
+component = "Conflict Detection"
+description = "Conflict decisions must never consult wall-clock mtime or file size"
+prohibited_inputs = ["mtime", "size", "ctime"]
+required_inputs = ["version_vector", "lamport_clock"]
+rationale = "LWW-on-mtime silently loses data under clock agreement (YP-SYNC-CONFLICT-001 DEF-LWW-FAIL-001)"
+
+[dc_sync_winner]
+id = "DC-SYNC-002"
+domain = "Sync"
+component = "Conflict Resolution"
+description = "Winner selection is a pure function of the concurrent set"
+tie_break_order = ["lamport", "device_id"]
+must_be_deterministic = true
+conflict_strategy_default = "KeepBoth"
+max_conflicts_per_dir = 32
+conflict_suffix = "{stem} (conflict {RFC3339UTC} by {user}){ext}"
+suffix_idempotent = true
+
+[dc_sync_gc]
+id = "DC-SYNC-003"
+domain = "Sync"
+component = "Metadata GC"
+description = "Conflict material reclaimable only under causal stability"
+stability_predicate = "head(o) <= meet_d ack(v,d) componentwise"
+vv_prune_age_days = 90
+
+[dc_sync_locks]
+id = "DC-SYNC-004"
+domain = "Sync"
+component = "Advisory Locks"
+lock_ttl_seconds = 1800
+lock_refresh_seconds = 600
+owner_tuple = ["user", "device", "app"]
+advisory_only = true
+
+[dc_dedup_manifest]
+id = "DC-DEDUP-001"
+domain = "Dedup"
+component = "Manifest Format"
+description = "Manifests must carry (index, hash, length); hash-only manifests are unsound under variable-length CDC"
+manifest_fields = ["profile", "blocks[index, hash, length]"]
+revision_root = "BLAKE3 over canonical serialization"
+soundness_theorem = "THM-DEDUP-SOUNDNESS"
+
+[dc_dedup_params]
+id = "DC-DEDUP-002"
+domain = "Dedup"
+component = "Chunking Parameters"
+description = "Client and server chunk parameters must come from a single shared constant"
+min_chunk_bytes = 262144
+avg_chunk_bytes = 1048576
+max_chunk_bytes = 8388608
+small_file_whole_threshold_bytes = 262144
+normalization_level = 2
+shared_constant_required = true
+expected_chunk_ratio_ci = [0.9, 1.1]
+
+[dc_dedup_window]
+id = "DC-DEDUP-003"
+domain = "Dedup"
+component = "Rolling Hash"
+description = "Rolling window must be explicitly reset/primed at chunk start; zero-window behavior must be stated in spec"
+algorithm = "Gear/FastCDC level 2"
+window_reset_required = true
+orphan_chunk_allowed = false
+
+[dc_dedup_ci]
+id = "DC-DEDUP-004"
+domain = "Dedup"
+component = "Property Testing"
+description = "E[chunk] must be property-tested in CI over >=256MiB fixtures"
+min_fixture_mib = 256
+metric = "chunk_size_variance"
+reference = "arXiv:2409.06066 methodology"
+
+[dc_dedup_scope]
+id = "DC-DEDUP-005"
+domain = "Dedup"
+component = "Deduplication Scope"
+description = "Dedup is tenant-scoped by default; cross-tenant block-holder answers are constant-shape"
+default_scope = "tenant"
+global_scope = "admin opt-in with written existence-oracle warning"
+holder_answer_shape = "constant-size constant-time bitvector over random subset"
+registry_stores_hashes = false
+
+[dc_dedup_fips]
+id = "DC-DEDUP-006"
+domain = "Dedup"
+component = "Hash Agility"
+description = "Block IDs carry multihash-style 2-byte prefixes; BLAKE3 blocked in FIPS strict mode"
+new_hash = "BLAKE3-256 prefix 0x01||0xB3"
+legacy_hash = "SHA-256 prefix 0x12||0x20"
+dual_write_release = 1
+fips_strict_hash = "SHA-256 only"
+
+[dc_mesh_registry]
+id = "DC-MESH-001"
+domain = "Mesh"
+component = "Registry"
+description = "Registry stores only (instance_id, addrs, expires_at, last_seen) — never block hashes"
+announce_interval_seconds = 1800
+announce_payload = "bloom_filter(m=14.4*|I| bits, k=10) + listen_addrs"
+lease_ttl_seconds = 600
+
+[dc_mesh_integrity]
+id = "DC-MESH-002"
+domain = "Mesh"
+component = "Block Verification"
+description = "Every block fetched from any peer must be re-verified and discarded on mismatch"
+verify_hash = "BLAKE3"
+discard_on_mismatch = true
+corollary = "malicious mesh causes bandwidth waste only, never corruption"
+
+[dc_mesh_identity]
+id = "DC-MESH-003"
+domain = "Mesh"
+component = "Peer Identity"
+description = "Peer identity derives from the TLS certificate; the ID is never transmitted"
+device_id = "base32(SHA-256(certificate))"
+accept_list_required = true
+registry_cert_pinning = true
+
+[dc_mesh_holder]
+id = "DC-MESH-004"
+domain = "Mesh"
+component = "Block-Holder Queries"
+description = "Holder answers must be constant-shape; per-hash booleans prohibited"
+constant_size = true
+constant_time = true
+
+[dc_mesh_discovery]
+id = "DC-MESH-005"
+domain = "Mesh"
+component = "Discovery"
+description = "mDNS must not be a hard dependency; manual join URI is mandatory fallback"
+mdns_service = "_ferro-sync._tcp"
+mdns_flood_controls = ["known-answer-suppression", "duplicate-question-suppression", "unicast-response-bit"]
+manual_fallback = "ferro://join/<invite-code>"
+registry_down_lan_transfer_seconds = 5
+
+[dc_mesh_cc]
+id = "DC-MESH-006"
+domain = "Mesh"
+component = "Congestion Control"
+description = "L4S/Prague must not be enabled on WAN paths"
+lan_allowed = ["Prague", "BBR", "CUBIC"]
+wan_allowed = ["BBR", "CUBIC"]
+rationale = "RFC 9331 4.3.1: up to 25:1 L4S-vs-Classic imbalance"
+
+[dc_mesh_authz]
+id = "DC-MESH-007"
+domain = "Mesh"
+component = "Peer Authorization"
+description = "Peer A may fetch block h for tenant T only per server-side authorization; mesh must not bypass tenant isolation"
+server_side_check_required = true
+status = "biggest unsolved gap in current design"
+
+[dc_nat_traversal]
+id = "DC-MESH-008"
+domain = "Mesh"
+component = "NAT Traversal"
+description = "Relay is the default path; hole punching is an optimization"
+relay_first = true
+punch_budget = "70% +-7.1% conditional success; ~29% fail before punching"
+symmetric_nat_policy = "prefer relay over port-prediction"

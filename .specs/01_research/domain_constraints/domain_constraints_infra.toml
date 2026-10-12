@@ -1,0 +1,166 @@
+# Domain Constraints: Infrastructure (Crypto/PQ, Media, Compliance)
+# Format: TOML
+# Derived from YP-CRYPTO-PQ-001, YP-MEDIA-DERIV-001, YP-LIFECYCLE-COMPLIANCE-001.
+
+[dc_crypto_strict_gate]
+id = "DC-CRYPTO-001"
+domain = "Crypto"
+component = "FIPS Strict Mode"
+description = "FipsMode::Strict gates every primitive call; non-approved ops abort before sensitive data"
+approved_ops = ["AES-256-GCM", "SHA-256/384", "HMAC-SHA-256", "HKDF (SP 800-56C)", "AES-KW-256 (SP 800-38F)"]
+kat_failure_behavior = "is_valid()=false; all key operations refused"
+rng_tests = "provider SP 800-90A health tests (replace statistical self-test)"
+
+[dc_crypto_header]
+id = "DC-CRYPTO-002"
+domain = "Crypto"
+component = "Ciphertext Header"
+description = "Every ciphertext carries {alg_id, key_id, key_version, nonce}"
+fields = ["alg_id", "key_id", "key_version", "nonce"]
+purpose = "crypto agility; migration is config-driven"
+
+[dc_crypto_wrap]
+id = "DC-CRYPTO-003"
+domain = "Crypto"
+component = "Key Wrap"
+description = "Key wrap uses an approved mode; HKDF-XOR-pad prohibited"
+approved = ["AES-KW-256 (SP 800-38F)", "AES-256-GCM (SP 800-38D)"]
+prohibited = ["HKDF-expand XOR pad"]
+chunk_encryption = "AES-256-GCM, 96-bit nonce per chunk, 64-256 KiB chunks"
+rotation_note = "rotate_all_data_keys re-wraps KEKs; document as wrap-rotation"
+
+[dc_crypto_tls]
+id = "DC-CRYPTO-004"
+domain = "Crypto"
+component = "Transport"
+description = "TLS prefers the PQ hybrid key exchange"
+preferred_group = "X25519MLKEM768"
+fallback = "X25519"
+min_version = "TLS 1.3"
+zero_rtt = false
+
+[dc_crypto_provider]
+id = "DC-CRYPTO-005"
+domain = "Crypto"
+component = "Provider Truthfulness"
+description = "is_fips_approved() reflects the actual provider's validation status"
+providers = ["ring (not FIPS-validated)", "aws-lc-rs (FIPS module in CMVP pipeline; re-check at deploy)"]
+positioning = "FIPS-140-3-composed, not FIPS-validated; boundary in SECURITY.md"
+
+[dc_crypto_keys]
+id = "DC-CRYPTO-006"
+domain = "Crypto"
+component = "PQ Signatures"
+description = "ML-DSA private keys stored as seeds (RFC 9881 recommendation)"
+storage = "seed (32 B)"
+expanded_keys_stored = false
+audit_head_signing = "ML-DSA-65 hybrid Ed25519 (dual signature)"
+agility_enums = ["KemId", "SigId", "AeadId", "KdfId"]
+jose_allowlist = "pre-registered incl. ML-DSA codes"
+
+[dc_media_originals]
+id = "DC-MEDIA-001"
+domain = "Media"
+component = "CAS Invariant"
+description = "Originals are never mutated by the media pipeline"
+write_set = "deriv/ namespace only"
+theorem = "THM-ORIGINAL-IMMUTABILITY"
+
+[dc_media_keys]
+id = "DC-MEDIA-002"
+domain = "Media"
+component = "Derivative Identity"
+description = "Derivative keys pin encoder version"
+key = "H(content_hash, preset, encoder_ver)"
+cache_hit_equals_recompute = true
+invalidation_on_upgrade = "new namespace; no invalidation logic"
+
+[dc_media_privacy]
+id = "DC-MEDIA-003"
+domain = "Media"
+component = "Derivative Privacy"
+description = "Derivatives are orientation-normalized and GPS-free"
+orientation_normalized = true
+gps_stripped = true
+thumb_presets = ["t160.webp", "t320.webp", "t1024.webp", "fallback.jpg"]
+generation = "at ingest via bounded batch pool"
+
+[dc_media_index]
+id = "DC-MEDIA-004"
+domain = "Media"
+component = "Listing"
+description = "Photo/video listing is index-backed; list_all scans prohibited on hot paths"
+index_table = "photos(content_hash, path, taken_at, width, height, ...)"
+maintained_by = "ingest job"
+
+[dc_media_transcode]
+id = "DC-MEDIA-005"
+domain = "Media"
+component = "Transcode Policy"
+description = "Video transcodes on demand with permanent cache; jobs run in the bounded batch pool"
+delivery = "fMP4/CMAF + HLS (RFC 8216), 4s segments"
+rungs = "1080p@3Mbps AV1 / 720p@1.2 / 480p@0.6 + AAC"
+encoder = "ffmpeg libsvtav1 -crf 32 -preset 8 -g 96"
+hdr = "tonemap to SDR for preview rungs; master untouched"
+short_clips = "moov-faststart remux cache only"
+concurrency = "1-2 niced jobs"
+webrtc_scope = "live/screen-share only, never VOD"
+
+[dc_comp_worm]
+id = "DC-COMP-001"
+domain = "Compliance"
+component = "WORM"
+description = "WORM has an enforcement mechanism beyond an advisory flag"
+mechanism = "ZFS snapshot + zfs hold ferro-worm-<policy_id> until retain_until"
+modes = ["governance (logged admin bypass)", "compliance (refuse overwrite APIs)"]
+snapshot_cadence_hours = 1
+
+[dc_comp_hold]
+id = "DC-COMP-002"
+domain = "Compliance"
+component = "Legal Hold"
+description = "Legal hold blocks all deletion paths; precedence hold > WORM > retention > user-delete"
+holds_table = "holds(object_set, reason, created_by, created_at)"
+override_audited = true
+legal_basis_field = true
+
+[dc_comp_shred]
+id = "DC-COMP-003"
+domain = "Compliance"
+component = "Crypto-Shredding"
+description = "Erasure covers every registered storage class"
+user_kek = "per-user KEK from server-fips DK layer; AES-256-GCM via HKDF(user_KEK, chunk_id)"
+copy_sites = ["CAS chunks", "versions", "derivatives", "DB PII", "key-material backups"]
+guarantee = "computational (ciphertext-only), not physical (ZFS COW caveat documented)"
+deletion_certificate = "ErasureCompleted{pseudonym, key_ids, t, sig}"
+ci_invariant = "every new storage class registers an encryption adapter; unregistered fails CI"
+
+[dc_comp_audit]
+id = "DC-COMP-004"
+domain = "Compliance"
+component = "Audit Integrity"
+description = "Audit epochs are Merkle-headed, dual-signed, with published heads"
+epoch = "10k entries or 24h"
+head = "RFC 6962/9162-style MTH"
+signatures = ["Ed25519", "ML-DSA-65"]
+witness = "ZFS snapshot | second host | Rekor"
+forward_integrity = "Schneier-Kelsey SK_i = H(SK_{i+1}); publish H(SK_i) at epoch close"
+verification = "O(log n) inclusion proofs + O(1) per-epoch head check"
+
+[dc_comp_pii]
+id = "DC-COMP-005"
+domain = "Compliance"
+component = "Audit PII"
+description = "PII purged from audit entries at T_PII"
+pii_fields = ["ip", "user_agent"]
+purge_after_days = 30
+actor_id = "pseudonymized at write"
+rationale = "Art. 17(1) vs append-only log; 17(3)(f) permits retaining facts"
+
+[dc_comp_governance]
+id = "DC-COMP-006"
+domain = "Compliance"
+component = "Deletion Governance"
+description = "Every deletion decision is auditable from the log alone"
+reproducible = true
+basis_recorded = ["Art17(1)", "admin"]

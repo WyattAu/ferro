@@ -1,0 +1,150 @@
+# Domain Constraints: Durability (Events, Cache, Tenancy)
+# Format: TOML
+# Derived from YP-EVENT-DURABILITY-001, YP-CONSISTENCY-CACHE-001, YP-TENANCY-ISOLATION-001.
+
+[dc_evt_outbox_only]
+id = "DC-EVT-001"
+domain = "Events"
+component = "Effect Dispatch"
+description = "No side effect may be dispatched outside the outbox relay"
+prohibited = ["tokio::spawn fire-and-forget delivery"]
+sole_dispatcher = "outbox relay task"
+
+[dc_evt_atomic]
+id = "DC-EVT-002"
+domain = "Events"
+component = "Transaction"
+description = "Metadata writes and outbox inserts share one transaction"
+transaction_scope = ["metadata_op", "outbox_insert", "audit_chain_position"]
+journal_mode = "WAL"
+busy_timeout_ms = 5000
+synchronous = "NORMAL"
+tx_budget_ms = 10
+
+[dc_evt_idempotent]
+id = "DC-EVT-003"
+domain = "Events"
+component = "Handlers"
+description = "All handlers are idempotent and keyed"
+effect_key = "{job_id}:{handler}"
+dedup_retention_days = 7
+api_header = "Idempotency-Key (<=255 chars, Stripe semantics)"
+attempts = 8
+backoff = "2s base, 300s cap"
+
+[dc_evt_dlq]
+id = "DC-EVT-004"
+domain = "Events"
+component = "Dead Letters"
+description = "DLQ is a persistent table with admin re-drive; in-memory DLQ deleted"
+persistent = true
+redrive_api = true
+
+[dc_evt_replay]
+id = "DC-EVT-005"
+domain = "Events"
+component = "Replay"
+description = "Replay dispatches only seq > handler watermark"
+watermark_table = "handler_watermarks(handler TEXT PK, last_seq)"
+duplicate_effects_allowed = false
+
+[dc_evt_cron]
+id = "DC-EVT-006"
+domain = "Events"
+component = "Schedules"
+description = "Cron next_due_at persisted; missed ticks coalesce into one run on boot"
+coalesce = true
+jitter_seconds = 30
+
+[dc_cache_epoch]
+id = "DC-CACHE-001"
+domain = "Cache"
+component = "Coherence"
+description = "Authz/metadata cache entries are epoch-tagged; stale-epoch hits are MISSes"
+epoch_source = "per-tenant u64 in SQLite, bumped in the permission/metadata transaction"
+ttl_role = "latency optimization only; never the coherence mechanism"
+authz_ttl_seconds = 60
+swr_seconds = 30
+deny_ttl_seconds = 15
+
+[dc_cache_eviction]
+id = "DC-CACHE-002"
+domain = "Cache"
+component = "Eviction"
+description = "Eviction is O(1) amortized and scan-resistant"
+algorithm = "SIEVE (NSDI'24)"
+lru_prohibited = true
+lru_reason = "O(n) Vec under two mutexes (lru.rs:19-49)"
+
+[dc_cache_capacity]
+id = "DC-CACHE-003"
+domain = "Cache"
+component = "Capacity Semantics"
+description = "Capacity overflow evicts, never silently drops"
+on_overflow = "evict SIEVE victims until entry fits"
+single_entry_over_budget = "Err(SizeExceeded)"
+silent_drop_prohibited = true
+
+[dc_cache_singleflight]
+id = "DC-CACHE-004"
+domain = "Cache"
+component = "Stampede"
+description = "Concurrent recomputes per key coalesce to one"
+singleflight = true
+ttl_jitter = "±10%"
+stale_if_error = true
+
+[dc_tenant_failclosed]
+id = "DC-TENANT-001"
+domain = "Tenancy"
+component = "Path Isolation"
+description = "Path isolation fails closed on canonicalize error"
+canonicalize_then_compare = true
+raw_path_fallback_prohibited = true
+current_bug = "isolation.rs:105-108 fail-open"
+
+[dc_tenant_layout]
+id = "DC-TENANT-002"
+domain = "Tenancy"
+component = "Path Layout"
+description = "One canonical layout; org is a policy fact, not a path segment"
+layout = "{base}/tenants/{tenant_id}"
+org_in_path = false
+
+[dc_tenant_kernel]
+id = "DC-TENANT-003"
+domain = "Tenancy"
+component = "Worker Isolation"
+description = "Workers open tenant files with openat2 RESOLVE_BENEATH on Linux"
+syscall = "openat2"
+flag = "RESOLVE_BENEATH"
+purpose = "kernel-enforced containment; kills symlink TOCTOU"
+
+[dc_tenant_quota]
+id = "DC-TENANT-004"
+domain = "Tenancy"
+component = "Quotas"
+description = "Quota counters are durable; admission-checked"
+accounting = "per-tenant byte deltas in upload/delete transactions"
+admission_test = "used + in_flight <= quota"
+reconciliation = "nightly scan"
+in_memory_counters_prohibited = true
+
+[dc_tenant_pools]
+id = "DC-TENANT-005"
+domain = "Tenancy"
+component = "Workload Isolation"
+description = "Batch workloads run on a separate bounded pool with per-tenant round-robin and interactive-pause"
+interactive_p99_target = "L"
+pause_quantum = "c"
+outer_fence = "systemd CPUWeight/IOWeight/MemoryHigh"
+per_tenant_cgroups = "deferred (single host, 50 users)"
+
+[dc_tenant_plugins]
+id = "DC-TENANT-006"
+domain = "Tenancy"
+component = "Wasm Plugins"
+description = "Plugin preopens are tenant-rooted and fuel-metered"
+network_preopen = false
+fs_preopen = "calling tenant's root, openat2-scoped handles"
+metering = "fuel/epoch interruption with per-tenant budgets"

@@ -2,7 +2,7 @@ use axum::extract::{Extension, Path, Query};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use base64::Engine;
-use hmac::{KeyInit, Mac};
+use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::sync::Arc;
@@ -27,6 +27,8 @@ pub struct WopiQueryParams {
 #[derive(Debug, Deserialize)]
 pub struct TokenQueryParams {
     pub path: Option<String>,
+    /// `edit` (default) or `view` — view tokens cannot PutFile/LOCK.
+    pub scope: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -82,7 +84,7 @@ fn wopi_error_with_details(
 }
 
 #[allow(clippy::result_large_err)]
-fn validate_access_token(state: &WopiState, token: &Option<String>) -> Result<String, Response> {
+fn validate_access_token(state: &WopiState, token: &Option<String>) -> Result<WopiTokenClaims, Response> {
     let t = match token {
         None => {
             return Err(wopi_error(
@@ -136,20 +138,29 @@ fn validate_access_token(state: &WopiState, token: &Option<String>) -> Result<St
     let (payload_str, sig_hex) = decoded_str.split_at(sep_idx);
     let sig_hex = &sig_hex[1..];
 
-    let expected_sig = {
-        let mut mac = hmac::Hmac::<Sha256>::new_from_slice(state.wopi_token_secret.as_bytes())
+    // Constant-time verification (DC-WOPI-003): compare full signature bytes,
+    // never a truncated prefix and never via early-exit string equality.
+    let sig_bytes = match hex::decode(sig_hex) {
+        Ok(b) => b,
+        Err(_) => {
+            return Err(wopi_error(
+                StatusCode::UNAUTHORIZED,
+                "TOKEN_INVALID",
+                "Invalid access_token signature",
+            ));
+        }
+    };
+    {
+        let mut mac = Hmac::<Sha256>::new_from_slice(state.wopi_token_secret.as_bytes())
             .map_err(|_| wopi_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "HMAC error"))?;
         mac.update(payload_str.as_bytes());
-        let sig = mac.finalize();
-        hex::encode(sig.into_bytes())
-    };
-
-    if sig_hex != expected_sig {
-        return Err(wopi_error(
-            StatusCode::UNAUTHORIZED,
-            "TOKEN_INVALID",
-            "Invalid access_token signature",
-        ));
+        if mac.verify_slice(&sig_bytes).is_err() {
+            return Err(wopi_error(
+                StatusCode::UNAUTHORIZED,
+                "TOKEN_INVALID",
+                "Invalid access_token signature",
+            ));
+        }
     }
 
     let payload: serde_json::Value = match serde_json::from_str(payload_str) {
@@ -174,7 +185,184 @@ fn validate_access_token(state: &WopiState, token: &Option<String>) -> Result<St
         }
     }
 
-    Ok(t.clone())
+    // Tokens issued before scope existed are edit-capable (compat: view-only
+    // sessions did not exist pre-YP-COLLAB-WOPI-001).
+    let scope = payload
+        .get("scope")
+        .and_then(|v| v.as_str())
+        .unwrap_or(WOPI_SCOPE_EDIT)
+        .to_string();
+
+    Ok(WopiTokenClaims {
+        path: payload
+            .get("path")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string(),
+        user: payload
+            .get("user")
+            .and_then(|v| v.as_str())
+            .unwrap_or("anonymous")
+            .to_string(),
+        exp: payload.get("exp").and_then(|v| v.as_i64()).unwrap_or(0),
+        scope,
+    })
+}
+
+/// Parsed, signature-verified WOPI access token claims (DC-WOPI-001/002/003).
+#[derive(Debug, Clone)]
+pub struct WopiTokenClaims {
+    /// Exact virtual path (`/...`) this token is bound to. Requests for any
+    /// other path are rejected — a stolen token is useless for other files.
+    pub path: String,
+    pub user: String,
+    pub exp: i64,
+    /// `edit` or `view` (THM-WOPI-SCOPE).
+    pub scope: String,
+}
+
+impl WopiTokenClaims {
+    pub fn can_edit(&self) -> bool {
+        self.scope == WOPI_SCOPE_EDIT
+    }
+}
+
+const WOPI_SCOPE_EDIT: &str = "edit";
+const WOPI_SCOPE_VIEW: &str = "view";
+
+/// Proof-key freshness window (MS-WOPI: 20 minutes).
+const WOPI_PROOF_TTL_SECS: i64 = 20 * 60;
+
+/// Derive a WOPI proof key from the token secret (domain-separated via HKDF).
+/// Two generations exist so key rotation never breaks in-flight sessions:
+/// `gen 0` is the old key, `gen 1` the current one.
+#[allow(clippy::result_large_err)]
+fn wopi_proof_key(state: &WopiState, key_gen: u8) -> Result<Vec<u8>, Response> {
+    if state.wopi_token_secret.is_empty() {
+        return Err(wopi_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "WOPI_TOKEN_SECRET_NOT_SET",
+            "WOPI token secret is not configured",
+        ));
+    }
+    let salt = b"ferro-wopi-proof-key-v1";
+    let info = [b"proof".as_slice(), [key_gen].as_slice()].concat();
+    let mut okm = [0u8; 32];
+    hkdf::Hkdf::<Sha256>::new(Some(salt), state.wopi_token_secret.as_bytes())
+        .expand(&info, &mut okm)
+        .map_err(|_| wopi_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "HKDF error"))?;
+    Ok(okm.to_vec())
+}
+
+/// Parse an X-WOPI-TimeStamp value: MS-WOPI FILETIME ticks (100 ns since
+/// 1601-01-01) or an RFC 3339 string. Returns Unix seconds.
+fn parse_wopi_timestamp(raw: &str) -> Option<i64> {
+    if let Ok(ticks) = raw.trim().parse::<u64>() {
+        // FILETIME epoch (1601-01-01) is 11_644_473_600 s before the Unix epoch.
+        const FILETIME_TO_UNIX_SECS: u64 = 11_644_473_600;
+        const TICKS_PER_SEC: u64 = 10_000_000;
+        let secs = ticks / TICKS_PER_SEC;
+        return i64::try_from(secs.checked_sub(FILETIME_TO_UNIX_SECS)?).ok();
+    }
+    chrono::DateTime::parse_from_rfc3339(raw.trim())
+        .ok()
+        .map(|dt| dt.timestamp())
+}
+
+/// Verify the WOPI request proof headers when present (YP-COLLAB-WOPI-001,
+/// THM-WOPI-PROOF-SAFETY / THM-WOPI-NO-FALLTHROUGH).
+///
+/// Ferro's proof profile: `X-WOPI-Proof` carries `base64( HMAC-SHA256(key,
+/// request_url || "\n" || access_token || "\n" || timestamp) )`; the MAC must
+/// verify under the CURRENT proof key or the OLD one (rotation tolerance), and
+/// the timestamp must be fresh within ±20 minutes.
+///
+/// Absence of both headers is accepted: the deployed office client
+/// (Collabora) implements token-over-TLS but not the MS-WOPI proof —
+/// rejecting all proofless traffic would break office editing. A *present
+/// but invalid* proof is always fatal (no fallthrough to token-only auth).
+#[allow(clippy::result_large_err)]
+fn validate_wopi_proof(
+    state: &WopiState,
+    headers: &axum::http::HeaderMap,
+    request_url: &str,
+    access_token: &str,
+) -> Result<(), Response> {
+    let proof = headers.get("X-WOPI-Proof").and_then(|v| v.to_str().ok());
+    let ts_raw = headers.get("X-WOPI-TimeStamp").and_then(|v| v.to_str().ok());
+
+    match (proof, ts_raw) {
+        (None, None) => Ok(()),
+        (Some(_), None) | (None, Some(_)) => Err(wopi_error(
+            StatusCode::UNAUTHORIZED,
+            "PROOF_INVALID",
+            "Incomplete WOPI proof: both X-WOPI-Proof and X-WOPI-TimeStamp are required",
+        )),
+        (Some(proof), Some(ts_raw)) => {
+            let ts = parse_wopi_timestamp(ts_raw)
+                .ok_or_else(|| wopi_error(StatusCode::UNAUTHORIZED, "PROOF_INVALID", "Malformed X-WOPI-TimeStamp"))?;
+            let now = chrono::Utc::now().timestamp();
+            if (now - ts).abs() > WOPI_PROOF_TTL_SECS {
+                return Err(wopi_error(
+                    StatusCode::UNAUTHORIZED,
+                    "PROOF_EXPIRED",
+                    "WOPI proof timestamp outside freshness window",
+                ));
+            }
+
+            let proof_input = format!("{}\n{}\n{}", request_url, access_token, ts_raw);
+            let proof_bytes = base64::engine::general_purpose::STANDARD
+                .decode(proof)
+                .map_err(|_| wopi_error(StatusCode::UNAUTHORIZED, "PROOF_INVALID", "Malformed X-WOPI-Proof"))?;
+
+            let mut verified = false;
+            for key_gen in [1u8, 0u8] {
+                let key = wopi_proof_key(state, key_gen)?;
+                if let Ok(mut mac) = Hmac::<Sha256>::new_from_slice(&key) {
+                    mac.update(proof_input.as_bytes());
+                    if mac.verify_slice(&proof_bytes).is_ok() {
+                        verified = true;
+                        break;
+                    }
+                }
+            }
+            if !verified {
+                return Err(wopi_error(
+                    StatusCode::UNAUTHORIZED,
+                    "PROOF_INVALID",
+                    "WOPI proof verification failed",
+                ));
+            }
+            Ok(())
+        }
+    }
+}
+
+/// Enforce token↔path binding (THM-WOPI-SCOPE corollary): the token is bound
+/// to the exact file path it was issued for.
+#[allow(clippy::result_large_err)]
+fn validate_token_path(claims: &WopiTokenClaims, full_path: &str) -> Result<(), Response> {
+    if claims.path != full_path {
+        return Err(wopi_error(
+            StatusCode::UNAUTHORIZED,
+            "TOKEN_PATH_MISMATCH",
+            "Access token is not valid for this path",
+        ));
+    }
+    Ok(())
+}
+
+/// Enforce the edit scope for mutating WOPI operations (THM-WOPI-SCOPE).
+#[allow(clippy::result_large_err)]
+fn validate_edit_scope(claims: &WopiTokenClaims) -> Result<(), Response> {
+    if !claims.can_edit() {
+        return Err(wopi_error(
+            StatusCode::FORBIDDEN,
+            "READ_ONLY_SESSION",
+            "This WOPI session is view-only",
+        ));
+    }
+    Ok(())
 }
 
 pub fn routes<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
@@ -314,17 +502,50 @@ pub async fn wopi_get(
     // the virtual path (%2F for '/'). Axum 0.7 hands the RAW segment —
     // decode once so storage keys are the real paths.
     Path(raw): Path<String>,
+    headers: axum::http::HeaderMap,
     Query(params): Query<WopiQueryParams>,
 ) -> Response {
-    if let Err(resp) = validate_access_token(&state, &params.access_token) {
+    let claims = match validate_access_token(&state, &params.access_token) {
+        Ok(c) => c,
+        Err(resp) => return resp,
+    };
+    let path = common::path::decode_percent(&raw).into_owned();
+    let full_path = format!("/{}", path);
+    // Bind the token to the underlying FILE: `/contents` sub-requests target
+    // the same file the token was issued for.
+    let binding_path = match split_contents_suffix(&path) {
+        Some((file_path, _)) => format!("/{}", file_path),
+        None => full_path.clone(),
+    };
+    if let Err(resp) = validate_token_path(&claims, &binding_path) {
         return resp;
     }
-    let path = common::path::decode_percent(&raw).into_owned();
+    // Request URI as the office client saw it (WOPI proof input binding).
+    let request_url = headers
+        .get("X-Forwarded-Proto")
+        .and_then(|v| v.to_str().ok())
+        .map(|p| {
+            format!(
+                "{}://{}",
+                p,
+                headers.get("host").and_then(|v| v.to_str().ok()).unwrap_or("")
+            )
+        })
+        .map(|authority| format!("{}{}", authority, full_path))
+        .unwrap_or_else(|| full_path.clone());
+    if let Err(resp) = validate_wopi_proof(
+        &state,
+        &headers,
+        &request_url,
+        params.access_token.as_deref().unwrap_or(""),
+    ) {
+        return resp;
+    }
 
     if let Some((file_path, _)) = split_contents_suffix(&path) {
         get_file_inner(&state, file_path).await
     } else {
-        check_file_info_inner(&state, &path).await
+        check_file_info_inner(&state, &path, &claims).await
     }
 }
 
@@ -339,7 +560,31 @@ pub async fn wopi_post(
         .get("X-WOPI-AccessToken")
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
-    if let Err(resp) = validate_access_token(&state, &access_token) {
+    let claims = match validate_access_token(&state, &access_token) {
+        Ok(c) => c,
+        Err(resp) => return resp,
+    };
+    let full_path = format!("/{}", path);
+    let binding_path = match split_contents_suffix(&path) {
+        Some((file_path, _)) => format!("/{}", file_path),
+        None => full_path.clone(),
+    };
+    if let Err(resp) = validate_token_path(&claims, &binding_path) {
+        return resp;
+    }
+    let request_url = headers
+        .get("X-Forwarded-Proto")
+        .and_then(|v| v.to_str().ok())
+        .map(|p| {
+            format!(
+                "{}://{}",
+                p,
+                headers.get("host").and_then(|v| v.to_str().ok()).unwrap_or("")
+            )
+        })
+        .map(|authority| format!("{}{}", authority, full_path))
+        .unwrap_or_else(|| full_path.clone());
+    if let Err(resp) = validate_wopi_proof(&state, &headers, &request_url, access_token.as_deref().unwrap_or("")) {
         return resp;
     }
 
@@ -349,17 +594,29 @@ pub async fn wopi_post(
         .unwrap_or("");
 
     if let Some((file_path, _)) = split_contents_suffix(&path) {
-        put_file_inner(&state, file_path, &headers, body).await
-    } else if override_header == "LOCK" {
-        lock_file_inner(&state, &path).await
-    } else if override_header == "UNLOCK" {
-        unlock_file_inner(&state, &path, &headers).await
+        // PutFile mutates the document: requires an edit-scoped session.
+        if let Err(resp) = validate_edit_scope(&claims) {
+            return resp;
+        }
+        put_file_inner(&state, file_path, &headers, body, &claims).await
+    } else if override_header == "LOCK" || override_header == "UNLOCK" {
+        if let Err(resp) = validate_edit_scope(&claims) {
+            return resp;
+        }
+        if override_header == "LOCK" {
+            lock_file_inner(&state, &path).await
+        } else {
+            unlock_file_inner(&state, &path, &headers).await
+        }
     } else {
+        if let Err(resp) = validate_edit_scope(&claims) {
+            return resp;
+        }
         lock_file_inner(&state, &path).await
     }
 }
 
-async fn check_file_info_inner(state: &WopiState, path: &str) -> Response {
+async fn check_file_info_inner(state: &WopiState, path: &str, claims: &WopiTokenClaims) -> Response {
     let full_path = format!("/{}", path);
 
     let meta = match state.storage.head(&full_path).await {
@@ -375,10 +632,11 @@ async fn check_file_info_inner(state: &WopiState, path: &str) -> Response {
         version: meta.etag.trim_matches('"').to_string(),
         last_modified_time: meta.modified_at.to_rfc3339(),
         owner_id: meta.owner,
-        user_can_write: true,
+        // Session capability, not a constant (THM-WOPI-SCOPE).
+        user_can_write: claims.can_edit(),
         user_can_not_write_relative: false,
-        supports_update: true,
-        supports_locks: true,
+        supports_update: claims.can_edit(),
+        supports_locks: claims.can_edit(),
         supports_coauth: false,
     };
 
@@ -417,6 +675,7 @@ async fn put_file_inner(
     path: &str,
     headers: &axum::http::HeaderMap,
     body: bytes::Bytes,
+    claims: &WopiTokenClaims,
 ) -> Response {
     let full_path = format!("/{}", path);
 
@@ -436,12 +695,11 @@ async fn put_file_inner(
         }
     }
 
-    let owner = headers
-        .get("X-WOPI-Override")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("anonymous");
+    // The document owner is the token's user — NOT a client-controlled header
+    // (the old code took X-WOPI-Override here, which is the operation verb).
+    let owner = claims.user.clone();
 
-    match state.storage.put(&full_path, body, owner).await {
+    match state.storage.put(&full_path, body, &owner).await {
         Ok(_) => {
             info!("WOPI PutFile: {}", full_path);
             (StatusCode::OK, "").into_response()
@@ -529,14 +787,23 @@ pub async fn wopi_issue_token(
     }
 
     let expires = chrono::Utc::now().timestamp() + (8 * 3600);
+    // Scope: `edit` (default, backward compatible) or `view`. View sessions get
+    // read-only CheckFileInfo and cannot PutFile/LOCK (THM-WOPI-SCOPE).
+    let scope = params
+        .scope
+        .as_deref()
+        .map(|s| s.trim().to_ascii_lowercase())
+        .filter(|s| s == WOPI_SCOPE_EDIT || s == WOPI_SCOPE_VIEW)
+        .unwrap_or_else(|| WOPI_SCOPE_EDIT.to_string());
     let token_payload = serde_json::json!({
         "path": full_path,
         "user": claims.sub,
+        "scope": scope,
         "exp": expires,
     });
 
     let payload_str = serde_json::to_string(&token_payload).unwrap_or_default();
-    let mut mac = match hmac::Hmac::<Sha256>::new_from_slice(state.wopi_token_secret.as_bytes()) {
+    let mut mac = match Hmac::<Sha256>::new_from_slice(state.wopi_token_secret.as_bytes()) {
         Ok(m) => m,
         Err(_) => {
             return wopi_error(
@@ -567,7 +834,7 @@ pub async fn wopi_issue_token(
 mod tests {
     use super::*;
     use base64::Engine;
-    use hmac::{KeyInit, Mac};
+    use hmac::{Hmac, Mac};
 
     fn build_token_payload(path: &str, user: &str, exp: i64) -> String {
         let payload = serde_json::json!({
@@ -580,7 +847,7 @@ mod tests {
 
     fn sign_token(payload_str: &str, secret: &str) -> String {
         use sha2::Sha256;
-        let mut mac = hmac::Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
+        let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
         mac.update(payload_str.as_bytes());
         let signature = mac.finalize();
         let sig_hex = hex::encode(signature.into_bytes());
@@ -759,7 +1026,7 @@ mod tests {
         assert_eq!(recovered_payload, payload);
 
         use sha2::Sha256;
-        let mut mac = hmac::Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
+        let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
         mac.update(payload.as_bytes());
         let signature = mac.finalize();
         let expected_sig = hex::encode(signature.into_bytes());
@@ -1006,5 +1273,165 @@ mod tests {
             .unwrap();
 
         assert_eq!(unlock_response.status(), StatusCode::OK);
+    }
+
+    // -----------------------------------------------------------------------
+    // WOPI proof verification (YP-COLLAB-WOPI-001, TV-WOPI-001..006)
+    // -----------------------------------------------------------------------
+
+    fn proof_headers(
+        state: &WopiState,
+        url: &str,
+        token: &str,
+        timestamp_raw: &str,
+        key_gen: u8,
+        key_override: Option<&str>,
+    ) -> axum::http::HeaderMap {
+        use base64::Engine;
+        let key = match key_override {
+            Some(k) => k.as_bytes().to_vec(),
+            None => wopi_proof_key(state, key_gen).unwrap(),
+        };
+        let input = format!("{}\n{}\n{}", url, token, timestamp_raw);
+        let mut mac = Hmac::<Sha256>::new_from_slice(&key).unwrap();
+        mac.update(input.as_bytes());
+        let sig = base64::engine::general_purpose::STANDARD.encode(mac.finalize().into_bytes());
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert("X-WOPI-Proof", axum::http::HeaderValue::from_str(&sig).unwrap());
+        headers.insert(
+            "X-WOPI-TimeStamp",
+            axum::http::HeaderValue::from_str(timestamp_raw).unwrap(),
+        );
+        headers
+    }
+
+    #[test]
+    fn test_wopi_proof_absent_headers_accepted() {
+        let state = make_wopi_state("test-secret");
+        let headers = axum::http::HeaderMap::new();
+        // Collabora sends no proof headers; token-over-TLS remains the base layer.
+        assert!(validate_wopi_proof(&state, &headers, "/wopi/files/x", "tok").is_ok());
+    }
+
+    #[test]
+    fn test_wopi_proof_half_present_rejected() {
+        let state = make_wopi_state("test-secret");
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert("X-WOPI-Proof", axum::http::HeaderValue::from_static("AAAA"));
+        assert!(validate_wopi_proof(&state, &headers, "/wopi/files/x", "tok").is_err());
+
+        let mut headers2 = axum::http::HeaderMap::new();
+        headers2.insert(
+            "X-WOPI-TimeStamp",
+            axum::http::HeaderValue::from_static("133000000000000000"),
+        );
+        assert!(validate_wopi_proof(&state, &headers2, "/wopi/files/x", "tok").is_err());
+    }
+
+    #[test]
+    fn test_wopi_proof_valid_current_and_old_key() {
+        let state = make_wopi_state("test-secret");
+        let url = "/wopi/files/docs%2Freport.odt";
+        let token = "some-access-token";
+
+        // Current key (gen 1), fresh FILETIME timestamp.
+        let now_ticks = (chrono::Utc::now().timestamp() + 11_644_473_600) as u64 * 10_000_000;
+        let headers = proof_headers(&state, url, token, &now_ticks.to_string(), 1, None);
+        assert!(validate_wopi_proof(&state, &headers, url, token).is_ok());
+
+        // Old key (gen 0) also verifies — rotation tolerance.
+        let headers_old = proof_headers(&state, url, token, &now_ticks.to_string(), 0, None);
+        assert!(validate_wopi_proof(&state, &headers_old, url, token).is_ok());
+
+        // RFC 3339 timestamp form is accepted too.
+        let ts_rfc = chrono::Utc::now().to_rfc3339();
+        let headers_rfc = proof_headers(&state, url, token, &ts_rfc, 1, None);
+        assert!(validate_wopi_proof(&state, &headers_rfc, url, token).is_ok());
+    }
+
+    #[test]
+    fn test_wopi_proof_wrong_key_rejected() {
+        let state = make_wopi_state("test-secret");
+        let url = "/wopi/files/x";
+        let now_ticks = (chrono::Utc::now().timestamp() + 11_644_473_600) as u64 * 10_000_000;
+        // Signed under an unrelated key — must never verify.
+        let headers = proof_headers(&state, url, "tok", &now_ticks.to_string(), 1, Some("attacker-key"));
+        assert!(validate_wopi_proof(&state, &headers, url, "tok").is_err());
+    }
+
+    /// TV-WOPI-002: timestamp freshness boundary (±20 min).
+    #[test]
+    fn test_wopi_proof_stale_timestamp_rejected() {
+        let state = make_wopi_state("test-secret");
+        let url = "/wopi/files/x";
+
+        let mk_ticks =
+            |age_secs: i64| ((chrono::Utc::now().timestamp() - age_secs) + 11_644_473_600) as u64 * 10_000_000;
+
+        // 19 minutes old: inside the window.
+        let fresh = proof_headers(&state, url, "tok", &mk_ticks(19 * 60).to_string(), 1, None);
+        assert!(validate_wopi_proof(&state, &fresh, url, "tok").is_ok());
+
+        // 21 minutes old: outside the window.
+        let stale = proof_headers(&state, url, "tok", &mk_ticks(21 * 60).to_string(), 1, None);
+        assert!(validate_wopi_proof(&state, &stale, url, "tok").is_err());
+    }
+
+    /// TV-WOPI-001: proof over a different URL/token fails (binding).
+    #[test]
+    fn test_wopi_proof_url_binding() {
+        let state = make_wopi_state("test-secret");
+        let now_ticks = (chrono::Utc::now().timestamp() + 11_644_473_600) as u64 * 10_000_000;
+        let headers = proof_headers(&state, "/wopi/files/legit", "tok", &now_ticks.to_string(), 1, None);
+        // Same proof replayed against a different URL must fail.
+        assert!(validate_wopi_proof(&state, &headers, "/wopi/files/other", "tok").is_err());
+        // Same URL, different token must fail.
+        assert!(validate_wopi_proof(&state, &headers, "/wopi/files/legit", "other-tok").is_err());
+    }
+
+    /// TV-WOPI-005 (THM-WOPI-SCOPE): view-scoped tokens cannot mutate.
+    #[test]
+    fn test_view_scope_cannot_edit() {
+        let claims = WopiTokenClaims {
+            path: "/docs/report.odt".into(),
+            user: "alice".into(),
+            exp: 9999999999,
+            scope: WOPI_SCOPE_VIEW.into(),
+        };
+        assert!(!claims.can_edit());
+        assert!(validate_edit_scope(&claims).is_err());
+
+        let edit_claims = WopiTokenClaims {
+            scope: WOPI_SCOPE_EDIT.into(),
+            ..claims
+        };
+        assert!(validate_edit_scope(&edit_claims).is_ok());
+    }
+
+    /// Token↔path binding: a token issued for one file is useless for another.
+    #[test]
+    fn test_token_path_binding() {
+        let claims = WopiTokenClaims {
+            path: "/docs/report.odt".into(),
+            user: "alice".into(),
+            exp: 9999999999,
+            scope: WOPI_SCOPE_EDIT.into(),
+        };
+        assert!(validate_token_path(&claims, "/docs/report.odt").is_ok());
+        assert!(validate_token_path(&claims, "/docs/other.odt").is_err());
+        assert!(validate_token_path(&claims, "/docs/report.odt/contents").is_err());
+    }
+
+    /// Legacy tokens (no scope field) default to edit — backward compatible.
+    #[test]
+    fn test_legacy_token_defaults_to_edit_scope() {
+        let secret = "test-secret";
+        let payload = build_token_payload("/file.txt", "user", 9999999999);
+        let token = sign_token(&payload, secret);
+        let state = make_wopi_state(secret);
+        let claims = validate_access_token(&state, &Some(token)).unwrap();
+        assert!(claims.can_edit());
+        assert_eq!(claims.path, "/file.txt");
+        assert_eq!(claims.user, "user");
     }
 }

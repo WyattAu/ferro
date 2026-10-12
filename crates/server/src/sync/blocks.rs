@@ -181,7 +181,12 @@ pub async fn get_manifest(
     let block_size = params.block_size.clamp(4096, 1_048_576);
 
     // Chunk the file
-    let raw_blocks = chunk_data(&content, block_size, 4096, 1_048_576);
+    let raw_blocks = chunk_data(
+        &content,
+        block_size,
+        common::chunk::CHUNK_MIN_SIZE,
+        common::chunk::CHUNK_MAX_SIZE,
+    );
 
     let blocks: Vec<BlockDescriptor> = raw_blocks
         .iter()

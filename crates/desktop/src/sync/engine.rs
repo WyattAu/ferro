@@ -568,12 +568,7 @@ impl SyncEngine {
     /// peer index, start a block listener. Returns the served block cache
     /// for potential peer fetches during upload.
     async fn try_mesh_cycle(&self) -> Result<Option<HashMap<String, Vec<u8>>>> {
-        let bearer = self
-            .bearer
-            .read()
-            .ok()
-            .map(|g| g.clone())
-            .unwrap_or_default();
+        let bearer = self.bearer.read().ok().map(|g| g.clone()).unwrap_or_default();
         if bearer.is_empty() || self.config.oidc_issuer.is_none() {
             return Ok(None);
         }
@@ -592,7 +587,10 @@ impl SyncEngine {
         };
 
         // No blocks to register yet on first cycle — just announce presence.
-        super::mesh::register(&mesh_config, &[]).await?;
+        // No inventory is sent (existence-oracle fix): registration announces
+        // presence + reachability only. Bloom-filter exchange lands with
+        // peer-to-peer block reconciliation (YP-MESH-TRANSPORT-001).
+        super::mesh::register(&mesh_config, None).await?;
         tracing::info!(addresses = ?addresses, device = %device_name, "mesh peer registered");
 
         Ok(None) // block-exchange wiring lands with the P2P fetch phase
@@ -621,8 +619,7 @@ impl SyncEngine {
         }
 
         // Which blocks does the server already have? (batched: URL length)
-        let mut missing_on_server: std::collections::HashSet<String> =
-            std::collections::HashSet::new();
+        let mut missing_on_server: std::collections::HashSet<String> = std::collections::HashSet::new();
         for batch in hashes.chunks(400) {
             let url = format!("{api}/check?hashes={}", batch.join(","));
             let resp = self
@@ -666,9 +663,7 @@ impl SyncEngine {
                     .map(|(h, b)| {
                         (
                             h.clone(),
-                            serde_json::Value::String(
-                                base64::engine::general_purpose::STANDARD.encode(b),
-                            ),
+                            serde_json::Value::String(base64::engine::general_purpose::STANDARD.encode(b)),
                         )
                     })
                     .collect();
@@ -698,8 +693,7 @@ impl SyncEngine {
 
         // Serve blocks on LAN so peers can fetch directly from us instead
         // of round-tripping through the server. Spawns a detached listener.
-        let cache: HashMap<String, Vec<u8>> =
-            blocks.iter().map(|(h, b)| (h.clone(), b.clone())).collect();
+        let cache: HashMap<String, Vec<u8>> = blocks.iter().map(|(h, b)| (h.clone(), b.clone())).collect();
         let _ = super::mesh::serve_blocks(7878, cache).await;
 
         Ok(true)

@@ -103,13 +103,15 @@ protocol = "Rust trait"
 [IF-CEDAR-001.operations.is_authorized]
 name = "is_authorized"
 description = "Evaluate an authorization request against the active policy set and entity store."
-input = {
-    principal = "EntityUid (e.g., User::\"<sub>\")",
-    action = "EntityUid (e.g., Action::\"view\")",
-    resource = "EntityUid (e.g., File::\"doc.pdf\")",
-    context = "Context (record: {ip, mfa, time, ...})",
-}
-output = { ok = "AuthResponse", err = "EvalError" }
+[IF-CEDAR-001.operations.is_authorized.input]
+principal = "EntityUid (e.g., User::\"<sub>\")"
+action = "EntityUid (e.g., Action::\"view\")"
+resource = "EntityUid (e.g., File::\"doc.pdf\")"
+context = "Context (record: {ip, mfa, time, ...})"
+
+[IF-CEDAR-001.operations.is_authorized.output]
+ok = "AuthResponse"
+err = "EvalError"
 preconditions = [
     "Policy set is loaded (not empty, validated against schema)",
     "Principal entity exists in entity store or is constructed from OIDC claims",

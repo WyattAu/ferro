@@ -67,7 +67,6 @@ fn oidc_managed_error() -> Response {
         .into_response()
 }
 
-
 async fn verify_user_password<S: SecurityAppState>(state: &S, username: &str, password: &str) -> bool {
     #[allow(clippy::collapsible_if)]
     if let (Some(admin_pw), Some(admin_user)) = (state.admin_password(), state.admin_user()) {

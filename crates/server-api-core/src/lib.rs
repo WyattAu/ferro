@@ -27,11 +27,15 @@ pub struct SemanticSearchResult {
 #[async_trait::async_trait]
 pub trait AiSearchBridgeTrait: Send + Sync {
     fn is_available(&self) -> bool;
+    /// `owner` scopes results to a principal (DC-SEARCH-002). When `Some`,
+    /// entries without a matching owner in their metadata are invisible —
+    /// hide-by-default, never leak-by-default.
     fn semantic_search(
         &self,
         query: &str,
         limit: usize,
         min_similarity: Option<f32>,
+        owner: Option<&str>,
     ) -> Result<Vec<SemanticSearchResult>, String>;
 }
 

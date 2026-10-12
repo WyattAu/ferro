@@ -1,6 +1,29 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
+// ---------------------------------------------------------------------------
+// Canonical chunking parameters (DC-DEDUP-002, YP-DEDUP-CDC-001)
+//
+// Client and server MUST source these from here. Parameter drift between the
+// desktop client and the server is silent and corrupting: identical content
+// would be cut at different boundaries, so dedup silently stops working and
+// diffs become wrong. Previously the literals (65536/4096/1048576) were
+// duplicated at four call sites.
+// ---------------------------------------------------------------------------
+
+/// Target average block size (determines the hash mask; a power of two).
+pub const CHUNK_TARGET_SIZE: u64 = 65_536;
+
+/// Minimum block size. Bytes below this are never a boundary test
+/// (FastCDC "cut-point skipping").
+pub const CHUNK_MIN_SIZE: u64 = 4_096;
+
+/// Maximum block size; a hard cut is forced at this length.
+pub const CHUNK_MAX_SIZE: u64 = 1_048_576;
+
+/// Rolling-hash window length in bytes.
+pub const BUZHASH_WINDOW: usize = 48;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ChunkInfo {
     pub hash: [u8; 32],
