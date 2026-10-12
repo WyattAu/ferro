@@ -45,6 +45,9 @@ mod format_proptest;
 #[cfg(feature = "db")]
 pub type DbHandle = std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>;
 
+#[cfg(feature = "db")]
+pub mod outbox;
+
 /// Run a blocking database operation on a `DbHandle` via `tokio::task::spawn_blocking`.
 ///
 /// This prevents blocking the async runtime when executing synchronous SQLite queries.

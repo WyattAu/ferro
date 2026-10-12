@@ -103,6 +103,22 @@ pub async fn dispatch_post_op<S: ApiCoreState>(state: &S, event: FileEvent) {
         },
         _ => return,
     };
+    // Durable path (YP-EVENT-DURABILITY-001, DC-EVT-001/002): external
+    // effects are enqueued in the outbox and delivered by the relay with
+    // leases + retries + persistent DLQ. Fire-and-forget dispatch is gone.
+    let payload = serde_json::to_value(&webhook_event).unwrap_or(serde_json::Value::Null);
+    if let Some(outbox) = state.outbox() {
+        let _ = outbox.enqueue("webhook", &payload);
+        if state.email_config().enabled {
+            let _ = outbox.enqueue("email", &payload);
+        }
+        if state.push_notification_store().is_some() {
+            let _ = outbox.enqueue("push", &payload);
+        }
+        return;
+    }
+
+    // No outbox configured (tests): legacy inline delivery.
     crate::webhooks::fire_webhooks(
         state.webhooks().clone(),
         webhook_event.clone(),
@@ -171,4 +187,102 @@ pub async fn dispatch_post_op<S: ApiCoreState>(state: &S, event: FileEvent) {
     tokio::spawn(async move {
         bus.publish(bus_event).await;
     });
+}
+
+
+/// Relay loop: drains the durable outbox and delivers external effects with
+/// lease-claim + retry + DLQ semantics (YP-EVENT-DURABILITY-001 ALG-RELAY-001).
+/// Spawn once at startup when an outbox is configured.
+pub fn spawn_outbox_relay<S: ApiCoreState + 'static>(state: S) {
+    let Some(outbox) = state.outbox() else {
+        return;
+    };
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+        loop {
+            interval.tick().await;
+            let rows = tokio::task::spawn_blocking({
+                let outbox = outbox.clone();
+                move || outbox.claim_batch(100)
+            })
+            .await;
+            let rows = match rows {
+                Ok(Ok(rows)) => rows,
+                Ok(Err(e)) => {
+                    tracing::warn!("outbox claim failed: {e}");
+                    continue;
+                }
+                Err(e) => {
+                    tracing::warn!("outbox claim task failed: {e}");
+                    continue;
+                }
+            };
+            for row in rows {
+                match deliver_outbox_row(&state, &row).await {
+                    Ok(()) => {
+                        if let Err(e) = outbox.mark_done(row.id) {
+                            tracing::warn!("outbox mark_done failed: {e}");
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(row_id = row.id, attempts = row.attempts, error = %e, "outbox delivery failed");
+                        let _ = outbox.park_failed(row.id, &e.to_string());
+                    }
+                }
+            }
+        }
+    });
+}
+
+/// Deliver one claimed outbox row by its event type.
+async fn deliver_outbox_row<S: ApiCoreState>(
+    state: &S,
+    row: &common::outbox::OutboxRow,
+) -> Result<(), anyhow::Error> {
+    let webhook_event: crate::webhooks::WebhookEvent = serde_json::from_value(row.payload.clone())
+        .map_err(|e| anyhow::anyhow!("payload deserialize: {e}"))?;
+    match row.event_type.as_str() {
+        "webhook" => {
+            crate::webhooks::fire_webhooks(
+                state.webhooks().clone(),
+                webhook_event,
+                state.webhook_delivery_store().clone(),
+            )
+            .await;
+            Ok(())
+        }
+        "email" => {
+            let subject = format!("Ferro: {}", webhook_event.event);
+            let body = format!(
+                "Event: {}\nPath: {}\nTimestamp: {}",
+                webhook_event.event, webhook_event.path, webhook_event.timestamp
+            );
+            let msg = crate::email::EmailMessage {
+                to: webhook_event.user.clone().unwrap_or_default(),
+                subject,
+                body_text: body,
+                body_html: None,
+            };
+            crate::email::send_email(&crate::email::EmailConfig::default(), &msg)
+                .await
+                .map_err(|e| anyhow::anyhow!("email: {e}"))
+        }
+        "push" => {
+            if let Some(push_store) = state.push_notification_store() {
+                crate::push_notifications::dispatch_push_notifications(
+                    &push_store,
+                    &state.push_notification_config().clone(),
+                    &webhook_event.user.clone().unwrap_or_default(),
+                    "file.event",
+                    &webhook_event.path,
+                )
+                .await;
+            }
+            Ok(())
+        }
+        other => {
+            tracing::warn!(event_type = %other, "unknown outbox event type; dropping");
+            Ok(())
+        }
+    }
 }

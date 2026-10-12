@@ -3322,6 +3322,7 @@ dependencies = [
 name = "ferro-common"
 version = "3.0.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "bumpalo",
  "bytes",
@@ -3929,6 +3930,7 @@ dependencies = [
 name = "ferro-server-api-core"
 version = "3.0.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "axum 0.7.9",
  "chrono",
@@ -4360,8 +4362,10 @@ dependencies = [
 name = "ferro-server-state"
 version = "3.0.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "bytes",
+ "chrono",
  "dashmap",
  "ferro-auth",
  "ferro-common",
@@ -4383,9 +4387,11 @@ dependencies = [
  "ferro-server-sharing",
  "ferro-server-slo",
  "ferro-server-storage-ops",
+ "rusqlite",
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

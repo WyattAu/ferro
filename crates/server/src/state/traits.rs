@@ -820,6 +820,10 @@ impl ferro_server_state::AuditLogTrait for AuditLogAdapter {
 // ---------------------------------------------------------------------------
 
 impl ferro_server_state::ServerState for AppState {
+    fn outbox(&self) -> Option<Arc<common::outbox::Outbox>> {
+        self.outbox.clone()
+    }
+
     fn storage(&self) -> &Arc<dyn common::storage::StorageEngine> {
         &self.storage
     }

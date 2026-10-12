@@ -49,6 +49,10 @@ pub trait ServerState: Send + Sync + Clone + 'static {
     fn user_store(&self) -> &Arc<dyn ferro_auth::users::UserStoreTrait>;
     fn api_key_store(&self) -> &Arc<dyn ferro_auth::api_keys::ApiKeyStoreTrait>;
     fn search(&self) -> &Option<Arc<tokio::sync::RwLock<ferro_core::search::SearchEngine>>>;
+    /// Durable outbox for post-op side effects (None = effects fire inline).
+    fn outbox(&self) -> Option<Arc<common::outbox::Outbox>> {
+        None
+    }
     fn preferences(&self) -> &Arc<dyn ferro_server_api_core::search::PreferenceStore>;
     fn share_store(&self) -> &Arc<dyn ferro_server_sharing::shares::ShareStoreTrait>;
     fn favorites(&self) -> &Arc<dyn ferro_server_sharing::favorites::FavoriteStore>;

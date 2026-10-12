@@ -537,6 +537,19 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
         state
     };
 
+    // Durable outbox for post-op effects (YP-EVENT-DURABILITY-001).
+    if let Some(ref data_dir) = cli.data_dir {
+        match common::outbox::Outbox::open(
+            &std::path::Path::new(data_dir).join("outbox.db"),
+        ) {
+            Ok(outbox) => {
+                state.outbox = Some(std::sync::Arc::new(outbox));
+                info!("Outbox: {:?}/outbox.db", data_dir);
+            }
+            Err(e) => tracing::warn!("Outbox disabled (open failed): {e}"),
+        }
+    }
+
     state.thumbnail_size = cli.thumbnail_size.clamp(64, 1024);
 
     state.thumbnail_cache = {
@@ -1201,6 +1214,9 @@ pub async fn run_server(state: AppState, cli: &Cli, shutdown_token: Cancellation
     state.startup_complete.store(true, std::sync::atomic::Ordering::Relaxed);
 
     info!("Ferro server listening on {}", addr);
+
+    // Drain the durable outbox (webhooks/email/push) in the background.
+    crate::events::spawn_outbox_relay(state.clone());
 
     let serve_cancel = shutdown_token.clone();
     // Inject ConnectInfo<SocketAddr> so rate limiting can key by the direct

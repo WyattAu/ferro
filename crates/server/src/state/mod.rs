@@ -177,6 +177,8 @@ pub struct AppState {
     pub tenant_store: Arc<dyn ferro_multi_tenant::tenant::TenantStore>,
     /// General-purpose timed cache for metadata and responses (from ferro-cache crate).
     pub metadata_cache: Option<Arc<ferro_cache::TimedCache<String, Vec<u8>>>>,
+    /// Durable outbox for post-op side effects (YP-EVENT-DURABILITY-001).
+    pub outbox: Option<Arc<common::outbox::Outbox>>,
     /// Event bus for pub/sub event dispatch (from ferro-event-bus crate).
     pub event_bus: Arc<ferro_event_bus::EventBus>,
     /// Structured health checker with configurable probes (from ferro-health crate).
@@ -353,6 +355,7 @@ impl AppState {
             organization_store: Arc::new(ferro_multi_tenant::organization::InMemoryOrganizationStore::new()),
             tenant_store: Arc::new(ferro_multi_tenant::tenant::InMemoryTenantStore::new()),
             metadata_cache: None,
+            outbox: None,
             event_bus: Arc::new(ferro_event_bus::EventBus::new()),
             health_checker: {
                 let checker = ferro_health::HealthChecker::new(env!("CARGO_PKG_VERSION"));

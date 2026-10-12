@@ -19,6 +19,10 @@ pub enum FerroError {
     #[error("Internal error: {0}")]
     Internal(String),
 
+    /// Database error (rusqlite), e.g. outbox/persistence layers.
+    #[error("Database error: {0}")]
+    Db(String),
+
     #[error("Lock conflict: {0}")]
     LockConflict(String),
 
@@ -57,6 +61,7 @@ impl FerroError {
             Self::PermissionDenied(_) => 403,
             Self::InvalidArgument(_) => 400,
             Self::Internal(_) => 500,
+            Self::Db(_) => 500,
             Self::LockConflict(_) => 423,
             Self::LockTokenNotFound(_) => 409,
             Self::PreconditionFailed(_) => 412,
@@ -152,5 +157,11 @@ mod tests {
         use std::error::Error;
         let err = FerroError::NotFound("test".into());
         assert!(err.source().is_none());
+    }
+}
+
+impl From<rusqlite::Error> for FerroError {
+    fn from(e: rusqlite::Error) -> Self {
+        FerroError::Db(e.to_string())
     }
 }

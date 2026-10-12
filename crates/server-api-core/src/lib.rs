@@ -70,6 +70,11 @@ pub trait ApiCoreState: Clone + Send + Sync + 'static {
 
     // search
     fn search(&self) -> &Option<Arc<tokio::sync::RwLock<ferro_core::search::SearchEngine>>>;
+    /// Durable outbox for post-op side effects (YP-EVENT-DURABILITY-001).
+    /// `None` = effects fire inline (legacy / test mode).
+    fn outbox(&self) -> Option<Arc<common::outbox::Outbox>> {
+        None
+    }
     fn search_ranking_config(&self) -> &Arc<tokio::sync::RwLock<ferro_core::search::SearchRankingConfig>>;
     fn ai_search(&self) -> &Option<Arc<dyn AiSearchBridgeTrait>>;
     fn lock_manager(&self) -> &Arc<dyn common::storage::LockManagerTrait>;
