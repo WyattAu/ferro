@@ -29,14 +29,14 @@ pub const CEDAR_SCHEMA_JSON: &str = r#"{
             "File": { "shape": { "type": "Record", "attributes": {} } }
         },
         "actions": {
-            "read":     { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } },
-            "list":     { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } },
-            "write":    { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } },
-            "create":   { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } },
-            "update":   { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } },
-            "delete":   { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } },
-            "share":    { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } },
-            "manage":   { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}} } } } }
+            "read":     { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}}, "is_own_home": {"type": "Boolean"} } } } },
+            "list":     { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}}, "is_own_home": {"type": "Boolean"} } } } },
+            "write":    { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}}, "is_own_home": {"type": "Boolean"} } } } },
+            "create":   { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}}, "is_own_home": {"type": "Boolean"} } } } },
+            "update":   { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}}, "is_own_home": {"type": "Boolean"} } } } },
+            "delete":   { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}}, "is_own_home": {"type": "Boolean"} } } } },
+            "share":    { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}}, "is_own_home": {"type": "Boolean"} } } } },
+            "manage":   { "appliesTo": { "principalTypes": ["User"], "resourceTypes": ["File"], "context": { "type": "Record", "attributes": { "ip": {"type": "String"}, "method": {"type": "String"}, "resource": {"type": "String"}, "sub": {"type": "String"}, "path": {"type": "String"}, "groups": {"type": "Set", "element": {"type": "String"}}, "is_own_home": {"type": "Boolean"} } } } }
         }
     }
 }"#;
@@ -283,6 +283,22 @@ impl CedarAuthorizer {
     }
 }
 
+
+/// Boundary-safe own-home predicate (THM-AUTHZ-HOME-RULE).
+///
+/// Shared by the middleware (which supplies it as the `is_own_home` context
+/// attribute) and by tests. The explicit `/` before the prefix compare is
+/// what prevents /users/{sub}evil/... over-matching (same class as the
+/// tenant-isolation prefix bug, DC-TENANT-001).
+#[must_use]
+pub fn is_own_home_path(sub: &str, path: &str) -> bool {
+    if sub.is_empty() || sub == "anonymous" {
+        return false;
+    }
+    let root = format!("/users/{sub}");
+    path == root || path.starts_with(&format!("{root}/"))
+}
+
 /// Map an HTTP method to a Cedar action string.
 fn http_method_to_action(method: &axum::http::Method) -> &'static str {
     match *method {
@@ -344,17 +360,11 @@ pub async fn cedar_middleware(
         .unwrap_or("unknown")
         .to_string();
 
-    // Own-root bypass: access to the caller's own /users/{sub} tree is already
-    // enforced in code by resolve_user_path/can_access_path (cross-root -> 403).
-    // Cedar arbitrates admin paths, the shared /_spaces namespace, and anything
-    // outside per-user roots. Anonymous requests were 401'd by the auth
-    // middleware before reaching here.
-    let is_own_root = !claims.sub.is_empty()
-        && claims.sub != "anonymous"
-        && (path == format!("/users/{}", claims.sub) || path.starts_with(&format!("/users/{}/", claims.sub)));
-    if is_own_root {
-        return next.run(request).await;
-    }
+    // Own-home is supplied as a schema-typed CONTEXT FACT and the DECISION
+    // stays in Cedar (THM-AUTHZ-SINGLE-LANGUAGE, THM-AUTHZ-HOME-RULE): no
+    // early-return bypass. Defense in depth remains in
+    // resolve_user_path/can_access_path (cross-root -> 403).
+    let is_own_home = is_own_home_path(&claims.sub, path);
 
     // Build Cedar context with request metadata for policy evaluation.
     let context = serde_json::json!({
@@ -364,6 +374,7 @@ pub async fn cedar_middleware(
         "sub": claims.sub,
         "path": resource,
         "groups": claims.groups.clone().unwrap_or_default(),
+        "is_own_home": is_own_home,
     });
 
     match authorizer
@@ -414,6 +425,7 @@ impl Default for CedarAuthorizer {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[tokio::test]
@@ -894,6 +906,107 @@ mod tests {
             "default policy failed validation: {diagnostics:?}"
         );
     }
+    /// TV-AUTHZ-005 (THM-AUTHZ-SINGLE-LANGUAGE / THM-AUTHZ-HOME-RULE):
+    /// the is_own_home context fact + generated policy reproduce the OLD
+    /// Rust bypass's decisions exactly, including prefix-collision cases.
+    #[tokio::test]
+    async fn test_home_policy_matches_old_rust_bypass() {
+        let authorizer = CedarAuthorizer::new().unwrap();
+        let policies = generate_auto_policies("admin-sub", &[]);
+        authorizer.load_policies(&policies).await.unwrap();
+
+        let old_bypass = |sub: &str, path: &str| {
+            !sub.is_empty()
+                && sub != "anonymous"
+                && (path == format!("/users/{sub}")
+                    || path.starts_with(&format!("/users/{sub}/")))
+        };
+
+        let cases: Vec<(&str, &str)> = vec![
+            ("alice", "/users/alice"),
+            ("alice", "/users/alice/docs/file.txt"),
+            ("alice", "/users/bob/file.txt"),
+            ("alice", "/users/aliceevil/file.txt"),
+            ("alice", "/users/al"),
+            ("alice", "/_spaces/pep"),
+            ("anonymous", "/users/anonymous/x"),
+            ("admin-sub", "/users/admin-sub/x"),
+        ];
+
+        for (sub, path) in &cases {
+            let fact = is_own_home_path(sub, path);
+            assert_eq!(
+                fact,
+                old_bypass(sub, path),
+                "is_own_home_path diverges from old bypass for sub={sub} path={path}"
+            );
+
+            let context = serde_json::json!({
+                "ip": "t", "method": "GET", "resource": path,
+                "sub": sub, "path": path, "groups": [],
+                "is_own_home": fact,
+            });
+            let decision = authorizer
+                .is_authorized(&common::auth::AuthRequest {
+                    principal: sub.to_string(),
+                    action: "read".to_string(),
+                    resource: path.to_string(),
+                    context,
+                })
+                .await
+                .expect("eval");
+            let allowed = matches!(decision, common::auth::AuthDecision::Allow { .. });
+            // Home fact OR admin policy OR the shared-spaces read policy
+            // (action here is always "read").
+            let expected =
+                fact || *sub == "admin-sub" || path.starts_with("/_spaces/");
+            assert_eq!(allowed, expected, "cedar mismatch for sub={sub} path={path}");
+        }
+    }
+
+    /// Own-home grants never leak into other namespaces; and without the
+    /// fact (is_own_home=false) nothing home-shaped is granted.
+    #[tokio::test]
+    async fn test_home_policy_does_not_grant_other_namespaces() {
+        let authorizer = CedarAuthorizer::new().unwrap();
+        let policies = generate_auto_policies("admin-sub", &[]);
+        authorizer.load_policies(&policies).await.unwrap();
+
+        let ctx = serde_json::json!({
+            "ip": "t", "method": "GET", "resource": "/users/alice/f",
+            "sub": "alice", "path": "/users/alice/f", "groups": [],
+            "is_own_home": true,
+        });
+        let d = authorizer
+            .is_authorized(&common::auth::AuthRequest {
+                principal: "alice".into(),
+                action: "write".into(),
+                resource: "/users/alice/f".into(),
+                context: ctx,
+            })
+            .await
+            .expect("eval");
+        assert!(matches!(d, common::auth::AuthDecision::Allow { .. }));
+
+        // Without the fact (is_own_home=false) nothing home-shaped is
+        // granted: a non-home, non-space admin namespace stays denied.
+        let ctx2 = serde_json::json!({
+            "ip": "t", "method": "GET", "resource": "/etc/ferro-admin",
+            "sub": "alice", "path": "/etc/ferro-admin", "groups": [],
+            "is_own_home": false,
+        });
+        let d2 = authorizer
+            .is_authorized(&common::auth::AuthRequest {
+                principal: "alice".into(),
+                action: "read".into(),
+                resource: "/etc/ferro-admin".into(),
+                context: ctx2,
+            })
+            .await
+            .expect("eval");
+        assert!(matches!(d2, common::auth::AuthDecision::Deny { .. }));
+    }
+
 }
 
 /// Generated-policy input: one editable space with its member subs.
@@ -933,6 +1046,20 @@ pub fn generate_auto_policies(admin_sub: &str, spaces: &[SpaceMembership]) -> Ve
     // Keycloak group admins: members of the ferro-admin group (claim mapped
     // into the token by the ferro-groups mapper) get the same reach.
     out.push("permit(principal, action, resource) when { context.groups.contains(\"ferro-admin\") };".to_string());
+
+    // Own-home rule (THM-AUTHZ-HOME-RULE): the caller's own /users/{sub}
+    // tree, granted IN POLICY — replaces the former Rust-side bypass in
+    // cedar_middleware (THM-AUTHZ-SINGLE-LANGUAGE). Boundary-safe: exact
+    // match for the root; `like` with an explicit `/` before the wildcard
+    // for children, so /users/{sub}evil/... can never over-match.
+    // Own-home rule (THM-AUTHZ-HOME-RULE): the caller's own /users/{sub}
+    // tree, granted IN POLICY via the schema-typed `is_own_home` context
+    // fact. The middleware computes the predicate (is_own_home_path) but no
+    // longer bypasses Cedar — the decision itself stays in the policy
+    // engine (THM-AUTHZ-SINGLE-LANGUAGE). Anonymous never matches.
+    out.push(
+        "permit(principal, action, resource) when { context.is_own_home == true };".to_string(),
+    );
 
     // Shared spaces: read for every authenticated user
     out.push(
