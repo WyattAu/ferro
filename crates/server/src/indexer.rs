@@ -38,6 +38,34 @@ pub async fn index_file(state: &AppState, metadata: &FileMetadata) {
 /// For text files, we index the content; for binary, just metadata.
 /// When dedup is enabled, computes perceptual/content hash.
 /// For PDFs/images, attempts OCR text extraction for search indexing.
+/// Extract searchable text from an XLSX workbook: sheet names plus the text
+/// form of every string/numeric/boolean cell. Returns `None` when the bytes
+/// are not a parseable workbook.
+#[must_use]
+pub fn extract_xlsx_text(content: &[u8]) -> Option<String> {
+    let wb = sheet_xlsx::read_xlsx(content).ok()?;
+    let mut text = String::new();
+    for sheet in &wb.sheets {
+        text.push_str(&sheet.name);
+        text.push('\n');
+        for (_coord, cell) in &sheet.cells {
+            let line = match &cell.value {
+                sheet_xlsx::XlsxValue::InlineString(s) => Some(s.clone()),
+                sheet_xlsx::XlsxValue::SharedString(idx) => wb.shared_text(*idx).map(str::to_string),
+                sheet_xlsx::XlsxValue::Number(n) => Some(n.to_string()),
+                sheet_xlsx::XlsxValue::Boolean(b) => Some(b.to_string()),
+                sheet_xlsx::XlsxValue::FormulaString(s) if !s.is_empty() => Some(s.clone()),
+                _ => None,
+            };
+            if let Some(line) = line {
+                text.push_str(&line);
+                text.push('\n');
+            }
+        }
+    }
+    if text.is_empty() { None } else { Some(text) }
+}
+
 pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, content: &[u8]) {
     let Some(search_lock) = &state.search else {
         return;
@@ -50,6 +78,7 @@ pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, 
     let mut engine = search_lock.write().await;
 
     let mut content_to_index: Option<&str> = None;
+    let mut content_extracted = false;
 
     // Only index content for text-like MIME types
     let is_text = metadata.mime_type.starts_with("text/")
@@ -75,8 +104,25 @@ pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, 
         return;
     }
 
-    // OCR text extraction for PDFs and images
+    // XLSX text extraction (R5-D, sheet-xlsx): index cell text of
+    // spreadsheets so they are searchable like text documents.
     if content_to_index.is_none()
+        && (metadata.mime_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            || metadata.path.to_lowercase().ends_with(".xlsx"))
+    {
+        if let Some(text) = extract_xlsx_text(content) {
+            let truncated = &text[..text.len().min(1_000_000)];
+            if let Err(e) = engine.index_content(metadata, truncated) {
+                warn!(error = %e, path = %metadata.path, "XLSX content indexing failed");
+            } else {
+                content_extracted = true;
+            }
+        }
+    }
+
+    // OCR text extraction for PDFs and images
+    if !content_extracted
+        && content_to_index.is_none()
         && (metadata.mime_type == "application/pdf" || metadata.mime_type.starts_with("image/"))
     {
         let ocr_text = crate::ocr::extract_text(content, &metadata.mime_type);
@@ -176,4 +222,35 @@ async fn index_storage(state: &AppState) {
     }
 
     debug!("Indexer: processed {} entries", entries.len());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_xlsx_text_roundtrip() {
+        let mut wb = sheet_xlsx::XlsxWorkbook::single_sheet();
+        wb.sheets[0].name = "Budget".into();
+        wb.sheets[0].cells.insert(
+            (0, 0),
+            sheet_xlsx::XlsxCell::new(sheet_xlsx::XlsxValue::InlineString("quarterly revenue".into())),
+        );
+        wb.sheets[0].cells.insert(
+            (1, 0),
+            sheet_xlsx::XlsxCell::new(sheet_xlsx::XlsxValue::Number(42250.0)),
+        );
+        let bytes = sheet_xlsx::write_xlsx(&wb).unwrap();
+
+        let text = extract_xlsx_text(&bytes).expect("text");
+        assert!(text.contains("Budget"));
+        assert!(text.contains("quarterly revenue"));
+        assert!(text.contains("42250"));
+    }
+
+    #[test]
+    fn test_extract_xlsx_rejects_non_xlsx() {
+        assert!(extract_xlsx_text(b"not a workbook").is_none());
+        assert!(extract_xlsx_text(b"").is_none());
+    }
 }

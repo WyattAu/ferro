@@ -148,3 +148,92 @@ Summary: path isolation MUST fail closed (`DC-TENANT-001`); one canonical path l
 8. Cutler, C., et al. "Cedar: a new language for expressive, fast, safe, and analyzable authorization." *OOPSLA 2024* (venue corrected from "IEEE S&P"). [VERIFIED]
 9. Linux cgroups v2, namespaces(7), seccomp(2), Landlock, systemd resource-control(5) — stable primary sources; verify exact URLs before spec freeze. [UNCERTAIN]
 10. Wasmtime security/sandbox docs; Dropbox Business team namespaces; Google Workspace org isolation; Gitea/Forgejo org model; Seafile per-user libraries — vendor docs, verify individually. [UNCERTAIN]
+
+---
+
+## YP-9: Revision 1.1 — Hardening Pass (Iteration R2-7, 2026-10-14)
+
+### R2-7.1: Frontier Finding — GCRA replaces the token bucket for per-tenant admission
+
+The token bucket (formal/RateLimiterRefined) tracks `tokens`, `lastRefill` per tenant and requires a wall-clock refill step per request. GCRA (Generic Cell Rate Algorithm — the ATM Forum's conformance algorithm, shipped today by the `redis-cell` Redis module and Rust's `governor` crate [UNCERTAIN — ecosystem references, not re-fetched this session; algorithm itself is standard literature]) compresses the entire limiter into **one integer of state**: the theoretical arrival time (TAT).
+
+```
+admit(t)  ⟺  t + burst·interval ≥ TAT
+on admit: TAT ← max(t, TAT) + interval
+```
+
+Advantages: O(1) state per tenant·route (fits the existing per-tenant SQLite row), no timer-driven refill (state advances lazily on each request), and clock-rollback safety (TAT is monotone by construction).
+
+**New theorems (added to scope; all proved in Lean companion):**
+
+| ID | Statement | Formal status |
+|----|-----------|---------------|
+| `THM-GCRA-TAT-MONOTONE` | TAT never decreases on admission — rollback of the request clock cannot lower the bar | **Proved** — Lean `tat_monotone` |
+| `THM-GCRA-TAT-STRICT` | TAT strictly advances past the admitted request time | **Proved** — Lean `tat_above_arrival`, `gcra_spacing` |
+| `THM-GCRA-SCHEDULE-ADVANCE` | After k+1 same-instant admissions, TAT ≥ t + (k+1)·interval | **Proved** — Lean `sameTimeTat_succ_ge` |
+| `THM-GCRA-BURST-BOUND` | An instantaneous burst admitted at one instant satisfies k ≤ burst — the (burst+2)-th same-instant request is always refused; this is the formal core of `THM-NOISY-NEIGHBOR-BOUND` | **Proved** — Lean `gcra_burst_bound` |
+
+### R2-7.2: Comparative
+
+nginx `limit_req` uses a leaky-bucket variant with its own state file semantics; Envoy's local rate limiter is a token bucket; Redis `redis-cell` is GCRA. GCRA's single-integer state is what makes per-tenant·per-route limiting cheap at Ferro's scale (50 users × routes) without a background sweeper. The token-bucket proofs in `formal/RateLimiterRefined.lean` remain valid for the WS/wasm-worker path; interactive HTTP admission moves to GCRA.
+
+### R2-7.3: Lean Proof Companion
+
+`formal/Ferro/RateLimiterGCRA.lean` (new; imported by `Ferro.lean`). TAT model over ℕ; burst bound proven by the schedule-advance invariant (induction on same-instant admission count) plus multiplication-cancellation on ℕ. Real timestamps are u64 — no wraparound within a century of nanoseconds.
+
+### R2-7.4: Bibliography Additions
+
+11. ATM Forum. *Traffic Management Specification 4.1* — GCRA (Generic Cell Rate Algorithm), §Appendix; original virtual-scheduling/leaky-bucket equivalence. [VERIFIED algorithm; edition UNCERTAIN]
+12. Brandur Leach. "Rate limiting, tokens, and GCRA" (redis-cell design notes) — modern GCRA exposition. [UNCERTAIN — not re-fetched]
+
+---
+
+## YP-10: Revision 1.1 addition — Path-safety completeness & kernel-bounded containment (Iteration R2-9, 2026-10-14)
+
+### R2-9.1: Lexical layer formally closed
+
+`formal/Ferro/PathSafety.lean` carried six unproven traversal claims (open `sorry`s) since the Lean 4.12 migration. All six are now proved — the lexical checker is **complete**: any path containing a `..` component is rejected, anywhere in the path (`THM-PATH-CHECK-COMPLETE` — Lean `dotdot_detected`), and every safe-instance theorem (root, empty, multi-slash, single-dot, trailing-dot) is kernel-verified against the real `String.splitOn` semantics, not assumed.
+
+**Encoding caveat (now stated in the Lean proof):** the check runs on the DECODED path. Percent-encodings (`..%2F`) are the URL-decoder's contract; the lexical layer assumes decoded input.
+
+### R2-9.2: Kernel layer verified — openat2 semantics confirmed
+
+**Source:** `openat2(2)` man page, man-pages 6.19 (fetched 2026-10-14). [VERIFIED]
+
+| Flag | Guarantee | Ferro usage |
+|---|---|---|
+| `RESOLVE_BENEATH` | resolution must stay a descendant of `dirfd`; absolute symlinks and absolute paths rejected | tenant-rooted opens (strictest) |
+| `RESOLVE_IN_ROOT` | chroot-per-open semantics (`..` at root binds to root) | admin tooling that needs absolute-path compatibility |
+| `RESOLVE_NO_MAGICLINKS` | `/proc/*/fd/*` style links rejected | always — container-escape vector |
+| `RESOLVE_NO_SYMLINKS` | no symlink resolution at any component | pre-create check path |
+| `RESOLVE_NO_XDEV` | no mount-point traversal | tenant boundary hardening |
+| `EAGAIN` on `..` race | kernel admits it cannot prove containment under a race and FAILS rather than guessing | **MUST retry, never fall through** — the kernel hands us fail-closed |
+
+The history note in the man page records that FreeBSD's `O_BENEATH` shipped with a correctness bug that "rendered it effectively insecure" and was only fixed by `O_RESOLVE_BENEATH` in FreeBSD 13 — Linux `RESOLVE_BENEATH` was designed avoiding that bug. **Operational rule added:** treat `EAGAIN` from `RESOLVE_BENEATH`/`RESOLVE_IN_ROOT` as FAIL-CLOSED with bounded retry (≤ 3), never as permission.
+
+### R2-9.3: New theorem in scope
+
+| ID | Statement | Formal status |
+|----|-----------|---------------|
+| `THM-PATH-CHECK-COMPLETE` | `.. ∈ split path → ¬ safe path` — the lexical check has no false negatives for parent references | **Proved** — Lean `dotdot_detected` |
+
+---
+
+## R3-10 Addendum (Revision 1.2): Plugin Capability Containment (formal)
+
+**Source:** PLDI 2017 WebAssembly (re-verified in R2); W3C WASM Core spec.
+
+### ALG-PLUGIN-GATE-001
+WASM workers declare a fixed host-import allow-list at instantiation and run with bounded linear memory. The host gates every call on the allow-list and every memory access on bounds.
+
+### THM-PLUGIN-IMPORT-GATE / THM-PLUGIN-DECLARED-FIXED
+An undeclared host function is never callable (no capability amplification by name confusion); declared imports remain callable for the instance's life (allow-list immutable post-instantiation). [Proved — Lean `undeclared_uncallable`, `declared_callables_fixed`, PluginContainment.lean]
+
+### THM-PLUGIN-MEM-CONTAINMENT / THM-PLUGIN-BOUNDARY-ZERO
+Out-of-bounds accesses are rejected; in-bounds accesses accepted; zero-length accesses at the boundary are legal. [Proved — Lean `oob_rejected`, `inbounds_accepted`, `boundary_zero_len_ok`]
+
+---
+
+## R4-5 Addendum: Plugin Import Gate — IMPLEMENTED
+
+`crates/wasm-host/src/sandbox.rs`: THM-PLUGIN-IMPORT-GATE enforced — `validate_plugin` now fail-closes on any import outside `ALLOWED_IMPORTS` (the fixed `host::{log,storage_get,storage_set,get_config}` ABI surface); wasi and arbitrary namespaces are rejected before instantiation, with the offending names in the error. `api.rs::read_bytes` gained the `ptr+len` overflow gate (THM-PLUGIN-MEM-CONTAINMENT). 34 tests incl. WAT-compiled modules with `env::evil` (rejected), `host::log` (accepted), `wasi_snapshot_preview1` (rejected).

@@ -3,6 +3,8 @@ use axum::response::{IntoResponse, Response};
 
 /// Abstraction over the server state methods needed by health endpoints.
 /// Implemented for `AppState` in the `ferro-server` crate.
+pub mod healthkit;
+
 #[async_trait::async_trait]
 pub trait HealthState: Send + Sync + Clone + 'static {
     /// Returns true once the server has completed all startup checks.

@@ -20,6 +20,10 @@ pub struct FederationState {
     pub activity_store: std::sync::Arc<store::ActivityStore>,
     pub external_url: String,
     pub federation_secret: String,
+    /// Inbound replay dedup (R5, webhookkit `ReplayGuard`): activity ids
+    /// seen within the TTL window are answered 200 without re-applying —
+    /// the applied-set contract of YP-EVENT applied to federation.
+    pub replay: std::sync::Arc<std::sync::Mutex<webhookkit::ReplayGuard>>,
 }
 
 pub async fn resolve_actor(actor_url: &str) -> Result<actor::Actor, String> {
@@ -195,6 +199,28 @@ pub async fn inbox(State(state): State<FederationState>, req: axum::http::Reques
                     "error": "Actor mismatch",
                     "error_description": "Signature keyId does not match activity actor"
                 })),
+            )
+                .into_response();
+        }
+    }
+
+    // Replay gate (webhookkit ReplayGuard): the same activity id delivered
+    // again inside the window is acknowledged without side effects.
+    if !activity.id.is_empty() {
+        let is_replay = match state.replay.lock() {
+            Ok(mut guard) => guard.check(&activity.id).is_err(),
+            Err(_) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    axum::Json(json!({"error": "replay guard poisoned"})),
+                )
+                    .into_response();
+            }
+        };
+        if is_replay {
+            return (
+                StatusCode::OK,
+                axum::Json(json!({"status": "duplicate", "id": activity.id})),
             )
                 .into_response();
         }
@@ -439,6 +465,9 @@ mod tests {
             activity_store: std::sync::Arc::new(store::ActivityStore::new()),
             external_url: "https://local.example.com".to_string(),
             federation_secret: "test-secret".to_string(),
+            replay: std::sync::Arc::new(std::sync::Mutex::new(webhookkit::ReplayGuard::new(
+                std::time::Duration::from_secs(3600),
+            ))),
         }
     }
 
@@ -580,6 +609,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_inbox_replays_same_activity_id_once() {
+        // webhookkit ReplayGuard (R5): the same activity id delivered twice
+        // is applied once; the second delivery is acknowledged as a
+        // duplicate with no additional side effects.
+        let state = make_state();
+        let remote_actor = "https://remote.example.com/actor/replayer";
+        let mut activity = make_follow_activity(remote_actor);
+        activity.id = "https://remote.example.com/activities/fixed-id".to_string();
+
+        let req1 = build_inbox_request(&state, &activity).await;
+        let res1 = inbox(State(state.clone()), req1).await;
+        assert_eq!(res1.status(), StatusCode::OK);
+        assert_eq!(state.activity_store.get_followers("admin").len(), 1);
+
+        let req2 = build_inbox_request(&state, &activity).await;
+        let res2 = inbox(State(state.clone()), req2).await;
+        assert_eq!(res2.status(), StatusCode::OK);
+        // No second application: follower set unchanged, only one Accept.
+        assert_eq!(state.activity_store.get_followers("admin").len(), 1);
+        let outbox = state.activity_store.get_outbox(0, 10);
+        assert_eq!(outbox.len(), 1);
+    }
+
+    #[tokio::test]
     async fn test_inbox_undo_removes_follower() {
         let state = make_state();
         let remote_actor = "https://remote.example.com/actor/bob";
@@ -644,6 +697,9 @@ mod tests {
         let state = FederationState {
             activity_store: std::sync::Arc::new(store::ActivityStore::new()),
             external_url: "https://local.example.com".to_string(),
+            replay: std::sync::Arc::new(std::sync::Mutex::new(webhookkit::ReplayGuard::new(
+                std::time::Duration::from_secs(3600),
+            ))),
             federation_secret: String::new(),
         };
         let req = axum::http::Request::builder()

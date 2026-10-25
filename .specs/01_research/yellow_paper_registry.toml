@@ -2,14 +2,14 @@
 # Tracks all Yellow Papers and their relationships
 
 [metadata]
-last_updated = "2026-10-09T00:00:00Z"
-total_papers = 15
+last_updated = "2026-10-14T00:00:00Z"
+total_papers = 18
 
 [[yellow_paper]]
 id = "YP-WEBDAV-PROTOCOL-001"
 title = "WebDAV Protocol Theory and Implementation"
 status = "APPROVED"
-version = "1.0.0"
+version = "1.1.0"
 created = "2026-04-18T00:00:00Z"
 author = "DeepThought"
 confidence_level = 0.92
@@ -57,7 +57,7 @@ blue_papers = ["BP-STORAGE-ENGINE-001", "BP-CAS-DEDUP-001", "BP-PRESIGNED-URL-00
 id = "YP-AUTH-OIDC-CEDAR-001"
 title = "OIDC Authentication and Cedar Authorization"
 status = "APPROVED"
-version = "1.0.0"
+version = "1.1.0"
 created = "2026-04-18T00:00:00Z"
 author = "DeepThought"
 confidence_level = 0.93
@@ -65,13 +65,13 @@ tqa_level = 4
 
 [yellow_paper.scope]
 domain = "Identity & Access Management"
-algorithms = ["ALG-OIDC-VALIDATE-001", "ALG-CEDAR-EVAL-001"]
-theorems = ["THM-OIDC-TOKEN-SECURITY", "THM-CEDAR-EVALUATION-CORRECTNESS"]
+algorithms = ["ALG-OIDC-VALIDATE-001", "ALG-CEDAR-EVAL-001", "ALG-ROTATION-001", "ALG-DPOP-REPLAY-001"]
+theorems = ["THM-OIDC-TOKEN-SECURITY", "THM-CEDAR-EVALUATION-CORRECTNESS", "THM-ROTATION-SINGLE-USE", "THM-DPOP-REPLAY-REJECTED", "THM-DPOP-ACCEPT-RECORDS", "THM-DPOP-NEVER-REACCEPTED"]
 test_vector_file = "test_vectors/test_vectors_auth.toml"
 constraints_file = "domain_constraints/domain_constraints_auth.toml"
 
 [yellow_paper.dependencies]
-axioms_from = ["OIDC-CORE-1.0", "CEDAR-SPEC"]
+axioms_from = ["OIDC-CORE-1.0", "CEDAR-SPEC", "RFC-9449"]
 lemmas_from = []
 
 [yellow_paper.consumers]
@@ -81,7 +81,7 @@ blue_papers = ["BP-AUTH-MIDDLEWARE-001", "BP-CEDAR-ENGINE-001"]
 id = "YP-SYNC-CONFLICT-001"
 title = "File Sync, Version Vectors & Conflict Resolution"
 status = "DRAFT"
-version = "1.0.0"
+version = "1.2.0"
 created = "2026-10-09T00:00:00Z"
 author = "DeepThought"
 confidence_level = 0.94
@@ -89,13 +89,13 @@ tqa_level = 4
 
 [yellow_paper.scope]
 domain = "Sync & Replication"
-algorithms = ["ALG-OPLOG-001", "ALG-LAMPORT-001", "ALG-LOCK-ADV-001"]
-theorems = ["THM-CONFLICT-CONVERGENCE", "THM-NO-SILENT-LOSS", "THM-MOVE-IDENTITY", "THM-CONFLICT-DETERMINISM", "THM-CAUSAL-STABILITY-GC"]
+algorithms = ["ALG-OPLOG-001", "ALG-LAMPORT-001", "ALG-LOCK-ADV-001", "ALG-LOGROOT-001", "ALG-DELTAMUT-001", "ALG-CAUSALGC-001"]
+theorems = ["THM-CONFLICT-CONVERGENCE", "THM-NO-SILENT-LOSS", "THM-MOVE-IDENTITY", "THM-CONFLICT-DETERMINISM", "THM-CAUSAL-STABILITY-GC", "THM-LOG-ROOT-CLOCK", "THM-LOG-REPLICA-EQUALITY", "THM-WINNER-SET-ORDER-INDEPENDENT", "THM-VV-CONCURRENCY-SOUNDNESS", "THM-LAMPORT-CAUSALITY", "THM-WINNER-DOMINATES"]
 test_vector_file = "test_vectors/test_vectors_sync_stack.toml"
 constraints_file = "domain_constraints/domain_constraints_sync_stack.toml"
 
 [yellow_paper.dependencies]
-axioms_from = ["TPDS-2021-MOVE-OP", "LAMPORT-1978"]
+axioms_from = ["TPDS-2021-MOVE-OP", "LAMPORT-1978", "arXiv-2004.00107"]
 lemmas_from = ["YP-DEDUP-CDC-001"]
 
 [yellow_paper.consumers]
@@ -105,7 +105,7 @@ blue_papers = ["BP-SYNC-ENGINE-001"]
 id = "YP-DEDUP-CDC-001"
 title = "Content-Defined Chunking, Hash Agility & Deduplication Scope"
 status = "DRAFT"
-version = "1.0.0"
+version = "1.1.0"
 created = "2026-10-09T00:00:00Z"
 author = "DeepThought"
 confidence_level = 0.96
@@ -113,13 +113,13 @@ tqa_level = 4
 
 [yellow_paper.scope]
 domain = "Storage Systems / Deduplication"
-algorithms = ["ALG-FastCDC-001", "ALG-MANIFEST-001", "ALG-HASHID-001", "ALG-DEDUPSCOPE-001"]
+algorithms = ["ALG-FastCDC-001", "ALG-MANIFEST-001", "ALG-HASHID-001", "ALG-DEDUPSCOPE-001", "ALG-FASTCDC-SHARED-001"]
 theorems = ["THM-DEDUP-SOUNDNESS", "THM-CHUNK-BOUNDARY-INVARIANT", "THM-CAS-INTEGRITY", "THM-DEDUP-NONINTERFERENCE", "THM-CHUNKING-DETERMINISM"]
 test_vector_file = "test_vectors/test_vectors_sync_stack.toml"
 constraints_file = "domain_constraints/domain_constraints_sync_stack.toml"
 
 [yellow_paper.dependencies]
-axioms_from = ["ATC16-FASTCDC", "BLAKE3-SPEC", "ePrint-2016-977"]
+axioms_from = ["ATC16-FASTCDC", "BLAKE3-SPEC", "ePrint-2016-977", "GEAR-WINDOW-64"]
 lemmas_from = ["YP-STORAGE-CAS-001"]
 
 [yellow_paper.consumers]
@@ -129,7 +129,7 @@ blue_papers = ["BP-STORAGE-ENGINE-001", "BP-CAS-DEDUP-001", "BP-SYNC-ENGINE-001"
 id = "YP-MESH-TRANSPORT-001"
 title = "Mesh Sync — Transport, Discovery & Peer Security"
 status = "DRAFT"
-version = "1.0.0"
+version = "1.1.0"
 created = "2026-10-09T00:00:00Z"
 author = "DeepThought"
 confidence_level = 0.92
@@ -137,13 +137,13 @@ tqa_level = 3
 
 [yellow_paper.scope]
 domain = "Distributed Systems / P2P"
-algorithms = ["ALG-ANNOUNCE-001", "ALG-DISCOVER-001", "ALG-TRANSPORT-001", "ALG-NAT-001"]
-theorems = ["THM-MESH-AUTHENTICITY", "THM-MESH-INTEGRITY", "THM-MESH-NO-EXISTENCE-ORACLE", "THM-INVENTORY-EFFICIENCY", "THM-MESH-DEGRADATION"]
+algorithms = ["ALG-ANNOUNCE-001", "ALG-DISCOVER-001", "ALG-TRANSPORT-001", "ALG-NAT-001", "ALG-MESHAUTH-001"]
+theorems = ["THM-MESH-AUTHENTICITY", "THM-MESH-INTEGRITY", "THM-MESH-NO-EXISTENCE-ORACLE", "THM-INVENTORY-EFFICIENCY", "THM-MESH-DEGRADATION", "THM-CMD-ORDER-PARTIAL", "THM-CAP-CHAIN-SOUNDNESS", "THM-CAP-NO-AMPLIFICATION", "THM-CAP-TENANT-CONTAINMENT", "THM-CAP-INTERVAL-CONTAINMENT"]
 test_vector_file = "test_vectors/test_vectors_sync_stack.toml"
 constraints_file = "domain_constraints/domain_constraints_sync_stack.toml"
 
 [yellow_paper.dependencies]
-axioms_from = ["RFC-9000", "RFC-6762", "RFC-8445", "RFC-5389"]
+axioms_from = ["RFC-9000", "RFC-6762", "RFC-8445", "RFC-5389", "UCAN-SPEC-V1"]
 lemmas_from = ["YP-DEDUP-CDC-001"]
 
 [yellow_paper.consumers]
@@ -153,7 +153,7 @@ blue_papers = ["BP-MESH-TRANSPORT-001"]
 id = "YP-SEARCH-RETRIEVAL-001"
 title = "Hybrid Search, ACL-Safe Retrieval & Fusion Theory"
 status = "DRAFT"
-version = "1.0.0"
+version = "1.1.0"
 created = "2026-10-09T00:00:00Z"
 author = "DeepThought"
 confidence_level = 0.93
@@ -161,13 +161,13 @@ tqa_level = 3
 
 [yellow_paper.scope]
 domain = "Information Retrieval"
-algorithms = ["ALG-ACLQUERY-001", "ALG-RRF-001", "ALG-INDEXOPS-001"]
-theorems = ["THM-SEARCH-AUTHZ", "THM-SEARCH-AUTHZ-SOUNDNESS", "THM-SEARCH-FUSION-RANK-INVARIANT", "THM-SEARCH-TOPK-BOUND", "THM-SEARCH-TOTAL-ORDER"]
+algorithms = ["ALG-ACLQUERY-001", "ALG-RRF-001", "ALG-INDEXOPS-001", "ALG-RRFFORMAL-001", "ALG-GREEDY-ANN-001"]
+theorems = ["THM-SEARCH-AUTHZ", "THM-SEARCH-AUTHZ-SOUNDNESS", "THM-SEARCH-FUSION-RANK-INVARIANT", "THM-SEARCH-TOPK-BOUND", "THM-SEARCH-TOTAL-ORDER", "THM-RRF-MONOTONE", "THM-ANN-TERMINATION-BOUND", "THM-RRF-BOUNDS", "THM-RRF-ZERO"]
 test_vector_file = "test_vectors/test_vectors_platform.toml"
 constraints_file = "domain_constraints/domain_constraints_platform.toml"
 
 [yellow_paper.dependencies]
-axioms_from = ["SIGIR2009-RRF", "BM25-FNTIR"]
+axioms_from = ["SIGIR2009-RRF", "BM25-FNTIR", "CORMACK-2009-PDF", "ARXIV-1603.09320"]
 lemmas_from = ["YP-AUTHZ-POLICY-001"]
 
 [yellow_paper.consumers]
@@ -225,7 +225,7 @@ blue_papers = ["BP-AUTH-MIDDLEWARE-001", "BP-CEDAR-ENGINE-001"]
 id = "YP-EVENT-DURABILITY-001"
 title = "Transactional Outbox, Idempotent Effects & Durable Jobs"
 status = "DRAFT"
-version = "1.0.0"
+version = "1.1.0"
 created = "2026-10-09T00:00:00Z"
 author = "DeepThought"
 confidence_level = 0.94
@@ -233,8 +233,8 @@ tqa_level = 4
 
 [yellow_paper.scope]
 domain = "Distributed Systems / Reliability"
-algorithms = ["ALG-OUTBOX-001", "ALG-RELAY-001", "ALG-IDEMPOTENCY-001"]
-theorems = ["THM-DUALWRITE-IMPOSSIBLE", "THM-OUTBOX-ATOMICITY", "THM-EXACTLY-ONCE-EFFECT", "THM-DEDUP-BOUND", "THM-REPLAY-NO-DUPLICATION"]
+algorithms = ["ALG-OUTBOX-001", "ALG-RELAY-001", "ALG-IDEMPOTENCY-001", "ALG-APPLIEDSET-001", "ALG-WAL-PREFIX-001"]
+theorems = ["THM-DUALWRITE-IMPOSSIBLE", "THM-OUTBOX-ATOMICITY", "THM-EXACTLY-ONCE-EFFECT", "THM-DEDUP-BOUND", "THM-REPLAY-NO-DUPLICATION", "THM-REDELIVERY-NO-EFFECT", "THM-FIRST-DELIVERY-APPLIES", "THM-EXACTLY-ONCE-RECORDS", "THM-APPLIED-MONOTONE", "THM-WAL-RECOVERY-PREFIX", "THM-WAL-REPLAY-IDEMPOTENT", "THM-WAL-FSYNC-MONOTONE"]
 test_vector_file = "test_vectors/test_vectors_durability.toml"
 constraints_file = "domain_constraints/domain_constraints_durability.toml"
 
@@ -249,7 +249,7 @@ blue_papers = ["BP-EVENT-BUS-001"]
 id = "YP-CONSISTENCY-CACHE-001"
 title = "Cache Coherence, Read-Your-Writes & Eviction Theory"
 status = "DRAFT"
-version = "1.0.0"
+version = "1.1.0"
 created = "2026-10-09T00:00:00Z"
 author = "DeepThought"
 confidence_level = 0.93
@@ -257,13 +257,13 @@ tqa_level = 3
 
 [yellow_paper.scope]
 domain = "Distributed Systems / Caching"
-algorithms = ["ALG-EPOCH-001", "ALG-SIEVE-001", "ALG-SINGLEFLIGHT-001"]
-theorems = ["THM-RYW-VISIBILITY", "THM-AUTHZ-COHERENCE", "THM-SWR-BOUNDED-STALENESS", "THM-STAMPEDE-BOUND", "THM-CAUSAL-AVAILABILITY"]
+algorithms = ["ALG-EPOCH-001", "ALG-SIEVE-001", "ALG-SINGLEFLIGHT-001", "ALG-SIEVEMECH-001"]
+theorems = ["THM-RYW-VISIBILITY", "THM-AUTHZ-COHERENCE", "THM-SWR-BOUNDED-STALENESS", "THM-STAMPEDE-BOUND", "THM-CAUSAL-AVAILABILITY", "THM-SIEVE-NO-REORDER", "THM-SIEVE-SINGLE-USE", "THM-SIEVE-EXACTLY-ONE-EVICT", "THM-SIEVE-CAPACITY", "THM-SINGLEFLIGHT-DEDUP"]
 test_vector_file = "test_vectors/test_vectors_durability.toml"
 constraints_file = "domain_constraints/domain_constraints_durability.toml"
 
 [yellow_paper.dependencies]
-axioms_from = ["RFC-5861", "RFC-9111", "NSDI24-SIEVE", "TR-11-22"]
+axioms_from = ["RFC-5861", "RFC-9111", "NSDI24-SIEVE", "TR-11-22", "SIEVE-2026-SITE"]
 lemmas_from = ["YP-AUTHZ-POLICY-001"]
 
 [yellow_paper.consumers]
@@ -273,7 +273,7 @@ blue_papers = ["BP-CACHE-LAYER-001", "BP-SEARCH-SERVICE-001"]
 id = "YP-TENANCY-ISOLATION-001"
 title = "Multi-Tenant Path Isolation, Quotas & Workload Isolation"
 status = "DRAFT"
-version = "1.0.0"
+version = "1.2.0"
 created = "2026-10-09T00:00:00Z"
 author = "DeepThought"
 confidence_level = 0.92
@@ -281,13 +281,13 @@ tqa_level = 4
 
 [yellow_paper.scope]
 domain = "Multi-Tenancy / Isolation"
-algorithms = ["ALG-RESOLVE-001", "ALG-QUOTA-001", "ALG-BATCHPOOL-001"]
-theorems = ["THM-PREFIX-CONTAINMENT", "THM-QUOTA-OVERSHOOT-BOUND", "THM-NOISY-NEIGHBOR-BOUND", "THM-PLUGIN-CONTAINMENT", "THM-TENANT-POLICY-SOUNDNESS"]
+algorithms = ["ALG-RESOLVE-001", "ALG-QUOTA-001", "ALG-BATCHPOOL-001", "ALG-GCRA-001", "ALG-PLUGIN-GATE-001"]
+theorems = ["THM-PREFIX-CONTAINMENT", "THM-QUOTA-OVERSHOOT-BOUND", "THM-NOISY-NEIGHBOR-BOUND", "THM-PLUGIN-CONTAINMENT", "THM-TENANT-POLICY-SOUNDNESS", "THM-GCRA-TAT-MONOTONE", "THM-GCRA-TAT-STRICT", "THM-GCRA-SCHEDULE-ADVANCE", "THM-GCRA-BURST-BOUND", "THM-PATH-CHECK-COMPLETE", "THM-PLUGIN-IMPORT-GATE", "THM-PLUGIN-MEM-CONTAINMENT", "THM-PLUGIN-BOUNDARY-ZERO"]
 test_vector_file = "test_vectors/test_vectors_durability.toml"
 constraints_file = "domain_constraints/domain_constraints_durability.toml"
 
 [yellow_paper.dependencies]
-axioms_from = ["ATC18-PERFISO", "PLDI2017-WASM"]
+axioms_from = ["ATC18-PERFISO", "PLDI2017-WASM", "ATMF-GCRA-4.1", "LNX-OPENAT2-6.19"]
 lemmas_from = ["YP-AUTHZ-POLICY-001", "YP-EVENT-DURABILITY-001"]
 
 [yellow_paper.consumers]
@@ -297,7 +297,7 @@ blue_papers = ["BP-TENANT-ISOLATION-001"]
 id = "YP-CRYPTO-PQ-001"
 title = "Post-Quantum Readiness, Honest FIPS Posture & Crypto Agility"
 status = "DRAFT"
-version = "1.0.0"
+version = "1.1.0"
 created = "2026-10-09T00:00:00Z"
 author = "DeepThought"
 confidence_level = 0.93
@@ -305,13 +305,13 @@ tqa_level = 4
 
 [yellow_paper.scope]
 domain = "Cryptography / Compliance"
-algorithms = ["ALG-TLS-001", "ALG-HEADER-001", "ALG-AUDITSIG-001"]
-theorems = ["THM-PQ-HYBRID-SEC", "THM-FIPS-APPROVED-ONLY", "THM-CRYPTO-AGILITY-COST", "THM-HNDL-BOUND"]
+algorithms = ["ALG-TLS-001", "ALG-HEADER-001", "ALG-AUDITSIG-001", "ALG-STREAMAEAD-001"]
+theorems = ["THM-PQ-HYBRID-SEC", "THM-FIPS-APPROVED-ONLY", "THM-CRYPTO-AGILITY-COST", "THM-HNDL-BOUND", "THM-AEAD-NONCE-UNIQUE", "THM-AEAD-FINAL-SEPARATED", "THM-AEAD-TRUNCATION-DETECTED", "THM-AEAD-NO-CAP", "THM-AEAD-POSITION-BOUND", "THM-AEAD-AGILITY-FAIL-CLOSED", "THM-AEAD-EMPTY-FINAL-REJECTED"]
 test_vector_file = "test_vectors/test_vectors_infra.toml"
 constraints_file = "domain_constraints/domain_constraints_infra.toml"
 
 [yellow_paper.dependencies]
-axioms_from = ["FIPS-203", "FIPS-204", "FIPS-205", "NIST-IR-8547", "RFC-9881"]
+axioms_from = ["FIPS-203", "FIPS-204", "FIPS-205", "NIST-IR-8547", "RFC-9881", "RFC-9180", "C2SP-AGE-V1", "ePrint-2015-189"]
 lemmas_from = ["YP-LIFECYCLE-COMPLIANCE-001"]
 
 [yellow_paper.consumers]
@@ -321,7 +321,7 @@ blue_papers = ["BP-CRYPTO-PROVIDER-001", "BP-FIPS-MODE-001"]
 id = "YP-MEDIA-DERIV-001"
 title = "Media Derivatives, Thumbnails & On-Demand Streaming"
 status = "DRAFT"
-version = "1.0.0"
+version = "1.1.0"
 created = "2026-10-09T00:00:00Z"
 author = "DeepThought"
 confidence_level = 0.91
@@ -329,13 +329,13 @@ tqa_level = 3
 
 [yellow_paper.scope]
 domain = "Media Pipeline / Streaming"
-algorithms = ["ALG-INGEST-001", "ALG-THUMB-001", "ALG-VOD-001"]
-theorems = ["THM-DERIV-DETERMINISM", "THM-ORIGINAL-IMMUTABILITY", "THM-LADDER-PARETO", "THM-CACHE-COMPLETENESS", "THM-THUMB-PRIVACY"]
+algorithms = ["ALG-INGEST-001", "ALG-THUMB-001", "ALG-VOD-001", "ALG-ALBUMLOG-001"]
+theorems = ["THM-DERIV-DETERMINISM", "THM-ORIGINAL-IMMUTABILITY", "THM-LADDER-PARETO", "THM-CACHE-COMPLETENESS", "THM-THUMB-PRIVACY", "THM-NAMESPACE-DISJOINT", "THM-ALBUM-DETERMINISM"]
 test_vector_file = "test_vectors/test_vectors_infra.toml"
 constraints_file = "domain_constraints/domain_constraints_infra.toml"
 
 [yellow_paper.dependencies]
-axioms_from = ["RFC-8216", "ISO-23000-19"]
+axioms_from = ["RFC-8216", "ISO-23000-19", "IMGPROXY-2026"]
 lemmas_from = ["YP-DEDUP-CDC-001", "YP-TENANCY-ISOLATION-001"]
 
 [yellow_paper.consumers]
@@ -345,7 +345,7 @@ blue_papers = ["BP-MEDIA-PIPELINE-001"]
 id = "YP-LIFECYCLE-COMPLIANCE-001"
 title = "WORM, Legal Hold, Crypto-Shredding & Tamper-Evident Audit"
 status = "DRAFT"
-version = "1.0.0"
+version = "1.2.0"
 created = "2026-10-09T00:00:00Z"
 author = "DeepThought"
 confidence_level = 0.94
@@ -353,14 +353,86 @@ tqa_level = 4
 
 [yellow_paper.scope]
 domain = "Compliance / Data Lifecycle"
-algorithms = ["ALG-WORMHOLD-001", "ALG-EPOCHLOG-001", "ALG-ERASE-001"]
-theorems = ["THM-AUDIT-TAMPER-EVIDENT", "THM-AUDIT-FORWARD-INTEGRITY", "THM-CRYPTO-SHRED", "THM-ERASURE-COMPLETENESS", "THM-WORM-HOLD-PRECEDENCE", "THM-GDPR-AUDIT-COMPATIBILITY"]
+algorithms = ["ALG-WORMHOLD-001", "ALG-EPOCHLOG-001", "ALG-ERASE-001", "ALG-MMRLOG-001"]
+theorems = ["THM-AUDIT-TAMPER-EVIDENT", "THM-AUDIT-FORWARD-INTEGRITY", "THM-CRYPTO-SHRED", "THM-ERASURE-COMPLETENESS", "THM-WORM-HOLD-PRECEDENCE", "THM-GDPR-AUDIT-COMPATIBILITY", "THM-MMR-APPEND-STABILITY", "THM-MMR-MERGE-DETERMINISM", "THM-MMR-NO-DROP", "THM-KEY-EVOLUTION-STRICT", "THM-PII-EPOCH-UNLINKABLE"]
 test_vector_file = "test_vectors/test_vectors_infra.toml"
 constraints_file = "domain_constraints/domain_constraints_infra.toml"
 
 [yellow_paper.dependencies]
-axioms_from = ["RFC-9162", "TISSEC1999-SCHNEIER-KELSEY", "GDPR-2016-679", "SP-800-88R2"]
+axioms_from = ["RFC-9162", "TISSEC1999-SCHNEIER-KELSEY", "GDPR-2016-679", "SP-800-88R2", "OPENTS-2026-MMR"]
 lemmas_from = ["YP-CRYPTO-PQ-001", "YP-EVENT-DURABILITY-001"]
 
 [yellow_paper.consumers]
-blue_papers = ["BP-COMPLIANCE-ENGINE-001", "BP-AUDIT-LOG-001"]
+blue_papers = []
+
+[[yellow_paper]]
+id = "YP-DISTRIBUTED-EC-001"
+title = "Layered Erasure Coding, Prefer-Local Repair & Scrubbing"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-10-14T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.93
+tqa_level = 3
+
+[yellow_paper.scope]
+domain = "Distributed Storage / Durability"
+algorithms = ["ALG-LRC-001", "ALG-LRC-DECODE-001", "ALG-SCRUB-001"]
+theorems = ["THM-EC-LAYOUT-ACCOUNTING", "THM-EC-NAMESPACE-DISJOINT", "THM-EC-LOCAL-REPAIR-BOUND", "THM-EC-LOCAL-REPAIR-CORRECT", "THM-EC-DECODE-SOUND", "THM-EC-DECODE-COMPLETE", "THM-EC-SCRUB-PROGRESS", "THM-EC-SCRUB-GATING"]
+test_vector_file = "test_vectors/test_vectors_durability.toml"
+constraints_file = "domain_constraints/domain_constraints_durability.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["ATC12-AZURE-LRC", "CEPH-REEF-EC", "SHA-256-SPEC"]
+lemmas_from = ["YP-STORAGE-CAS-001"]
+
+[yellow_paper.consumers]
+blue_papers = []
+
+[[yellow_paper]]
+id = "YP-DISTRIBUTED-CH-001"
+title = "Rendezvous Placement, Minimal Disruption & Weighted Routing"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-10-14T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.94
+tqa_level = 3
+
+[yellow_paper.scope]
+domain = "Distributed Storage / Placement"
+algorithms = ["ALG-HRW-001"]
+theorems = ["THM-CH-PICK-MEMBER", "THM-CH-PICK-EXISTS", "THM-CH-PICK-DOMINATES", "THM-CH-STRICT-TOP-UNIQUE", "THM-CH-MINIMAL-DISRUPTION", "THM-CH-ADDITION-KEEPS", "THM-CH-ADDITION-MOVES"]
+test_vector_file = "test_vectors/test_vectors_durability.toml"
+constraints_file = "domain_constraints/domain_constraints_durability.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["TON1998-HRW", "ARXIV-1406.2294", "SHA-256-SPEC"]
+lemmas_from = ["YP-DISTRIBUTED-EC-001"]
+
+[yellow_paper.consumers]
+blue_papers = ["BP-CACHE-LAYER-001"]
+
+[[yellow_paper]]
+id = "YP-RESILIENCE-BREAKER-001"
+title = "Adaptive Circuit Breaking, Ejection Backoff & Recovery Bounds"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-10-14T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.92
+tqa_level = 3
+
+[yellow_paper.scope]
+domain = "Resilience / Failure Detection"
+algorithms = ["ALG-BREAKER-ADAPTIVE-001"]
+theorems = ["THM-CB-FAILURE-INCREMENTS", "THM-CB-SUCCESS-RESETS", "THM-CB-DETECTION-BOUNDED", "THM-CB-RECOVERY-BOUNDED", "THM-CB-EJECTION-CAPPED", "THM-CB-EJECTION-ESCALATES", "THM-CB-EJECTION-MONOTONE"]
+test_vector_file = "test_vectors/test_vectors_infra.toml"
+constraints_file = "domain_constraints/domain_constraints_infra.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["ENVOY-2026-OUTLIER"]
+lemmas_from = []
+
+[yellow_paper.consumers]
+blue_papers = []

@@ -179,35 +179,60 @@ impl LockManager {
     }
 
     /// Synchronously check if a write lock (or inherited infinity lock) blocks the path.
+    ///
+    /// Strict form: no lock token is submitted, so ANY covering lock
+    /// (exclusive or shared — RFC 4918 §7.1 requires token submission for
+    /// writes to locked resources) blocks the write.
     pub fn check_lock_for_write_sync(&self, path: &str) -> common::error::Result<()> {
-        if let Some(lock) = self.check_lock_sync(path)
-            && lock.scope == LockScope::Exclusive
+        self.check_lock_for_write_with_token_sync(path, &[])
+    }
+
+    /// Token-aware write check (RFC 4918 §7.1, §7.5): a write to a locked
+    /// resource is permitted only when the request submits the covering
+    /// lock's token. Coverage: the resource itself, a depth-1 lock on the
+    /// direct parent (internal members), and depth-infinity ancestors.
+    pub fn check_lock_for_write_with_token_sync(&self, path: &str, submitted: &[String]) -> common::error::Result<()> {
+        self.cleanup_expired(path);
+        if let Some(lock) = self.locks.get(path)
+            && !lock.is_expired()
         {
-            return Err(FerroError::LockConflict(format!(
-                "Resource {} is exclusively locked by {}",
-                path, lock.principal
-            )));
+            self.require_lock_token(&lock, path, submitted)?;
         }
 
+        // depth-1 covers only direct internal members; infinity covers all
         let mut check_path = path;
+        let mut is_direct_parent = true;
         while let Some(parent) = parent_path(check_path) {
             self.cleanup_expired(parent);
             if let Some(lock) = self.locks.get(parent)
-                && lock.depth == LockDepth::Infinity
-                && lock.scope == LockScope::Exclusive
+                && !lock.is_expired()
+                && (lock.depth == LockDepth::Infinity || (lock.depth == LockDepth::One && is_direct_parent))
             {
-                return Err(FerroError::LockConflict(format!(
-                    "Parent {} has an exclusive infinity lock by {}",
-                    parent, lock.principal
-                )));
+                self.require_lock_token(&lock, parent, submitted)?;
             }
             check_path = parent;
+            is_direct_parent = false;
             if check_path == "/" {
                 break;
             }
         }
 
         Ok(())
+    }
+
+    /// A covering lock blocks the write unless its token was submitted.
+    fn require_lock_token(&self, lock: &LockInfo, lock_path: &str, submitted: &[String]) -> common::error::Result<()> {
+        let matches = submitted
+            .iter()
+            .any(|t| t == &lock.token.as_str() || t == &lock.token.as_opaque());
+        if matches {
+            Ok(())
+        } else {
+            Err(FerroError::LockConflict(format!(
+                "Resource {} is locked by {} (lock token required)",
+                lock_path, lock.principal
+            )))
+        }
     }
 
     fn cleanup_expired(&self, path: &str) {
@@ -300,6 +325,10 @@ impl LockManagerTrait for LockManager {
 
     async fn check_lock_for_write(&self, path: &str) -> Result<()> {
         self.check_lock_for_write_sync(path)
+    }
+
+    async fn check_lock_for_write_with_token(&self, path: &str, submitted: &[String]) -> Result<()> {
+        self.check_lock_for_write_with_token_sync(path, submitted)
     }
 
     async fn acquire_lock(
@@ -459,6 +488,48 @@ mod tests {
             .unwrap();
 
         assert!(mgr.check_lock_for_write("/parent/child.txt").await.is_err());
+    }
+
+    #[test]
+    fn test_shared_lock_blocks_write_without_token() {
+        // RFC 4918 §7.1: writes to a locked resource require the token,
+        // even under a shared lock.
+        let mgr = LockManager::new();
+        let _ = mgr
+            .acquire_lock_sync("/doc.txt", "alice", LockScope::Shared, LockDepth::Zero, None)
+            .unwrap();
+        assert!(mgr.check_lock_for_write_sync("/doc.txt").is_err());
+    }
+
+    #[test]
+    fn test_write_with_matching_token_allowed() {
+        let mgr = LockManager::new();
+        let lock = mgr
+            .acquire_lock_sync("/doc.txt", "alice", LockScope::Exclusive, LockDepth::Zero, None)
+            .unwrap();
+        assert!(
+            mgr.check_lock_for_write_with_token_sync("/doc.txt", &[lock.token.as_str()])
+                .is_ok()
+        );
+        assert!(
+            mgr.check_lock_for_write_with_token_sync("/doc.txt", &[lock.token.as_opaque()])
+                .is_ok()
+        );
+        assert!(
+            mgr.check_lock_for_write_with_token_sync("/doc.txt", &["opaquelocktoken:bogus".to_string()])
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn test_depth_one_lock_blocks_child_write() {
+        // RFC 4918 §9.10.3: depth-1 locks cover internal members.
+        let mgr = LockManager::new();
+        let _ = mgr
+            .acquire_lock_sync("/coll", "alice", LockScope::Exclusive, LockDepth::One, None)
+            .unwrap();
+        assert!(mgr.check_lock_for_write_sync("/coll/file.txt").is_err());
+        assert!(mgr.check_lock_for_write_sync("/coll/other/deeper.txt").is_ok());
     }
 
     #[tokio::test]

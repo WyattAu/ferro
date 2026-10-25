@@ -14,6 +14,7 @@ pg = ["dep:sqlx", "sqlx/postgres", "sqlx/chrono", "dep:ferro-server-sharing"]
 redis = ["dep:redis"]
 
 [dependencies]
+webhookkit = "2.2"
 common = { package = "ferro-common", path = "../common" }
 breaker = { workspace = true }
 ferro-server-activitypub = { path = "../server-activitypub" }

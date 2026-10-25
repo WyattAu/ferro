@@ -69,8 +69,15 @@ fn read_string(caller: &mut Caller<WasmState>, ptr: u32, len: u32) -> Option<Str
 }
 
 fn read_bytes(caller: &mut Caller<WasmState>, ptr: u32, len: u32) -> Option<Vec<u8>> {
+    // THM-PLUGIN-MEM-CONTAINMENT: reject ptr+len overflow before the read
+    // (wasmtime bounds-checks the range, but the arithmetic itself must not
+    // wrap on 32-bit guest values widened to usize).
+    let end = ptr.checked_add(len)?;
     let memory = caller.get_export("memory")?.into_memory()?;
     let mut buf = vec![0u8; len as usize];
     memory.read(&mut *caller, ptr as usize, &mut buf).ok()?;
+    if end > memory.data_size(&mut *caller) as u32 {
+        return None;
+    }
     Some(buf)
 }

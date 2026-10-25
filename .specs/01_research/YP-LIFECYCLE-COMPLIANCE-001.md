@@ -168,3 +168,57 @@ Summary: WORM MUST have an enforcement mechanism beyond an advisory flag (`DC-CO
 10. Google Vault (matters/holds), Microsoft Purview (records management, eDiscovery holds, unified audit log), Dropbox retention/team policies — product-documentation facts; UX template for Ferro's compliance tab. [UNCERTAIN — not re-fetched]
 11. Nextcloud Retention + Privacy/Data Request apps — app names well-known; doc URLs moved; verify against current app store. [UNCERTAIN]
 12. TrueNAS/ZFS `zfs snapshot|hold|release|destroy -d` semantics — hold-protected snapshots as a genuine WORM enforcement layer on Ferro's actual substrate. [VERIFIED mechanism]
+
+---
+
+## YP-9: Revision 1.1 — Hardening Pass (Iteration R2-2, 2026-10-14)
+
+### R2-2.1: Frontier Finding — MMR beats linear chain and CT-style trees for the epoch log
+
+**Source:** Todd, P. "Merkle Mountain Ranges" — OpenTimestamps server design doc (`opentimestamps-server/doc/merkle-mountain-range.md`). [VERIFIED — fetched this session]
+
+The YP-5 audit head design left the intra-epoch structure unspecified. Three candidates:
+
+| Structure | Append cost | Per-event inclusion proof | On-disk behaviour |
+|-----------|-------------|---------------------------|-------------------|
+| Linear hash chain | O(1) | **impossible without full prefix** (prefix evidence only) | append-only |
+| CT 2.0 / Trillian tree (RFC 9162) | O(log n) w/ careful chunking | O(log n) | needs staged tree write-out |
+| **Merkle Mountain Range** | O(1) amortized | **O(log n)** | **strictly append-only array; n−1 intermediate hashes; "bag the peaks" gives one signable digest** |
+
+**Decision (upgrade):** the epoch audit log is an MMR. Peaks live in a SQLite append-only table; at epoch rollover the bagged peak digest is dual-signed (Ed25519 + ML-DSA-65 per YP-5) and the signature is published (RFC 9162-style log). This gives every single audit event an O(log n) inclusion proof against a signed public head — the property a linear chain fundamentally cannot provide, and the reason Azure-style linear ledgers are insufficient for per-event compliance queries.
+
+**New theorems (added to scope; all proved in Lean companion):**
+
+| ID | Statement | Formal status |
+|----|-----------|---------------|
+| `THM-MMR-APPEND-STABILITY` | When the newest stored peak's height differs from the new entry, append is pure: existing peaks are untouched (append-only on-disk property) | **Proved** — Lean `mmrAppend_no_merge` |
+| `THM-MMR-MERGE-DETERMINISM` | Peak merges are a pure function of the two children digests | **Proved** — Lean `mmrAppend_merge` |
+| `THM-MMR-NO-DROP` | Append strictly increases the covered base-entry count — no entry can be silently dropped | **Proved** — Lean `countBase_strict` |
+| `THM-AUDIT-TAMPER-EVIDENT` (model) | Dropping the newest entry of an epoch changes the bagged anchor — silent truncation is detected | **Proved** — Lean `anchor_tamper_evident` |
+| `THM-KEY-EVOLUTION-STRICT` | Forward-secure epoch keys strictly advance and are injective — a compromised key is never equal to another epoch's key; recovery of K_{e−1} from K_e is delegated to one-wayness of H (external assumption, stated) | **Proved (strict+injective)** — Lean `keyEv_strict`, `keyEv_injective`, `keyEv_no_revisit` |
+| `THM-PII-EPOCH-UNLINKABLE` | Stored PII values from different epochs are never equal — no cross-epoch linkage is computable from the stored representation (GDPR Art. 17/25 compatibility, model level) | **Proved** — Lean `pii_epoch_unlinkable` |
+| `THM-WORM-HOLD-PRECEDENCE` (model) | Deletion under an active hold is a no-op and idempotent | **Proved** — Lean `hold_preserves`, `hold_delete_idempotent` |
+
+### R2-2.2: Comparative — what incumbents actually ship
+
+Nextcloud admin audit: plain DB rows, no hashing. Seafile: no audit chain. S3: CloudTrail delivers to a bucket — integrity is the bucket's job (Object Lock), not the log's. QLDB/Azure SQL ledger: linear chains (prefix evidence only). **None of the self-hosted file-cloud incumbents ship per-event inclusion proofs against a signed head.** Ferro's MMR + dual-sig heads would be ahead of the entire category; the PII per-epoch salt additionally makes audit retention GDPR-compatible by construction rather than by purge cron.
+
+### R2-2.3: Lean Proof Companion
+
+`formal/Ferro/AuditChain.lean` (new; imported by `Ferro.lean`). MMR model: peaks newest-first, one merge pass per append; toy hash `d₁·33 + d₂ + 7` stands in for SHA-256 with collision resistance/one-wayness as documented external assumptions.
+
+### R2-2.4: Bibliography Additions
+
+13. Todd, P. "Merkle Mountain Ranges." OpenTimestamps design doc, 2019–present. Append-only, O(log n) inclusion proofs, bag-the-peaks signing. [VERIFIED]
+
+---
+
+## R4-1 Addendum: MMR Audit Chain — IMPLEMENTED
+
+`crates/audit-log/src/mmr.rs` implements ALG-MMRLOG-001's structural contract against the Lean model (`AuditChain.lean`): append-only MMR over entry hashes; older peaks stable under append; bagged epoch anchor (deterministic, truncation-changing); O(log n) per-event inclusion proofs with verification; persistence rebuild on open (leaves = hex-decoded entry hashes, matching live and rebuilt MMRs exactly). `AuditLog::record` extends the MMR transactionally with the SQLite row; `audit_bag()` / `inclusion_proof()` / `verify_inclusion()` are public. 43 tests green. Still staged: dual-signing the anchor (Ed25519+ML-DSA-65) and PII epoch salting at the persistence layer.
+
+---
+
+## R5 Addendum: Epoch Anchor Signing — IMPLEMENTED (Ed25519 half)
+
+`crates/audit-log/src/anchor.rs`: Ed25519-signed epoch anchors over the bagged MMR digest (ring; PKCS#8 root key). `AuditLog::sign_epoch_anchor` / `verify_epoch_anchor` bind the anchor to the live bag — new entries invalidate old anchors (tamper/truncation evidence). The YP's dual signature carries a reserved `mldsa65_signature` slot; the ML-DSA-65 half is staged pending a PQ dependency. 49 audit-log tests green.

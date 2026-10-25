@@ -156,3 +156,39 @@ Summary: authz/metadata cache entries MUST be epoch-tagged; hits with stale epoc
 11. Lloyd, W., et al. "Don't Settle for Eventual: Scalable Causal Consistency for Wide-Area Storage with COPS." *SOSP 2011*. Session+causality precedent. [VERIFIED via bibliography context]
 12. Nextcloud/Seafile/Dropbox consistency commitments — vendor docs, not re-fetched; verify before quoting guarantees. [UNCERTAIN]
 13. **Negative result:** no consistency-models paper by Elsts/Marandi located this session; do not cite. [VERIFIED ABSENCE]
+
+---
+
+## YP-9: Revision 1.1 — Hardening Pass (Iteration R2-6, 2026-10-14)
+
+### R2-6.1: Frontier Verified — SIEVE is the settled default; formalize its mechanism, not just its name
+
+**Source:** SIEVE project site (`sievecache.com`, fetched 2026-10-14) — NSDI'24 paper (Zhang, Yang, Yue, Vigfusson, Rashmi); production adoption: TiDB, Pelikan, DragonFlyDB, Ceph, PostgREST, dnscrypt-proxy, Immudb. [VERIFIED]
+
+The epoch-tagging primitive (ALG-EPOCH-001) is FIXED in code; the eviction side is still LRU in `formal/`. SIEVE's decisive properties, now captured formally:
+
+| Property | Why it matters for Ferro | Lean status |
+|----------|--------------------------|-------------|
+| Hits don't reorder the queue | O(1) flag write per authz/search hit — no list surgery, no mutex contention on the hot path | **Proved** — `lookup_preserves_order` |
+| Second chances are single-use | The hand clears the visit bit on rotation — a hot entry survives, a dead one dies within one extra pass | **Proved** — `rotate_unmarks` (mechanism), `sieve_evict_unvisited_head` (victim selection) |
+| Eviction removes exactly one entry per walk from a nonempty cache | Bounded work per insert-when-full | **Proved** — `sieve_evict_reduces` (strong induction on the visited count — the same measure that drives the real hand) |
+| Capacity bound | Cache never exceeds cap (cap ≥ 1) | **Proved** — `insert_size_bound` |
+| Fresh inserts unvisited | New objects get no second chance until used (SIEVE invariant) | **Proved** — `insert_unvisited` |
+| Singleflight dedup | A caller for an in-flight key performs zero origin loads | **Proved** — `singleflight_dedup` |
+| **Stampede bound** | Origin loads ≤ distinct keys, never the call count — the formal anti-thundering-herd statement behind ALG-SINGLEFLIGHT-001 | **Proved** — `stampede_bound` |
+
+**Decision (upgrade):** replace LRU with SIEVE in the authz/search layer (the YP already prescribed SIEVE; this revision pins the mechanism and proves it). Noted frontier: DynamicAdaptiveClimb (arXiv:2511.21235, already in YP-8) beats SIEVE ~10–15% under fluctuating working sets — keep watched; SIEVE first, DACL when workload evidence exists.
+
+### R2-6.2: Lean Proof Companion
+
+`formal/Ferro/SieveCache.lean` (new; imported by `Ferro.lean`). Cache model: FIFO list of (key, visit-bit); eviction walk is well-founded recursion on the visited count — mirroring the hand's progress. The singleflight model (`sfStep`/`sfRun`) proves the stampede bound with the seed invariant loads ≤ keys.
+
+### R2-6.3: Bibliography Additions
+
+14. cacheMon. "SIEVE: an Efficient Turn-Key Eviction Algorithm for Web Caches" project site; adoption list (TiDB, Pelikan, DragonFlyDB, Ceph, PostgREST, Immudb, dnscrypt-proxy). [VERIFIED]
+
+---
+
+## R4-3 Addendum: SIEVE Eviction + SingleFlight — IMPLEMENTED
+
+`crates/server/src/cache.rs`: the arbitrary HashMap-order eviction is replaced by the SIEVE mechanism exactly as formalized in R2 (`SieveCache.lean`): FIFO queue + one visited bit; hits mark visited; eviction walks the hand — visited head gets a single-use second chance (bit cleared, rotated), unvisited head is evicted; exactly one victim per over-capacity insert; stale queue entries GC lazily. Plus `SingleFlight`: per-key in-flight locks for the double-checked origin-load pattern (THM-STAMPEDE-BOUND). 10 tests, including the visited-head-survives and single-use-second-chance orderings.

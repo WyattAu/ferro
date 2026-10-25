@@ -823,3 +823,37 @@ Test vectors are defined in `test_vectors/test_vectors_webdav.toml`. The followi
 | [MS-WEBDAV] | Microsoft, "[MS-WEBDAV]: Web Distributed Authoring and Versioning (WebDAV) Protocol Extensions", Microsoft Docs. |
 | [rclone] | rclone project, "WebDAV backend implementation", GitHub, https://github.com/rclone/rclone/tree/master/backend/webdav |
 | [warp] | tokio-rs, "warp WebDAV filters", GitHub, https://github.com/seanmonstar/warp |
+
+---
+
+## R3-5 Addendum (Revision 1.1): Write-Lock Safety & UNLOCK Authorization
+
+**Source verified:** RFC 4918 (rfc-editor.org, fetched 2026-10-14) — §6.2, §7.1, §9.10.3, §9.11, Appendix C.
+
+### Fixed implementation gaps (R3)
+
+| Gap (found by audit) | Fix | Test |
+|---|---|---|
+| Lock tokens were `urn:uuid:` | `opaquelocktoken:` (App C); parse both | TV-LOCK-token |
+| UNLOCK released any lock, ignoring the request path | §9.11 `lock-token-matches-request-uri` guard — path mismatch → 409, lock survives | THM-LOCK-RELEASE-NOOP |
+| Shared locks did not block writes | §7.1: writes to ANY locked resource require token submission | THM-LOCK-WRITE-EXCLUSION |
+| PUT token match was ad-hoc (first-lock only) | `check_lock_for_write_with_token`: every covering lock's token must be submitted | TV-LOCK-token |
+| Depth-1 locks not inherited; depth-∞ only | depth-1 covers direct internal members; depth-∞ the subtree | TV-LOCK-depth1 |
+
+### THM-LOCK-DEPTH-MONOTONE
+Widening depth never shrinks protection: zero ⊆ one ⊆ infinity coverage. [Proved — Lean `covers_depth_monotone`, `covers_one_infinity`, LockSafety.lean]
+
+### THM-LOCK-WRITE-EXCLUSION / THM-LOCK-TOKEN-MATCH / THM-LOCK-MISMATCH-BLOCKS
+A write is permitted iff every covering lock's exact token was submitted. [Proved — Lean `write_allowed_empty`, `write_allowed_token_match`, `write_blocked_on_mismatch`]
+
+### THM-LOCK-RELEASE-NOOP / THM-LOCK-RELEASE-PRESERVES
+A release whose path does not match the lock's path leaves the lock in place (no-op), and never removes mismatched locks. [Proved — Lean `release_noop_on_path_mismatch`, `release_preserves_mismatched_locks`]
+
+### Known remaining gaps (stated honestly)
+Full RFC 4918 §10.4 If-header grammar (tagged lists, `Not`, ETag conditions) is still a subset parser; refresh-fallback-to-acquire remains; lock persistence failures stay best-effort warnings. Tracked for R4.
+
+---
+
+## R4-4 Addendum: §10.4 If-Header Parser — IMPLEMENTED
+
+`crates/server-webdav-core/src/ifheader.rs`: full grammar subset — untagged lists, tagged groups (OR of ANDs), `Not`, tolerant whitespace; malformed input rejected; entity-tag conditions parse but evaluate unsatisfied (documented). `evaluate(resource, current_tokens)` implements §10.4.3 semantics incl. vacuous pass for non-matching tagged groups; `submitted_tokens()` collects non-negated tokens for §7.1 lock enforcement. Wired into PUT (`check_lock_for_write_with_token` now takes the token list) and LOCK refresh. 9 tests. Remaining: ETag conditions (live) — R5.

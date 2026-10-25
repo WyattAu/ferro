@@ -1,5 +1,6 @@
 pub mod dav;
 pub mod handlers;
+pub mod ifheader;
 pub mod lock;
 pub mod move_copy;
 pub mod trash;

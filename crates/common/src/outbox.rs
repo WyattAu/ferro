@@ -54,9 +54,7 @@ impl Outbox {
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.pragma_update(None, "busy_timeout", 5000)?;
-        let out = Self {
-            conn: Mutex::new(conn),
-        };
+        let out = Self { conn: Mutex::new(conn) };
         out.ensure_schema()?;
         Ok(out)
     }
@@ -64,9 +62,7 @@ impl Outbox {
     /// In-memory outbox for tests.
     pub fn open_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
-        let out = Self {
-            conn: Mutex::new(conn),
-        };
+        let out = Self { conn: Mutex::new(conn) };
         out.ensure_schema()?;
         Ok(out)
     }
@@ -139,8 +135,7 @@ impl Outbox {
                 Ok(OutboxRow {
                     id: row.get(0)?,
                     event_type: row.get(1)?,
-                    payload: serde_json::from_str(&row.get::<_, String>(2)?)
-                        .unwrap_or(serde_json::Value::Null),
+                    payload: serde_json::from_str(&row.get::<_, String>(2)?).unwrap_or(serde_json::Value::Null),
                     attempts: row.get(3)?,
                 })
             })?
@@ -151,10 +146,7 @@ impl Outbox {
     /// Mark a row delivered.
     pub fn mark_done(&self, id: i64) -> Result<()> {
         let conn = self.conn.lock().expect("outbox mutex");
-        conn.execute(
-            "DELETE FROM outbox WHERE id = ?1",
-            rusqlite::params![id],
-        )?;
+        conn.execute("DELETE FROM outbox WHERE id = ?1", rusqlite::params![id])?;
         Ok(())
     }
 
@@ -167,7 +159,11 @@ impl Outbox {
             let mut stmt = conn.prepare("SELECT attempts, event_type, payload FROM outbox WHERE id = ?1")?;
             let mut rows = stmt.query(rusqlite::params![id])?;
             match rows.next()? {
-                Some(row) => (row.get::<_, i32>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?),
+                Some(row) => (
+                    row.get::<_, i32>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ),
                 None => return Ok(()), // already done/deleted
             }
         };
@@ -227,7 +223,9 @@ mod tests {
     #[test]
     fn test_enqueue_claim_done() {
         let outbox = Outbox::open_in_memory().unwrap();
-        outbox.enqueue("webhook", &serde_json::json!({"path": "/a.txt"})).unwrap();
+        outbox
+            .enqueue("webhook", &serde_json::json!({"path": "/a.txt"}))
+            .unwrap();
 
         assert_eq!(outbox.pending_count().unwrap(), 1);
         let batch = outbox.claim_batch(10).unwrap();
@@ -257,8 +255,7 @@ mod tests {
         // Simulate lease expiry by backdating lease_until directly.
         {
             let conn = outbox.conn.lock().unwrap();
-            conn.execute("UPDATE outbox SET lease_until = 1", [])
-                .unwrap();
+            conn.execute("UPDATE outbox SET lease_until = 1", []).unwrap();
         }
         let second = outbox.claim_batch(10).unwrap();
         assert_eq!(second.len(), 1, "expired lease must be re-claimable");

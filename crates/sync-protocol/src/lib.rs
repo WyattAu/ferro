@@ -1,3 +1,4 @@
+pub mod conflict;
 pub mod detector;
 pub mod engine;
 pub mod protocol;

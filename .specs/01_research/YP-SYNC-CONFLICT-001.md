@@ -199,3 +199,65 @@ Summary of inviolable invariants:
 16. Syncthing documentation — version-vector conflict handling, `.sync-conflict-<date>-<time>-<modifiedBy>` naming, device-ID tie-break on first 63 bits. [VERIFIED]
 17. Nextcloud Desktop manual — conflict files not uploaded by default (`OWNCLOUD_UPLOAD_CONFLICT_FILES=1`); advisory locks only. [VERIFIED]
 18. Dropbox LAN Sync / "Streaming File Sync" engineering posts — conflicted-copy naming `<editor> (conflicted copy) <date>`. [VERIFIED]
+
+---
+
+## YP-9: Revision 1.1 — Hardening Pass (Iteration R2-1, 2026-10-14)
+
+### R2-1.1: Frontier Finding — Merkle-Rooted Op Logs
+
+**Source:** Sanjuan, Poyhtari, Teixeira, Psaras. "Merkle-CRDTs: Merkle-DAGs meet CRDTs." arXiv:2004.00107 (2020). [VERIFIED — fetched this session; note arXiv:2004.09368 is an unrelated econometrics paper and is NOT this work].
+
+The op log of ALG-OPLOG-001 gains a **running root digest**: `H_n = hash(H_{n-1} ‖ seq(n) ‖ op(n))`. The root doubles as (a) a **logical clock** — strictly monotone under append; (b) a **replica-equality oracle** — two devices advertising equal roots have identical log prefixes up to hash collision, so the pre-delta handshake exchanges 32 B roots instead of diffing manifests. Neither Syncthing (VV exchange only), Dropbox (block-list diff), nor Seafile ships this.
+
+**New theorems (added to scope):**
+
+| ID | Statement | Formal status |
+|----|-----------|---------------|
+| `THM-LOG-ROOT-CLOCK` | Appending any op strictly advances the log root (`logDigest σ < logDigest (σ ++ [x])`) | **Proved** — Lean `logDigest_strictly_advances` |
+| `THM-LOG-REPLICA-EQUALITY` | Distinct log prefixes never share a root without a hash collision (`logDigest σ ≠ logDigest (σ ++ [x])`); collision resistance delegated to the real SHA-256/BLAKE3 hash | **Proved** (conditional form) — Lean `logDigest_append_ne` |
+| `THM-WINNER-SET-ORDER-INDEPENDENT` | Adjacent-swap invariance of winner selection over the concurrent set under distinct `(lamport, device)` keys — winner is a function of the SET, not its serialization order | **Proved** — Lean `winner_adjacent_swap` + `step_swap` |
+| `THM-VV-CONCURRENCY-SOUNDNESS` | VV incomparability is irreflexive, symmetric, and never conflates "different" with "concurrent" — the soundness gap that the (size, mtime) anti-pattern violates | **Proved** — Lean `vv_concurrent_irrefl`, `vv_concurrent_symmetric`, `concurrent_not_ordered` |
+| `THM-LAMPORT-CAUSALITY` | A received op's lamport is strictly below the receiver's next clock; equal lamport values across devices imply genuine concurrency, never hidden causality | **Proved** — Lean `lamport_recv_above`, `lamport_causality` |
+| `THM-WINNER-DOMINATES` | The winner dominates every member of the concurrent set; the running winner never drops below the seed | **Proved** — Lean `winner_ge_of_mem`, `winnerOf_ge_seed` |
+| `THM-NO-SILENT-LOSS` (two-write case) | Both writes are materialized: winner at the primary path, loser at `2p+1`-encoded conflict path; the two paths are distinct | **Proved** — Lean `no_silent_loss`, `loser_materialized`, `conflict_copy_distinct` |
+
+### R2-1.2: Lean Proof Companion
+
+`formal/Ferro/SyncConflict.lean` (new; imported by `Ferro.lean`; full `lake build` green). The key encoding: winner key = `lamport * 2³² + device` (exact lexicographic order for u64 device IDs, matching the spec's field widths). Key-distinctness for `winner_adjacent_swap` is justified by `lamport_recv_above` (a device never emits two ops with one lamport value).
+
+### R2-1.3: Considered and Rejected — Dotted Version Vectors
+
+DVVs (Preguiça et al.) buy O(1) GC without pruning but require dynamic replica membership bookkeeping. Ferro's device set is closed and enumerable (50 users × N devices); 90-day pruning (YP-5) is strictly simpler with equivalent boundedness. Revisit only if multi-tenant device churn breaks pruning.
+
+### R2-1.4: Bibliography Additions
+
+19. Sanjuan, H., Poyhtari, S., Teixeira, P., Psaras, I. "Merkle-CRDTs: Merkle-DAGs meet CRDTs." arXiv:2004.00107, 2020. [VERIFIED]
+20. **Verification note:** arXiv:2004.09368 is "Awareness of crash risk improves Kelly strategies…" (econ.EM) — do not confuse with the Merkle-CRDT paper. [VERIFIED ABSENCE of the wrong-ID citation]
+
+---
+
+## R3-4 Addendum (Revision 1.2): Delta-State CRDTs & Causal-Stability GC
+
+**Source verified:** Almeida, Shoker, Baquero, "Delta State Replicated Data Types," JPDC 111:162-173, 2018 (arXiv:1603.01529) [VERIFIED 2026-10-14].
+
+### ALG-DELTAMUT-001
+Collaborative objects (chat, whiteboard, tags) disseminate **delta mutators** — the increment as a standalone delta-state with only the changed component nonzero — joined into local and remote states. Small messages with state-based (reliable-channel-free) semantics: the best of op-based and state-based CRDTs.
+
+### THM-DELTA-DECOMPOSITION
+Joining a delta mutator into any state equals joining the full incremented state — deltas are behaviorally indistinguishable from full states. [Proved — Lean `gc_delta_decomposition`, DeltaCRDT.lean]
+
+### ALG-CAUSALGC-001
+Op-log entries at or below the per-replica stable watermark are garbage-collected.
+
+### THM-GC-DROPS-ONLY-STABLE / THM-GC-KEEPS-ABOVE / THM-GC-IDEMPOTENT
+GC drops only sub-watermark entries; every above-watermark entry survives; collection is idempotent. [Proved — Lean `gc_drops_only_stable`, `gc_keeps_above_watermark`, `gc_idempotent`]
+
+### Comparison
+Yjs/Automerge ship delta-encoded doc updates but without formal convergence/GC contracts; Redis CRDTs (Enterprise) ship delta counters without causal-stability GC proofs. Ferro's differentiator remains the theorem-pinned op-log (R2) — this addendum extends it with bounded-memory GC.
+
+---
+
+## R4-2 Addendum: VV Conflict Classification — IMPLEMENTED
+
+`crates/sync-protocol/src/conflict.rs`: `classify` (Identical / LocalDominated / RemoteDominated / **Concurrent**) by vector clock only — never wall clock; `deterministic_winner` ((content_hash, path) lexicographic — every replica independently picks the same side); `conflict_copy_path` (deterministic loser-preservation name). `engine.rs::resolve_conflict` LastWriterWins branch now checks the class: concurrent conflicts preserve the loser (THM-NO-SILENT-LOSS), dominated ones may fast-forward. 7 tests.

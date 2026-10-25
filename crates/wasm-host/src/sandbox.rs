@@ -5,6 +5,15 @@ use crate::plugin::ValidationResult;
 
 const MAX_WASM_SIZE: usize = 100 * 1024 * 1024;
 
+/// The import allow-list (THM-PLUGIN-IMPORT-GATE): fixed at host build
+/// time, immutable per instance — the Lean model's declared imports.
+pub const ALLOWED_IMPORTS: &[&str] = &[
+    "host::log",
+    "host::storage_get",
+    "host::storage_set",
+    "host::get_config",
+];
+
 #[derive(Debug, Clone)]
 pub struct WasmHostConfig {
     pub max_memory_bytes: u64,
@@ -91,6 +100,23 @@ pub fn validate_plugin(wasm_bytes: &[u8]) -> Result<ValidationResult, WasmHostEr
         }
     }
 
+    // THM-PLUGIN-IMPORT-GATE (YP-TENANCY 1.2, PluginContainment.lean):
+    // fail closed on any import outside the declared allow-list. The ABI
+    // exposes exactly the `host` namespace below; wasi_* and any other
+    // namespace are rejected before instantiation.
+    let mut disallowed: Vec<String> = imports
+        .iter()
+        .filter(|i| !ALLOWED_IMPORTS.contains(&i.as_str()))
+        .cloned()
+        .collect();
+    if !disallowed.is_empty() {
+        disallowed.sort();
+        return Err(WasmHostError::InvalidPlugin(format!(
+            "imports outside the allowed set: {}",
+            disallowed.join(", ")
+        )));
+    }
+
     Ok(ValidationResult {
         valid: true,
         size: wasm_bytes.len(),
@@ -108,5 +134,64 @@ pub fn check_instance_limit(current_count: usize, config: &WasmHostConfig) -> Re
         )))
     } else {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_import_gate_rejects_undeclared_import() {
+        // THM-PLUGIN-IMPORT-GATE: an import outside the allow-list must be
+        // rejected before instantiation, fail-closed.
+        let wat = r#"
+            (module
+                (import "env" "evil" (func $evil))
+                (func (export "run") (call $evil))
+            )"#;
+        let bytes = wat::parse_str(wat).expect("wat");
+        let err = validate_plugin(&bytes).expect_err("must reject");
+        assert!(err.to_string().contains("env::evil"), "err: {err}");
+    }
+
+    #[test]
+    fn test_import_gate_accepts_abi_imports() {
+        let wat = r#"
+            (module
+                (import "host" "log" (func $log (param i32 i32 i32)))
+                (func (export "run") (call $log (i32.const 0) (i32.const 0) (i32.const 0)))
+            )"#;
+        let bytes = wat::parse_str(wat).expect("wat");
+        let result = validate_plugin(&bytes).expect("ABI imports allowed");
+        assert!(result.valid);
+        assert!(result.imports.iter().any(|i| i == "host::log"));
+    }
+
+    #[test]
+    fn test_import_gate_rejects_wasi() {
+        let wat = r#"
+            (module
+                (import "wasi_snapshot_preview1" "random_get"
+                  (func $random_get (param i32 i32) (result i32)))
+                (func (export "run") (result i32) (call $random_get (i32.const 0) (i32.const 0)))
+            )"#;
+        let bytes = wat::parse_str(wat).expect("wat");
+        let err = validate_plugin(&bytes).expect_err("wasi must be rejected");
+        assert!(err.to_string().contains("wasi_snapshot_preview1::random_get"));
+    }
+
+    #[test]
+    fn test_allowed_imports_list_is_immutable_abi() {
+        // The allow-list is exactly the ABI v1 host surface.
+        assert_eq!(
+            ALLOWED_IMPORTS,
+            &[
+                "host::log",
+                "host::storage_get",
+                "host::storage_set",
+                "host::get_config",
+            ]
+        );
     }
 }

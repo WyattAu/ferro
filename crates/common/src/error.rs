@@ -160,6 +160,7 @@ mod tests {
     }
 }
 
+#[cfg(feature = "db")]
 impl From<rusqlite::Error> for FerroError {
     fn from(e: rusqlite::Error) -> Self {
         FerroError::Db(e.to_string())

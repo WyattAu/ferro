@@ -46,25 +46,18 @@ async fn handle_put_streaming<S: WebDavCoreState>(
         return Err(FerroError::InvalidArgument(format!("Invalid path: {}", path)));
     }
 
-    if let Some(lock) = state.lock_manager().check_lock(&path).await {
-        let lock_token = headers
-            .get("If")
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.strip_prefix("(<").and_then(|r| r.strip_suffix(">)")));
-        if let Some(token) = lock_token {
-            if lock.token.as_str() != token {
-                return Err(FerroError::LockConflict(format!(
-                    "Resource locked by {}",
-                    lock.principal
-                )));
-            }
-        } else {
-            return Err(FerroError::LockConflict(format!(
-                "Resource locked by {}",
-                lock.principal
-            )));
-        }
-    }
+    // RFC 4918 §10.4: parse the full If header (tagged lists, Not, OR of
+    // ANDs); the non-negated tokens are what the client claims to hold.
+    let submitted: Vec<String> = headers
+        .get("If")
+        .and_then(|v| v.to_str().ok())
+        .and_then(crate::ifheader::parse)
+        .map(|h| h.submitted_tokens())
+        .unwrap_or_default();
+    state
+        .lock_manager()
+        .check_lock_for_write_with_token(&path, &submitted)
+        .await?;
 
     if let Some(_if_match) = headers.get("If-Match").and_then(|v| v.to_str().ok()) {
         let current = state.storage().head(&path).await?;
@@ -364,25 +357,18 @@ pub(crate) async fn handle_put<S: WebDavCoreState>(
         }
     }
 
-    if let Some(lock) = state.lock_manager().check_lock(&path).await {
-        let lock_token = headers
-            .get("If")
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.strip_prefix("(<").and_then(|r| r.strip_suffix(">)")));
-        if let Some(token) = lock_token {
-            if lock.token.as_str() != token {
-                return Err(FerroError::LockConflict(format!(
-                    "Resource locked by {}",
-                    lock.principal
-                )));
-            }
-        } else {
-            return Err(FerroError::LockConflict(format!(
-                "Resource locked by {}",
-                lock.principal
-            )));
-        }
-    }
+    // RFC 4918 §10.4: parse the full If header (tagged lists, Not, OR of
+    // ANDs); the non-negated tokens are what the client claims to hold.
+    let submitted: Vec<String> = headers
+        .get("If")
+        .and_then(|v| v.to_str().ok())
+        .and_then(crate::ifheader::parse)
+        .map(|h| h.submitted_tokens())
+        .unwrap_or_default();
+    state
+        .lock_manager()
+        .check_lock_for_write_with_token(&path, &submitted)
+        .await?;
 
     // Conditional PUT: If-Match on existing resource
     if let Some(_if_match) = headers.get("If-Match").and_then(|v| v.to_str().ok()) {

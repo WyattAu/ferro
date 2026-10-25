@@ -189,3 +189,42 @@ Summary: registry MUST NOT store block hashes (`DC-MESH-001`); every fetched blo
 22. Nextcloud Federation: OCM share pull model; `oc:share-permissions`; advisory locks. [VERIFIED]
 23. "WebRTC Metadata and IP Leakage in Modern Browsers." arXiv:2510.16168 (Oct 2025): mDNS obfuscation is session-stable pseudonymity, not anonymity. [VERIFIED]
 24. **Negative results:** "Siena" (SOSP '09) and "PBFS/opportunistic file system" — no primary records verified this session; do not cite. [VERIFIED ABSENCE]
+
+---
+
+## YP-9: Revision 1.1 — Hardening Pass (Iteration R2-4, 2026-10-14)
+
+### R2-4.1: Frontier Finding — close DC-MESH-007 with attenuated capability chains (UCAN-shaped)
+
+**Source:** Zelenka, B. (ed.), Gozalishvili, I., Holmgren, D., Krüger, P. "User Controlled Authorization Networks (UCAN) Specification," v1.0.0, `github.com/ucan-wg/spec`. [VERIFIED — fetched this session]
+
+DC-MESH-007 ("peer A may fetch block h for tenant T") was flagged the biggest unsolved gap. The ACL reflex — evaluate every mesh fetch server-side — reintroduces the coordinator the mesh exists to avoid. The capability alternative, concretized from UCAN:
+
+- **Root of trust = the tenant owner.** Root capability: subject = `tenant:{T}`, command = `/ferro/block`, delegated to each user's devices.
+- **Delegation is attenuation-only** (UCAN §Attenuation): every link must restate or narrow `(subject, command)` and nest the validity interval. Command specialization is prefix-ordered: `/ferro` proves `/ferro/block` proves `/ferro/block/read`; `/` (top) proves everything and MUST be delegated sparingly.
+- **A mesh peer presenting a block-fetch invocation validates:** chain signatures (Ed25519, DAG-CBOR-canonical), adjacent attenuation links, `subject == tenant-of(h)`, invocation-time ∈ leaf interval, CID uniqueness (replay), revocation status. No server round-trip; the check is local and self-certifying.
+- **Failure mode:** absent/invalid chain ⇒ deny (fail-closed). Chains are the *only* mesh authority — no ambient identity grants fetch rights (UCAN FAQ: no ambient authority; least authority throughout).
+
+**New theorems (added to scope; all proved in Lean companion):**
+
+| ID | Statement | Formal status |
+|----|-----------|---------------|
+| `THM-CMD-ORDER-PARTIAL` | The command proof order (prefix) is reflexive, antisymmetric, transitive — a partial order | **Proved** — Lean `cmd_proves_refl/antisym/trans` |
+| `THM-CAP-CHAIN-SOUNDNESS` | Attenuation is transitive: leaf authority is derivable from root authority by adjacent-link checks alone | **Proved** — Lean `attenuates_trans` |
+| `THM-CAP-NO-AMPLIFICATION` | Any invocation authorized by a leaf was authorized by the root — delegation narrows, never widens | **Proved** — Lean `no_amplification` |
+| `THM-CAP-TENANT-CONTAINMENT` | Attenuation preserves subject: a chain rooted at tenant T structurally cannot authorize operations on tenant T′ — DC-MESH-007 closed by construction | **Proved** — Lean `tenant_containment` |
+| `THM-CAP-INTERVAL-CONTAINMENT` | The leaf validity interval is contained in the root's — a chain is never valid outside its weakest link | **Proved** — Lean `interval_containment` |
+
+**Rejected:** server-side ACL evaluation for mesh fetches (defeats partition tolerance; the YP's own relay-first design would become a sync bottleneck); macaroons-style third-party caveats (caveat discharge requires the discharger online — same coordinator problem). Biscuit tokens (Datalog caveats, offline verification) remain a viable alternative *format*; the Lean model above is format-independent and applies to either.
+
+### R2-4.2: Comparative
+
+Syncthing: device-ID allow-list, all-or-nothing per folder — no per-tenant attenuation, no delegation. IPFS/IPLD: raw content addressing, authorization out of scope. Nextcloud federation (OCM): server-to-server share tokens, coordinator required. **UCAN-style attenuation + tenant-anchored roots is the frontier: public-key verifiable, partition-tolerant, and provably non-amplifying — no incumbent self-hosted sync ships it.**
+
+### R2-4.3: Lean Proof Companion
+
+`formal/Ferro/Capability.lean` (new; imported by `Ferro.lean`). Commands modelled as segment lists; proof order = suffix-existence (equivalent to UCAN's `/`-prefix order); capabilities = `(subject, cmd, nbf, exp)`. Signature verification and hash one-wayness are external assumptions.
+
+### R2-4.4: Bibliography Additions
+
+25. Zelenka, B. (ed.), et al. "UCAN Specification" v1.0.0, UCAN Working Group, `ucan-wg/spec`. Attenuation-only delegation, `/`-prefix command ordering, chain validity intervals, CID replay prevention. [VERIFIED]

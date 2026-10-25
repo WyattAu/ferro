@@ -21,6 +21,9 @@ fn fed_state<S: FederationStateProvider>(s: &S) -> FederationState {
         activity_store: s.activity_store().clone(),
         external_url: s.external_url().to_string(),
         federation_secret: s.federation_secret().to_string(),
+        replay: std::sync::Arc::new(std::sync::Mutex::new(webhookkit::ReplayGuard::new(
+            std::time::Duration::from_secs(3600),
+        ))),
     }
 }
 

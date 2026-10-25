@@ -149,3 +149,35 @@ Summary: originals MUST never be mutated (`DC-MEDIA-001`); derivative keys MUST 
 12. ffmpeg tiled-thumbnails (`tile` filter) storyboards — documented filter; used by Jellyfin/Immich. [UNCERTAIN]
 13. rav1e / av1an — active Rust AV1 encoder + orchestrator; rav1e slower than SVT at target quality; av1an batch-oriented. [UNCERTAIN — status pages not fetched]
 14. Jellyfin / Nextcloud preview-generator engine behavior: on-demand transcode ladders with session cache; `occ preview:generate-all` precompute. [VERIFIED behavior / UNCERTAIN URLs]
+
+---
+
+## YP-9: Revision 1.1 — Hardening Pass (Iteration R2-5, 2026-10-14)
+
+### R2-5.1: Production Reference Verified — imgproxy
+
+**Source:** imgproxy documentation (`docs.imgproxy.net`, fetched 2026-10-14). [VERIFIED]
+
+imgproxy (libvips-based, Evil Martians) validates the YP-5 core decisions independently: on-demand processing with signed URLs (the derivative identity = source + processing options, HMAC-signed), preset registries, **metadata stripping as a first-class OSS feature**, and pre-decode dimension checks against image bombs. Ferro's derivative keys `H(content, preset, encoder_ver)` are the CAS-native version of imgproxy's signed `(source, options)` identity — same shape, content-addressed instead of URL-addressed. **Adopt imgproxy's two additional hardening rules:** check real image dimensions before decode (image-bomb defense), and restrict allowed source/processing combinations server-side.
+
+### R2-5.2: Album race — albums become a view over the sync op log
+
+The `albums.json` write race disappears when album membership is not a file but a **deterministic fold over the server-sequenced op log** (YP-SYNC-CONFLICT-001 ALG-OPLOG-001): `AddToAlbum`/`RemoveFromAlbum` ops fold over the sequenced order, last-op-per-file wins. No shared mutable JSON, no lock, and sync replicas converge by construction.
+
+**New theorems (added to scope; all proved in Lean companion):**
+
+| ID | Statement | Formal status |
+|----|-----------|---------------|
+| `THM-DERIV-DETERMINISM` (quantified) | With bounded preset/encoder registries, the derivative key is injective in (content, preset, encoder version) — no cross-content derivative collisions | **Proved** — Lean `derivKey_injective` |
+| `THM-NAMESPACE-DISJOINT` | Original and derivative namespaces are separated by the derivative multicodec prefix — an original address can never collide with a derivative address | **Proved** — Lean `namespaces_disjoint` |
+| `THM-ORIGINAL-IMMUTABILITY` (write-set) | A derivative job structurally returns the original namespace unchanged — it cannot touch originals | **Proved** — Lean `originals_untouched` |
+| `THM-THUMB-PRIVACY` (model) | Thumbnail derivatives emit an empty metadata block — no EXIF (GPS/device) can leak through a thumbnail | **Proved** — Lean `thumb_privacy` |
+| `THM-ALBUM-DETERMINISM` | Album membership is a pure function of the sequenced op list; replaying any prefix on any replica yields identical membership | **Proved** — Lean `album_deterministic`, `album_prefix_compose` |
+
+### R2-5.3: Lean Proof Companion
+
+`formal/Ferro/Derivatives.lean` (new; imported by `Ferro.lean`). Derivative keys carry a multicodec prefix constant (`DERIV_PREFIX = 2^200`) modeling real multihash code separation; preset/encoder registries bounded to 5 bits (policy). Codec determinism (SVT-AV1/Libvips bit-exactness) remains an external assumption — what is proven is the addressing and namespace layer.
+
+### R2-5.4: Bibliography Additions
+
+15. imgproxy documentation — Evil Martians. On-demand processing, signed URL identity, presets, metadata stripping, image-bomb defenses. `docs.imgproxy.net`. [VERIFIED]

@@ -1,5 +1,5 @@
 use chrono::{DateTime, Duration, Utc};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::RwLock;
@@ -16,9 +16,16 @@ struct CacheEntry<T> {
     epoch: u64,
 }
 
-/// In-memory cache with TTL and epoch-tagged coherence
+/// In-memory cache with TTL, epoch-tagged coherence, and SIEVE eviction
+/// (NSDI'24; formal model in `formal/Ferro/SieveCache.lean`,
+/// YP-CONSISTENCY-CACHE-001 Rev 1.1). SIEVE: FIFO queue + one visited bit;
+/// a visited head gets a single-use second chance (bit cleared, rotated to
+/// the tail); an unvisited head is evicted. Replaces the previous
+/// arbitrary `HashMap`-order eviction.
 pub struct Cache<T> {
     entries: Arc<RwLock<HashMap<String, CacheEntry<T>>>>,
+    queue: Arc<tokio::sync::Mutex<VecDeque<String>>>,
+    visited: Arc<tokio::sync::Mutex<HashMap<String, bool>>>,
     default_ttl: Duration,
     max_size: usize,
     epoch: Arc<AtomicU64>,
@@ -28,6 +35,8 @@ impl<T: Clone> Cache<T> {
     pub fn new(default_ttl: Duration, max_size: usize) -> Self {
         Self {
             entries: Arc::new(RwLock::new(HashMap::new())),
+            queue: Arc::new(tokio::sync::Mutex::new(VecDeque::new())),
+            visited: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
             default_ttl,
             max_size,
             epoch: Arc::new(AtomicU64::new(0)),
@@ -53,6 +62,8 @@ impl<T: Clone> Cache<T> {
             && Utc::now() < entry.expires_at
             && entry.epoch == self.current_epoch()
         {
+            // SIEVE: a hit marks the entry visited (one second chance).
+            self.visited.lock().await.insert(key.to_string(), true);
             return Some(entry.value.clone());
         }
         None
@@ -62,33 +73,85 @@ impl<T: Clone> Cache<T> {
     pub async fn set(&self, key: String, value: T, ttl: Option<Duration>) {
         let mut entries = self.entries.write().await;
 
-        // Evict if at capacity
+        // Evict if at capacity (SIEVE: exactly one victim per insert)
         if entries.len() >= self.max_size {
             self.evict_expired(&mut entries).await;
 
             if entries.len() >= self.max_size {
-                // Still at capacity, evict oldest
-                if let Some(oldest_key) = entries.keys().next().cloned() {
-                    entries.remove(&oldest_key);
-                }
+                let mut queue = self.queue.lock().await;
+                let mut visited = self.visited.lock().await;
+                Self::sieve_evict_one(&mut entries, &mut queue, &mut visited);
             }
         }
 
         let expires_at = Utc::now() + ttl.unwrap_or(self.default_ttl);
         let epoch = self.current_epoch();
         entries.insert(
-            key,
+            key.clone(),
             CacheEntry {
                 value,
                 expires_at,
                 epoch,
             },
         );
+        let mut queue = self.queue.lock().await;
+        let mut visited = self.visited.lock().await;
+        queue.push_back(key.clone());
+        visited.insert(key, false);
+    }
+
+    /// SIEVE eviction (Lean `sieveEvict`): a visited head is unmarked and
+    /// rotated to the tail (single-use second chance); an unvisited head is
+    /// evicted. Evicts exactly one live entry when the map is nonempty;
+    /// stale queue entries are skipped and garbage-collected lazily.
+    fn sieve_evict_one(
+        entries: &mut HashMap<String, CacheEntry<T>>,
+        queue: &mut VecDeque<String>,
+        visited: &mut HashMap<String, bool>,
+    ) -> bool {
+        let now = Utc::now();
+        let mut rotations = 0usize;
+        while rotations <= queue.len() {
+            rotations += 1;
+            let Some(key) = queue.front().cloned() else {
+                return false;
+            };
+            if !entries.contains_key(&key) {
+                // Dead queue entry (removed earlier) — GC and continue.
+                queue.pop_front();
+                visited.remove(&key);
+                continue;
+            }
+            if entries.get(&key).is_some_and(|e| now >= e.expires_at) {
+                queue.pop_front();
+                visited.remove(&key);
+                entries.remove(&key);
+                return true;
+            }
+            if *visited.get(&key).unwrap_or(&false) {
+                // Single-use second chance: clear the bit, rotate to tail.
+                visited.insert(key.clone(), false);
+                queue.pop_front();
+                queue.push_back(key);
+            } else {
+                queue.pop_front();
+                visited.remove(&key);
+                entries.remove(&key);
+                return true;
+            }
+        }
+        // Every entry had its second chance: evict the front regardless.
+        if let Some(key) = queue.pop_front() {
+            visited.remove(&key);
+            return entries.remove(&key).is_some();
+        }
+        false
     }
 
     /// Remove a value from cache
     pub async fn remove(&self, key: &str) -> bool {
         let mut entries = self.entries.write().await;
+        self.visited.lock().await.remove(key);
         entries.remove(key).is_some()
     }
 
@@ -161,6 +224,42 @@ impl GlobalCache {
 impl Default for GlobalCache {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// In-flight dedup for origin loads (THM-STAMPEDE-BOUND): concurrent
+/// `run(key, ...)` calls for the same key serialize on one per-key lock, so
+/// the expensive loader executes once; later callers run after it completes
+/// (and typically find the origin result already in the cache).
+#[derive(Default, Clone)]
+pub struct SingleFlight {
+    locks: Arc<std::sync::Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
+}
+
+impl SingleFlight {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Run `f` under the per-key lock. Callers should check the cache
+    /// inside `f` (double-checked pattern) so waiters reuse the result.
+    pub async fn run<T, F, Fut>(&self, key: &str, f: F) -> T
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = T>,
+    {
+        let entry = {
+            let mut map = self.locks.lock().expect("singleflight map poisoned");
+            map.entry(key.to_string()).or_default().clone()
+        };
+        let _guard = entry.lock().await;
+        f().await
+    }
+
+    /// Drop the per-key lock entry (call after the result is cached).
+    pub fn finish(&self, key: &str) {
+        self.locks.lock().expect("singleflight map poisoned").remove(key);
     }
 }
 
@@ -247,6 +346,93 @@ mod tests {
     }
 
     /// Epoch is monotone; multiple bumps keep invalidating.
+    #[tokio::test]
+    async fn test_sieve_evicts_unvisited_fifo_not_arbitrary() {
+        // SIEVE contract: with A,B,C at capacity 3, a hit on A (visited)
+        // makes B the victim on the next insert — not A, not C.
+        let cache = Cache::new(Duration::hours(1), 3);
+        cache.set("a".into(), 1i32, None).await;
+        cache.set("b".into(), 2, None).await;
+        cache.set("c".into(), 3, None).await;
+
+        assert_eq!(cache.get("a").await, Some(1)); // A visited
+
+        cache.set("d".into(), 4, None).await; // capacity exceeded → evict B
+
+        assert_eq!(cache.get("a").await, Some(1), "visited head must survive");
+        assert_eq!(cache.get("b").await, None, "unvisited FIFO head must be the victim");
+        assert_eq!(cache.get("c").await, Some(3));
+        assert_eq!(cache.get("d").await, Some(4));
+    }
+
+    #[tokio::test]
+    async fn test_sieve_second_chance_is_single_use() {
+        // B visited after being spared: on the NEXT eviction B goes first.
+        let cache = Cache::new(Duration::hours(1), 3);
+        cache.set("a".into(), 1i32, None).await;
+        cache.set("b".into(), 2, None).await;
+        cache.set("c".into(), 3, None).await;
+        cache.set("d".into(), 4, None).await; // spares B? no: victim is A (unvisited head)
+        // After evicting A: queue order B,C,D; B unvisited.
+        cache.set("e".into(), 5, None).await; // victim B
+        assert_eq!(cache.get("b").await, None);
+        assert_eq!(cache.get("c").await, Some(3));
+    }
+
+    #[tokio::test]
+    async fn test_sieve_evicts_exactly_one_per_insert() {
+        let cache = Cache::new(Duration::hours(1), 4);
+        for i in 0..4i32 {
+            cache.set(format!("k{i}"), i, None).await;
+        }
+        cache.set("k4".into(), 4, None).await;
+        let mut survivors = 0;
+        for i in 0..4i32 {
+            if cache.get(&format!("k{i}")).await.is_some() {
+                survivors += 1;
+            }
+        }
+        assert_eq!(survivors, 3, "exactly one victim per over-capacity insert");
+        assert_eq!(cache.get("k4").await, Some(4));
+    }
+
+    #[tokio::test]
+    async fn test_singleflight_dedups_concurrent_loads() {
+        use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+        let sf = crate::cache::SingleFlight::new();
+        let loads = std::sync::Arc::new(AtomicUsize::new(0));
+        // The "cache" the double-checked loader consults.
+        let store: std::sync::Arc<tokio::sync::Mutex<Option<i64>>> = std::sync::Arc::new(tokio::sync::Mutex::new(None));
+
+        let mut handles = Vec::new();
+        for _ in 0..10 {
+            let sf = sf.clone();
+            let loads = loads.clone();
+            let store = store.clone();
+            handles.push(tokio::spawn(async move {
+                sf.run("origin:expensive", || {
+                    let loads = loads.clone();
+                    let store = store.clone();
+                    async move {
+                        let mut slot = store.lock().await;
+                        if slot.is_none() {
+                            loads.fetch_add(1, AtomicOrdering::SeqCst);
+                            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                            *slot = Some(42);
+                        }
+                        42i64
+                    }
+                })
+                .await
+            }));
+        }
+        for h in handles {
+            assert_eq!(h.await.unwrap(), 42);
+        }
+        sf.finish("origin:expensive");
+        assert_eq!(loads.load(AtomicOrdering::SeqCst), 1, "loader must run once");
+    }
+
     #[tokio::test]
     async fn test_epoch_monotone() {
         let cache = Cache::new(Duration::seconds(60), 100);

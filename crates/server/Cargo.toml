@@ -20,6 +20,7 @@ webauthn = ["ferro-server-security-middleware/webauthn"]
 otel = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk", "dep:tracing-opentelemetry"]
 
 [dependencies]
+sheet-xlsx = "0.1"
 common = { package = "ferro-common", path = "../common", features = ["db"] }
 ferro-webdav-handler = { path = "../webdav-handler" }
 ferro-server-webrtc = { path = "../server-webrtc" }
@@ -110,6 +111,7 @@ ferro-server-infra = { path = "../server-infra" }
 ferro-server-config = { path = "../server-config" }
 ferro-server-state = { path = "../server-state" }
 ferro-server-health = { path = "../server-health" }
+healthkit = "1.2"
 ferro-server-sync-handlers = { path = "../server-sync-handlers" }
 ferro-server-federation = { path = "../server-federation" }
 ferro-server-routes = { path = "../server-routes" }

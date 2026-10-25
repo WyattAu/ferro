@@ -539,9 +539,7 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
 
     // Durable outbox for post-op effects (YP-EVENT-DURABILITY-001).
     if let Some(ref data_dir) = cli.data_dir {
-        match common::outbox::Outbox::open(
-            &std::path::Path::new(data_dir).join("outbox.db"),
-        ) {
+        match common::outbox::Outbox::open(&std::path::Path::new(data_dir).join("outbox.db")) {
             Ok(outbox) => {
                 state.outbox = Some(std::sync::Arc::new(outbox));
                 info!("Outbox: {:?}/outbox.db", data_dir);

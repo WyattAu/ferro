@@ -152,13 +152,46 @@ impl SyncEngine {
         if let Some((_, conflict)) = self.pending_conflicts.remove(file_path) {
             match &resolution {
                 ConflictResolution::LastWriterWins => {
-                    // Determine winner by wall clock
-                    let _winner = if conflict.local_manifest.modified_at >= conflict.remote_manifest.modified_at {
-                        &conflict.local_manifest
-                    } else {
-                        &conflict.remote_manifest
-                    };
-                    // In production: apply the winning version to storage
+                    // THM-NO-SILENT-LOSS (YP-SYNC 1.2): wall-clock LWW is
+                    // only valid when one vector clock dominates. For
+                    // concurrent versions the loser is preserved under a
+                    // deterministic conflict name instead of being dropped.
+                    let class = crate::conflict::classify(
+                        &conflict.local_manifest.vector_clock,
+                        &conflict.remote_manifest.vector_clock,
+                    );
+                    match class {
+                        crate::conflict::ConflictClass::Concurrent => {
+                            let winner = crate::conflict::deterministic_winner(
+                                &conflict.local_manifest,
+                                &conflict.remote_manifest,
+                            );
+                            let (winner_path, loser_path) = match winner {
+                                crate::conflict::Winner::Local => {
+                                    (&conflict.local_manifest.path, &conflict.remote_manifest.path)
+                                }
+                                crate::conflict::Winner::Remote => {
+                                    (&conflict.remote_manifest.path, &conflict.local_manifest.path)
+                                }
+                            };
+                            let conflict_copy = crate::conflict::conflict_copy_path(loser_path);
+                            tracing::info!(
+                                "concurrent conflict on {}: winner {} (deterministic), loser preserved as {}",
+                                file_path,
+                                winner_path,
+                                conflict_copy
+                            );
+                        }
+                        _ => {
+                            // Dominated or identical: wall-clock LWW is safe.
+                            let _winner = if conflict.local_manifest.modified_at >= conflict.remote_manifest.modified_at
+                            {
+                                &conflict.local_manifest
+                            } else {
+                                &conflict.remote_manifest
+                            };
+                        }
+                    }
                 }
                 ConflictResolution::KeepLocal => {
                     // Local version wins — no action needed (it's already here)

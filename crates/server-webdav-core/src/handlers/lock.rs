@@ -71,12 +71,37 @@ pub(crate) async fn handle_lock<S: WebDavCoreState>(
     Ok((StatusCode::OK, resp_headers, Body::from(xml)).into_response())
 }
 
-pub(crate) async fn handle_unlock<S: WebDavCoreState>(state: S, _path: &str, headers: &HeaderMap) -> Result<Response> {
+pub(crate) async fn handle_unlock<S: WebDavCoreState>(state: S, path: &str, headers: &HeaderMap) -> Result<Response> {
     let lock_token = headers
         .get("Lock-Token")
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("<").and_then(|r| r.strip_suffix(">")))
         .ok_or_else(|| FerroError::InvalidArgument("Missing Lock-Token header".to_string()))?;
+
+    // RFC 4918 §9.11: the request-URI MUST identify the resource the lock
+    // was taken on (precondition lock-token-matches-request-uri). Never
+    // release a lock whose path does not match the request path.
+    let locks = state.lock_manager().all_locks().await;
+    let lock = locks
+        .iter()
+        .find(|l| l.token.as_str() == lock_token || l.token.as_opaque() == lock_token);
+    let Some(lock) = lock else {
+        return Ok((
+            StatusCode::CONFLICT,
+            [("Allow", "LOCK, UNLOCK")],
+            Body::from("no active lock for the submitted token"),
+        )
+            .into_response());
+    };
+    let normalized = normalize_path(path);
+    if lock.path != normalized && lock.path != path {
+        return Ok((
+            StatusCode::CONFLICT,
+            [("Allow", "LOCK, UNLOCK")],
+            Body::from("lock-token-matches-request-uri precondition failed"),
+        )
+            .into_response());
+    }
 
     state.lock_manager().release_lock(lock_token).await?;
     Ok(StatusCode::NO_CONTENT.into_response())
@@ -168,16 +193,10 @@ async fn handle_lock_refresh<S: WebDavCoreState>(
 }
 
 /// Extract a lock token from an If header value.
-/// Format: `(<lock-token>)` or `( <lock-token> )`
+/// RFC 4918 §10.4: full parse; the first non-negated token refreshes.
 fn extract_lock_token_from_if(if_header: &HeaderValue) -> Option<String> {
     let val = if_header.to_str().ok()?;
-    let trimmed = val.trim();
-    // Extract content between angle brackets
-    let start = trimmed.find('<')?;
-    let end = trimmed.find('>')?;
-    if end > start {
-        Some(trimmed[start + 1..end].to_string())
-    } else {
-        None
-    }
+    crate::ifheader::parse(val)
+        .map(|h| h.submitted_tokens())
+        .and_then(|tokens| tokens.into_iter().next())
 }

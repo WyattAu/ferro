@@ -64,18 +64,24 @@ impl LockToken {
         Self::default()
     }
 
-    /// Parse a lock token from a UUID string.
+    /// Parse a lock token from a UUID string, accepting the bare UUID or
+    /// either URI form (`opaquelocktoken:` per RFC 4918 App C, or the
+    /// legacy `urn:uuid:` emitted by older Ferro builds).
     pub fn from_str_custom(s: &str) -> Option<Self> {
-        Uuid::parse_str(s).ok().map(Self)
+        let bare = s
+            .strip_prefix("opaquelocktoken:")
+            .or_else(|| s.strip_prefix("urn:uuid:"))
+            .unwrap_or(s);
+        Uuid::parse_str(bare).ok().map(Self)
     }
 
-    /// Return the token in `urn:uuid:…` format.
+    /// Return the token in `opaquelocktoken:…` format (RFC 4918 Appendix C).
     #[must_use]
     pub fn as_str(&self) -> String {
-        format!("urn:uuid:{}", self.0)
+        format!("opaquelocktoken:{}", self.0)
     }
 
-    /// Return the raw UUID string without the `urn:uuid:` prefix.
+    /// Return the raw UUID string without the `opaquelocktoken:` prefix.
     #[must_use]
     pub fn as_opaque(&self) -> String {
         self.0.to_string()
@@ -182,7 +188,7 @@ mod tests {
     fn test_lock_token_new() {
         let token = LockToken::new();
         let s = token.as_str();
-        assert!(s.starts_with("urn:uuid:"));
+        assert!(s.starts_with("opaquelocktoken:"));
     }
 
     #[test]
@@ -279,7 +285,7 @@ mod tests {
     fn test_lock_token_default() {
         let token = LockToken::default();
         let s = token.as_str();
-        assert!(s.starts_with("urn:uuid:"));
+        assert!(s.starts_with("opaquelocktoken:"));
     }
 
     #[test]
@@ -287,7 +293,7 @@ mod tests {
         let token = LockToken::new();
         let opaque = token.as_opaque();
         assert_eq!(opaque.len(), 36); // UUID format
-        assert!(!opaque.contains("urn:uuid:"));
+        assert!(!opaque.contains("opaquelocktoken:"));
     }
 
     #[test]

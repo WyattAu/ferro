@@ -5,6 +5,8 @@ use chrono::{DateTime, Utc};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
+use sha2::{Digest, Sha256};
+
 use crate::chain::{self, ChainVerificationResult};
 use crate::error::AuditError;
 use crate::export::{self, ExportFormat};
@@ -91,15 +93,20 @@ impl Default for AuditFilter {
 pub struct AuditLog {
     conn: Mutex<Connection>,
     retention: RetentionPolicy,
+    /// MMR over entry hashes (ALG-MMRLOG-001): bagged epoch anchors and
+    /// O(log n) inclusion proofs. Rebuilt from the persisted rows on open.
+    mmr: Mutex<crate::mmr::Mmr>,
 }
 
 impl AuditLog {
     pub fn new(db_path: &str) -> Result<Self, AuditError> {
         let conn = Connection::open(db_path)?;
         Self::init_db(&conn)?;
+        let mmr = Self::rebuild_mmr(&conn)?;
         Ok(Self {
             conn: Mutex::new(conn),
             retention: RetentionPolicy::new(),
+            mmr: Mutex::new(mmr),
         })
     }
 
@@ -109,7 +116,64 @@ impl AuditLog {
         Ok(Self {
             conn: Mutex::new(conn),
             retention: RetentionPolicy::new(),
+            mmr: Mutex::new(crate::mmr::Mmr::new()),
         })
+    }
+
+    fn rebuild_mmr(conn: &Connection) -> Result<crate::mmr::Mmr, AuditError> {
+        let mut stmt = conn.prepare("SELECT hash FROM audit_entries ORDER BY rowid")?;
+        let hashes = stmt
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<std::result::Result<Vec<String>, _>>()?;
+        let mut mmr = crate::mmr::Mmr::new();
+        for h in hashes {
+            if let Ok(bytes) = hex::decode(&h) {
+                let mut leaf = [0u8; 32];
+                if bytes.len() == 32 {
+                    leaf.copy_from_slice(&bytes);
+                    mmr.append(&leaf);
+                }
+            }
+        }
+        Ok(mmr)
+    }
+
+    /// Bagged epoch anchor over all recorded entries (deterministic; changes
+    /// if any entry is truncated). Sign this per epoch for tamper evidence.
+    pub fn audit_bag(&self) -> Result<[u8; 32], AuditError> {
+        Ok(self.mmr.lock().map_err(|_| AuditError::LockPoisoned)?.bag())
+    }
+
+    /// O(log n) inclusion proof for the entry recorded at `index`
+    /// (0-based record order).
+    pub fn inclusion_proof(&self, index: u64) -> Result<Option<Vec<([u8; 32], bool)>>, AuditError> {
+        Ok(self
+            .mmr
+            .lock()
+            .map_err(|_| AuditError::LockPoisoned)?
+            .inclusion_proof(index))
+    }
+
+    /// Sign the current bagged epoch anchor (ALG-MMRLOG-001, Ed25519 half
+    /// of the YP-LIFECYCLE 1.1 dual signature; the ML-DSA-65 half is staged
+    /// in `anchor::EpochAnchor.mldsa65_signature`).
+    pub fn sign_epoch_anchor(&self, key_pkcs8: &[u8]) -> Result<crate::anchor::EpochAnchor, AuditError> {
+        let bag = self.audit_bag()?;
+        crate::anchor::sign_anchor(key_pkcs8, &bag)
+            .map_err(|e| AuditError::Export(format!("anchor signing failed: {e}")))
+    }
+
+    /// Verify a signed epoch anchor against the current bag.
+    pub fn verify_epoch_anchor(&self, anchor: &crate::anchor::EpochAnchor) -> Result<bool, AuditError> {
+        let bag = self.audit_bag()?;
+        Ok(crate::anchor::verify_anchor(anchor) && anchor.bag == bag)
+    }
+
+    /// Verify `data`'s inclusion at `index` against the current peaks.
+    pub fn verify_inclusion(&self, data: &[u8], index: u64, proof: &[([u8; 32], bool)]) -> Result<bool, AuditError> {
+        let mmr = self.mmr.lock().map_err(|_| AuditError::LockPoisoned)?;
+        let peaks = mmr.peaks();
+        Ok(crate::mmr::verify_inclusion(data, index, proof, &peaks))
     }
 
     fn init_db(conn: &Connection) -> Result<(), AuditError> {
@@ -169,6 +233,23 @@ impl AuditLog {
                 entry.hash,
             ],
         )?;
+
+        drop(conn);
+        // Leaf = the raw 32 bytes of the entry hash (hex-decoded) so the
+        // rebuilt-on-open MMR matches the live one exactly.
+        if let Ok(mut mmr) = self.mmr.lock() {
+            let mut leaf = [0u8; 32];
+            if let Ok(bytes) = hex::decode(&entry.hash) {
+                if bytes.len() == 32 {
+                    leaf.copy_from_slice(&bytes);
+                } else {
+                    leaf.copy_from_slice(&Sha256::digest(entry.hash.as_bytes()));
+                }
+            } else {
+                leaf.copy_from_slice(&Sha256::digest(entry.hash.as_bytes()));
+            }
+            mmr.append(&leaf);
+        }
 
         Ok(())
     }
@@ -559,6 +640,83 @@ mod tests {
             log.record(&mut e).unwrap();
         }
         assert_eq!(log.count().unwrap(), 10);
+    }
+
+    #[test]
+    fn test_epoch_anchor_sign_verify_and_tamper() {
+        let log = AuditLog::new_in_memory().unwrap();
+        for i in 0..4u32 {
+            let mut e = make_entry(&format!("a{i}"), AuditAction::FileCreate);
+            log.record(&mut e).unwrap();
+        }
+        let key = crate::anchor::generate_signing_key().unwrap();
+        let anchor = log.sign_epoch_anchor(&key).unwrap();
+        assert!(log.verify_epoch_anchor(&anchor).unwrap());
+
+        // Tamper: a different bag fails verification.
+        let mut forged = anchor.clone();
+        forged.bag = [9u8; 32];
+        assert!(!crate::anchor::verify_anchor(&forged));
+        assert!(!log.verify_epoch_anchor(&forged).unwrap());
+
+        // New entries change the bag: the old anchor no longer matches.
+        let mut e = make_entry("a5", AuditAction::FileCreate);
+        log.record(&mut e).unwrap();
+        assert!(!log.verify_epoch_anchor(&anchor).unwrap());
+    }
+
+    #[test]
+    fn test_mmr_bag_and_inclusion_end_to_end() {
+        let log = AuditLog::new_in_memory().unwrap();
+        for i in 0..12u32 {
+            let mut e = make_entry(&format!("e{i}"), AuditAction::FileCreate);
+            e.details.insert("seq".to_string(), serde_json::json!(i));
+            log.record(&mut e).unwrap();
+        }
+
+        let bag1 = log.audit_bag().unwrap();
+        let bag2 = log.audit_bag().unwrap();
+        assert_eq!(bag1, bag2, "bag must be deterministic");
+        assert_ne!(bag1, [0u8; 32]);
+
+        // Per-event inclusion proofs verify for every recorded entry.
+        let hashes: Vec<String> = {
+            let entries = log.query(&AuditFilter::default()).unwrap();
+            entries.iter().map(|e| e.hash.clone()).collect()
+        };
+        for (i, h) in hashes.iter().enumerate() {
+            let leaf = hex::decode(h).unwrap();
+            let proof = log.inclusion_proof(i as u64).unwrap().expect("proof");
+            assert!(log.verify_inclusion(&leaf, i as u64, &proof).unwrap());
+        }
+
+        // A wrong payload fails verification.
+        let proof = log.inclusion_proof(3).unwrap().expect("proof");
+        assert!(!log.verify_inclusion(b"tampered", 3, &proof).unwrap());
+    }
+
+    #[test]
+    fn test_mmr_rebuild_from_persisted_rows() {
+        let dir = std::env::temp_dir().join(format!("ferro-mmr-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = dir.join("audit.db");
+        {
+            let log = AuditLog::new(db.to_str().unwrap()).unwrap();
+            for i in 0..5u32 {
+                let mut e = make_entry(&format!("e{i}"), AuditAction::FileCreate);
+                log.record(&mut e).unwrap();
+            }
+        }
+        // Reopen: MMR must rebuild from persisted rows and keep proofs valid.
+        let reopened = AuditLog::new(db.to_str().unwrap()).unwrap();
+        let bag = reopened.audit_bag().unwrap();
+        assert_ne!(bag, [0u8; 32]);
+        let proof = reopened.inclusion_proof(2).unwrap().expect("proof after reopen");
+        let hashes = reopened.query(&AuditFilter::default()).unwrap();
+        let leaf = hex::decode(&hashes[2].hash).unwrap();
+        assert!(reopened.verify_inclusion(&leaf, 2, &proof).unwrap());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]

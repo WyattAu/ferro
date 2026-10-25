@@ -1165,6 +1165,29 @@ pub fn build_router_with_static(
         .route("/readyz", axum::routing::get(readiness))
         .route("/startupz", axum::routing::get(startup))
         .route(
+            "/healthz/detailed",
+            axum::routing::get({
+                let registry = ferro_server_health::healthkit::subsystem_registry(&state);
+                move || async move {
+                    let results = registry.check_all().await;
+                    let status = ferro_server_health::healthkit::overall_status(&results);
+                    let code = if status.is_ready() {
+                        axum::http::StatusCode::OK
+                    } else {
+                        axum::http::StatusCode::SERVICE_UNAVAILABLE
+                    };
+                    (
+                        code,
+                        axum::Json(serde_json::json!({
+                            "status": status.to_string(),
+                            "checks": results,
+                        })),
+                    )
+                        .into_response()
+                }
+            }),
+        )
+        .route(
             "/s/:token",
             axum::routing::get(shares::serve_share).post(shares::handle_share_upload),
         )

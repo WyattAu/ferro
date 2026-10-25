@@ -9,6 +9,7 @@ repository = "https://github.com/WyattAu/ferro"
 publish = false
 
 [dependencies]
+webhookkit = "2.2"
 axum = { workspace = true }
 ferro-server-activitypub = { path = "../server-activitypub" }
 serde_json = { workspace = true }

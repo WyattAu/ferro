@@ -58,6 +58,9 @@ impl FederationSync {
             activity_store: self.state.activity_store().clone(),
             external_url: self.state.external_url().to_string(),
             federation_secret: self.state.federation_secret().to_string(),
+            replay: std::sync::Arc::new(std::sync::Mutex::new(
+                webhookkit::ReplayGuard::new(std::time::Duration::from_secs(3600)),
+            )),
         }
     }
 

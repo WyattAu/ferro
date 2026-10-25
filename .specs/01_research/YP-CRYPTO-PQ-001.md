@@ -150,3 +150,61 @@ Summary: `FipsMode::Strict` MUST gate every primitive call (`DC-CRYPTO-001`); ev
 13. **Negative result:** no public Dropbox statement on PQ deployment found — do not accept "Dropbox PQ" claims in parity matrices without a source. [VERIFIED ABSENCE]
 14. restic backup format — classical symmetric (AES-256-CTR + Poly1305), scrypt KDF; no PQ action needed at rest; backup *transfer* rides PQ TLS. [UNCERTAIN — re-verify restic docs]
 15. Sigstore Rekor / Google Trillian — referenced infrastructure for future audit-head anchoring; deployment option, not dependency. [VERIFIED existence]
+
+---
+
+## YP-9: Revision 1.1 — Hardening Pass (Iteration R2-3, 2026-10-14)
+
+### R2-3.1: Frontier Finding — adopt the age/Tink STREAM construction verbatim
+
+**Sources (fetched this session):**
+- C2SP. "age" file encryption format spec (`github.com/C2SP/C2SP/blob/main/age.md`, `age-encryption.org/v1`). [VERIFIED]
+- Google Tink. "Streaming Authenticated Encryption with Associated Data" (`developers.google.com/tink/streaming-aead`). [VERIFIED]
+- Both instantiate **STREAM** from Hoang, Yasunaga, Stefanov, "Online Authenticated-Encryption and its Nonce-Reuse Misuse-Resistance," ePrint **2015/189** (nOAE security).
+
+The XOR-pad scheme dies twice over: capped at 8 160 B and not an AEAD. The replacement is not novel — Tink and age converged independently on the same shape, so Ferro should ship it **verbatim**, not adapted:
+
+| Parameter | Value (age v1) | Why not Ferro-custom |
+|---|---|---|
+| Chunk size | 64 KiB fixed | CDC chunks (256 K–8 M) are a *dedup* unit; the AEAD container chunk is a *crypto* unit. Mixing them couples side channels (size leak) with seekability. Fixed 64 KiB → O(1) memory streaming, random seek = decrypt one chunk. |
+| Nonce | 11-byte big-endian counter ‖ final-flag byte (0x01 final / 0x00 rest) | Counter+flag nonce ⇒ position binding, truncation detection, splice rejection — all structural, no cipher-level tricks. |
+| Key derivation | payload key = HKDF-SHA-256(file key, salt = 16-byte fresh nonce) | 256-bit key margin (multi-target safe); fresh nonce per file ⇒ randomized encryption. |
+| Recipient wrap | HPKE (RFC 9180) SealBase; MLKEM768-X25519 (X-Wing) for PQ | Matches ALG-TLS-001's hybrid posture; age's editor's copy now ships it natively. |
+| Mandatory failure | EOF without a successfully authenticated final chunk ⇒ decrypt error | The single most important rule the XOR scheme cannot even express. |
+
+**New theorems (added to scope; all proved in Lean companion):**
+
+| ID | Statement | Formal status |
+|----|-----------|---------------|
+| `THM-AEAD-NONCE-UNIQUE` | Distinct chunk counters never share a nonce within a stream (GCM/ChaCha20 nonce prohibition satisfied structurally) | **Proved** — Lean `chunk_nonce_counter_injective` |
+| `THM-AEAD-FINAL-SEPARATED` | Final vs non-final chunks at the same counter have distinct nonces — a chunk cannot be re-presented in the other role | **Proved** — Lean `chunk_nonce_final_separated` |
+| `THM-AEAD-TRUNCATION-DETECTED` | A stream ending without an authenticated final chunk is always rejected | **Proved** — Lean `truncation_detected` |
+| `THM-AEAD-NO-CAP` | For any plaintext length n there is a chunk decomposition covering it — retires the 8 160-byte cap formally (`∃ k, k·65 536 ≥ n`) | **Proved** — Lean `chunk_partition_covers_any_size` |
+| `THM-AEAD-POSITION-BOUND` | Chunk counters are injective — reordering or cross-file splicing decrypts under the wrong nonce and fails | **Proved** — Lean `position_binding` |
+| `THM-AEAD-AGILITY-FAIL-CLOSED` | Unknown `alg_id` ⇒ rejection, never silent fallback; no id is both supported and unsupported | **Proved** — Lean `agility_fail_closed`, `agility_known_accepted`, `alg_dispatch_consistent` |
+| `THM-AEAD-EMPTY-FINAL-REJECTED` | Empty final chunk on a nonempty payload rejected (age v1 rule) | **Proved** — Lean `empty_final_rejected` |
+
+### R2-3.2: Comparative — what incumbents actually do
+
+restic: AES-256-CTR + Poly1305 per 32 KiB blob with a per-file random master key (verified in its design docs) — close cousin, but CTR+MAC by hand rather than an AEAD and no final-chunk semantics. Borg: AES-OMT (own construction). Syncthing BEP: TLS-only in transit, plaintext at rest. age/Tink are the reference implementations; Ferro adopting their exact wire behaviour (including the MUST-fail-on-truncation rule) makes it auditable against two independent public specs and the age test vectors (`age-encryption.org/testkit`).
+
+### R2-3.3: Lean Proof Companion
+
+`formal/Ferro/ChunkedAEAD.lean` (new; imported by `Ferro.lean`). Nonce model `(counter, flag)`; cipher security (IND-CCA2 of GCM/ChaCha20, HKDF extraction) remains an external assumption — what is proven is the *structural* STREAM layer: uniqueness, binding, truncation, capacity, fail-closed dispatch.
+
+### R2-3.4: Bibliography Additions
+
+16. C2SP. "age" file encryption format (`age-encryption.org/v1`). STREAM payload, 64 KiB chunks, HPKE/MLKEM768-X25519 recipients, test vectors. [VERIFIED]
+17. Hoang, V. T., Yasunaga, K., Stefanov, K. "Online Authenticated-Encryption and its Nonce-Reuse Misuse-Resistance." ePrint 2015/189. (STREAM construction source; cited by both age and Tink.) [VERIFIED — via both specs' citations]
+
+---
+
+## R4-7 Addendum: STREAM Container — IMPLEMENTED
+
+`crates/crypto/src/stream.rs`: the age/Tink-identical STREAM construction (`ALG-STREAMAEAD-001`, ePrint 2015/189) — 64 KiB chunks, 7-byte random nonce prefix + 4-byte BE counter + 1-byte final flag (12-byte AES-256-GCM nonce), position-bound AAD (`aad ‖ counter`). Fail-closed: EOF without final chunk (truncation), premature final flags, counter exhaustion, tag failures, AAD mismatch. Replaces the R2-retired 8160-byte XOR pad with a working container. 11 tests. Note: truncation of the final chunk surfaces as AuthFailed (the re-framed chunk's nonce no longer matches) — both variants are fail-closed.
+
+---
+
+## R5 Addendum: STREAM Nonce Entropy — Fail-Closed Fix
+
+`rand_fill`'s time/address entropy mix was replaced: under the default `ring` feature the nonce prefix comes from `ring::rand::SystemRandom`; without it, `encrypt` fails closed with `NoEntropy` — callers inject a prefix via `encrypt_with_nonce_prefix` (all-zero prefixes rejected). New tests: nonce freshness is observable (two encryptions of the same plaintext differ), explicit-prefix roundtrip, all-zero rejection. 14 STREAM tests green.

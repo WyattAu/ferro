@@ -283,7 +283,6 @@ impl CedarAuthorizer {
     }
 }
 
-
 /// Boundary-safe own-home predicate (THM-AUTHZ-HOME-RULE).
 ///
 /// Shared by the middleware (which supplies it as the `is_own_home` context
@@ -918,8 +917,7 @@ mod tests {
         let old_bypass = |sub: &str, path: &str| {
             !sub.is_empty()
                 && sub != "anonymous"
-                && (path == format!("/users/{sub}")
-                    || path.starts_with(&format!("/users/{sub}/")))
+                && (path == format!("/users/{sub}") || path.starts_with(&format!("/users/{sub}/")))
         };
 
         let cases: Vec<(&str, &str)> = vec![
@@ -958,8 +956,7 @@ mod tests {
             let allowed = matches!(decision, common::auth::AuthDecision::Allow { .. });
             // Home fact OR admin policy OR the shared-spaces read policy
             // (action here is always "read").
-            let expected =
-                fact || *sub == "admin-sub" || path.starts_with("/_spaces/");
+            let expected = fact || *sub == "admin-sub" || path.starts_with("/_spaces/");
             assert_eq!(allowed, expected, "cedar mismatch for sub={sub} path={path}");
         }
     }
@@ -1006,7 +1003,6 @@ mod tests {
             .expect("eval");
         assert!(matches!(d2, common::auth::AuthDecision::Deny { .. }));
     }
-
 }
 
 /// Generated-policy input: one editable space with its member subs.
@@ -1057,9 +1053,7 @@ pub fn generate_auto_policies(admin_sub: &str, spaces: &[SpaceMembership]) -> Ve
     // fact. The middleware computes the predicate (is_own_home_path) but no
     // longer bypasses Cedar — the decision itself stays in the policy
     // engine (THM-AUTHZ-SINGLE-LANGUAGE). Anonymous never matches.
-    out.push(
-        "permit(principal, action, resource) when { context.is_own_home == true };".to_string(),
-    );
+    out.push("permit(principal, action, resource) when { context.is_own_home == true };".to_string());
 
     // Shared spaces: read for every authenticated user
     out.push(

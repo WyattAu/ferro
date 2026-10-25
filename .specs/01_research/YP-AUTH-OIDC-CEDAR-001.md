@@ -584,3 +584,24 @@ Domain constraints are defined in `domain_constraints/domain_constraints_auth.to
 12. **JSON Web Key (JWK)** (RFC 7517). M. Jones. May 2015. https://tools.ietf.org/html/rfc7517
 
 13. **ISO/IEC 29115:2013** — Entity authentication assurance framework. https://www.iso.org/standard/45138.html
+
+---
+
+## R3-6 Addendum (Revision 1.1): Refresh Rotation & DPoP Replay Gate
+
+**Source verified:** RFC 9449 DPoP (datatracker.ietf.org, fetched 2026-10-14) — §4.2 claims, §4.3 checking, §5.8 refresh binding, §11.1 replay.
+
+### ALG-ROTATION-001
+Refresh tokens are single-use: each accepted refresh rotates the token and records the predecessor as consumed. A consumed token remains in the registry forever, so reuse is always detectable.
+
+### ALG-DPOP-REPLAY-001
+DPoP-style proofs (jti + iat window + ath token-hash binding, RFC 9449 §4.2/§4.3) are gated on a per-context seen-set: unseen jti + valid window + matching ath ⇒ accept and record; recorded jti ⇒ reject forever.
+
+### THM-ROTATION-SINGLE-USE
+`consume` records persist: a token present in the used-set remains present after any subsequent consume — reuse is always detectable. [Proved — Lean `consume_records`, `reuse_detectable`, TokenRotation.lean]
+
+### THM-DPOP-REPLAY-REJECTED / THM-DPOP-ACCEPT-RECORDS / THM-DPOP-NEVER-REACCEPTED
+Replayed jti never validates; acceptance records the jti; an accepted proof is never re-accepted. [Proved — Lean `replay_rejected`, `accept_records`, `accepted_never_reaccepted`]
+
+### Comparison
+Keycloak ships refresh rotation without formal single-use proofs; Auth0 documents rotation detection but not as a theorem. The rotation + seen-set pair is the same shape as TCP sequence-number dedup — small, and now proved.

@@ -596,6 +596,122 @@ impl ferro_common::audit::AuditLogPersistence for SqlitePersistence {
 
 // ── Tests ─────────────────────────────────────────────────────────────
 
+// ── CAS garbage collection (aperture-vault pattern, R5) ─────────────────
+
+/// Report of a CAS garbage-collection pass.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct CasGcReport {
+    /// Total rows in `cas_content`.
+    pub scanned: u64,
+    /// Rows protected by a reference (metadata, snapshots, or extra roots).
+    pub referenced: u64,
+    /// Rows older than the cutoff with no reference found.
+    pub orphan_candidates: u64,
+    /// Rows actually deleted (0 in dry-run mode).
+    pub swept: u64,
+    /// Hashes whose content no longer matches its digest (see `verify_cas`).
+    pub corrupt: Vec<String>,
+    pub dry_run: bool,
+}
+
+impl SqlitePersistence {
+    /// Re-verify up to `limit` CAS rows against their digests and return the
+    /// hashes whose content no longer matches (bit-rot detection — the
+    /// aperture-vault `verify` contract). `limit <= 0` scans everything.
+    pub async fn verify_cas(&self, limit: i64) -> Result<Vec<String>> {
+        let q = if limit > 0 {
+            format!("SELECT hash, content FROM cas_content LIMIT {limit}")
+        } else {
+            "SELECT hash, content FROM cas_content".to_string()
+        };
+        let rows: Vec<(String, Vec<u8>)> = sqlx::query_as(&q)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| FerroError::Internal(format!("CAS verify failed: {e}")))?;
+        let mut corrupt = Vec::new();
+        for (hash, content) in rows {
+            if ContentHash::compute(&Bytes::from(content)).as_str() != hash {
+                corrupt.push(hash);
+            }
+        }
+        Ok(corrupt)
+    }
+
+    /// Orphan sweep for the CAS (ALG-CAS-GC-001, R5-A): delete rows that are
+    /// (a) older than `older_than_days`, (b) not referenced by
+    /// `file_metadata.content_hash`, (c) not pinned by any snapshot JSON
+    /// containing the hash, and (d) not in `extra_roots` (callers pass sync
+    /// manifest block hashes, which the server does not track table-side).
+    ///
+    /// `dry_run = true` reports candidates without deleting.
+    pub async fn cas_gc(&self, older_than_days: u32, extra_roots: &[String], dry_run: bool) -> Result<CasGcReport> {
+        let scanned: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM cas_content")
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| FerroError::Internal(format!("CAS gc scan failed: {e}")))?;
+
+        // Protected set 1: metadata references.
+        let meta_referenced: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM cas_content WHERE hash IN (SELECT content_hash FROM file_metadata)")
+                .fetch_one(&self.pool)
+                .await
+                .map_err(|e| FerroError::Internal(format!("CAS gc failed: {e}")))?;
+
+        // Protected set 2: snapshot-pinned (hash appears in entries_json).
+        let snap_protected: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM cas_content c WHERE EXISTS (
+                 SELECT 1 FROM snapshots s WHERE instr(s.entries_json, c.hash) > 0)",
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| FerroError::Internal(format!("CAS gc failed: {e}")))?;
+
+        // Orphan candidates: old + not metadata-referenced + not
+        // snapshot-pinned + not an extra root.
+        let mut sql = String::from(
+            "SELECT hash FROM cas_content
+             WHERE created_at < datetime('now', '-' || ? || ' days')
+               AND hash NOT IN (SELECT content_hash FROM file_metadata)
+               AND NOT EXISTS (SELECT 1 FROM snapshots s WHERE instr(s.entries_json, cas_content.hash) > 0)",
+        );
+        for _ in extra_roots {
+            sql.push_str(" AND hash != ?");
+        }
+        let mut q = sqlx::query_as::<_, (String,)>(&sql).bind(older_than_days.to_string());
+        for root in extra_roots {
+            q = q.bind(root);
+        }
+        let orphans: Vec<(String,)> = q
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| FerroError::Internal(format!("CAS gc failed: {e}")))?;
+
+        let mut report = CasGcReport {
+            scanned: scanned.0.max(0) as u64,
+            referenced: meta_referenced.0.max(0) as u64,
+            orphan_candidates: orphans.len() as u64,
+            swept: 0,
+            corrupt: Vec::new(),
+            dry_run,
+        };
+
+        if dry_run {
+            return Ok(report);
+        }
+
+        for (hash,) in &orphans {
+            let res = sqlx::query("DELETE FROM cas_content WHERE hash = ?")
+                .bind(hash)
+                .execute(&self.pool)
+                .await
+                .map_err(|e| FerroError::Internal(format!("CAS gc delete failed: {e}")))?;
+            report.swept += res.rows_affected() as u64;
+        }
+
+        Ok(report)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -861,5 +977,115 @@ mod tests {
         assert_eq!(report.skipped_no_hash, 1);
         assert_eq!(report.verified, 1);
         assert_eq!(report.mismatches, 0);
+    }
+
+    #[tokio::test]
+    async fn test_cas_gc_dry_run_and_sweep() {
+        let (tmp, url) = make_db_path();
+        let store = SqlitePersistence::new(&url).await.unwrap();
+
+        let live = store.put_content(Bytes::from_static(b"live content")).await.unwrap();
+        let orphan = store.put_content(Bytes::from_static(b"orphan content")).await.unwrap();
+
+        // Reference the live hash from file_metadata.
+        sqlx::query("INSERT INTO file_metadata (path, content_hash) VALUES (?, ?)")
+            .bind("/live.txt")
+            .bind(live.as_str())
+            .execute(&store.pool)
+            .await
+            .unwrap();
+
+        // Age both rows past the cutoff so the sweep can consider them.
+        sqlx::query("UPDATE cas_content SET created_at = datetime('now', '-30 days')")
+            .execute(&store.pool)
+            .await
+            .unwrap();
+
+        // Dry run: reports the orphan, deletes nothing.
+        let report = store.cas_gc(7, &[], true).await.unwrap();
+        assert_eq!(report.scanned, 2);
+        assert_eq!(report.orphan_candidates, 1);
+        assert_eq!(report.swept, 0);
+        assert!(report.dry_run);
+
+        // Real sweep.
+        let report = store.cas_gc(7, &[], false).await.unwrap();
+        assert_eq!(report.swept, 1);
+        assert!(store.get_content(&orphan).await.is_err());
+        assert!(store.get_content(&live).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_cas_gc_respects_extra_roots_and_age() {
+        let (tmp, url) = make_db_path();
+        let store = SqlitePersistence::new(&url).await.unwrap();
+
+        let pinned = store.put_content(Bytes::from_static(b"pinned by root")).await.unwrap();
+        let fresh_orphan = store
+            .put_content(Bytes::from_static(b"too young to sweep"))
+            .await
+            .unwrap();
+
+        // Age ONLY the pinned row; the fresh orphan stays inside the cutoff.
+        sqlx::query("UPDATE cas_content SET created_at = datetime('now', '-30 days') WHERE hash = ?")
+            .bind(pinned.as_str())
+            .execute(&store.pool)
+            .await
+            .unwrap();
+
+        // Pinned by an extra root: not an orphan even though aged. The fresh
+        // row is not an orphan either (younger than the cutoff).
+        let report = store.cas_gc(7, &[pinned.as_str().to_string()], true).await.unwrap();
+        assert_eq!(report.orphan_candidates, 0);
+
+        // Age the unreferenced row: now it is the only candidate (the pinned
+        // row is still excluded via the extra root).
+        sqlx::query("UPDATE cas_content SET created_at = datetime('now', '-30 days') WHERE hash = ?")
+            .bind(fresh_orphan.as_str())
+            .execute(&store.pool)
+            .await
+            .unwrap();
+        let report = store.cas_gc(7, &[pinned.as_str().to_string()], true).await.unwrap();
+        assert_eq!(report.orphan_candidates, 1);
+
+        // Sweep with the root: only the fresh orphan is removed.
+        let report = store.cas_gc(7, &[pinned.as_str().to_string()], false).await.unwrap();
+        assert_eq!(report.swept, 1);
+        assert!(store.get_content(&fresh_orphan).await.is_err());
+        assert!(store.get_content(&pinned).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_cas_gc_snapshot_pin_and_verify() {
+        let (tmp, url) = make_db_path();
+        let store = SqlitePersistence::new(&url).await.unwrap();
+
+        let pinned = store
+            .put_content(Bytes::from_static(b"pinned by snapshot"))
+            .await
+            .unwrap();
+        sqlx::query("UPDATE cas_content SET created_at = datetime('now', '-30 days')")
+            .execute(&store.pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO snapshots (id, entries_json) VALUES (?, ?)")
+            .bind("snap-1")
+            .bind(format!("{{\"entries\":[{{\"hash\":\"{}\"}}]}}", pinned.as_str()))
+            .execute(&store.pool)
+            .await
+            .unwrap();
+
+        let report = store.cas_gc(7, &[], true).await.unwrap();
+        assert_eq!(report.orphan_candidates, 0);
+
+        // verify_cas: all rows healthy; a corrupt row is detected.
+        assert!(store.verify_cas(-1).await.unwrap().is_empty());
+        sqlx::query("UPDATE cas_content SET content = X'00' WHERE hash = ?")
+            .bind(pinned.as_str())
+            .execute(&store.pool)
+            .await
+            .unwrap();
+        let corrupt = store.verify_cas(-1).await.unwrap();
+        assert_eq!(corrupt, vec![pinned.as_str().to_string()]);
     }
 }

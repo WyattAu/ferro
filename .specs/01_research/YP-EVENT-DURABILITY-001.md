@@ -166,3 +166,19 @@ Summary: no side effect MAY be dispatched outside the outbox relay (`DC-EVT-001`
 11. Nextcloud admin manual, *Background jobs* (Server 36): cron/systemd 5-min ticks; AJAX mode default; webcron ≈ 288 jobs/day; maintenance window. At-least-once-by-rerun, no per-consumer dedup. [VERIFIED]
 12. Temporal / AWS Step Functions / Kafka EOS (KIP-129, KIP-447) — vendor docs, not verified this session. [UNCERTAIN]
 13. In-repo: `crates/audit-log/src/chain.rs` hash chain — outbox seq and audit positions must couple (see YP-LIFECYCLE-COMPLIANCE-001). [VERIFIED]
+
+---
+
+## R3-8 Addendum (Revision 1.1): Applied-Set Exactly-Once & WAL Prefix Contracts
+
+### ALG-APPLIEDSET-001
+Each outbox handler keeps an applied-set (watermark). Delivery applies the effect only when the event is absent, then records it. At-least-once relay + applied-set = exactly-once effects.
+
+### THM-REDELIVERY-NO-EFFECT / THM-FIRST-DELIVERY-APPLIES / THM-EXACTLY-ONCE-RECORDS / THM-APPLIED-MONOTONE
+Redelivery has no effect; first delivery applies and records; a recorded event can never re-apply; the applied-set only grows. [Proved — Lean `redelivery_no_effect`, `redelivery_noop`, `first_delivery_applies`, `exactly_once`, `applied_monotone`, OutboxExactlyOnce.lean]
+
+### ALG-WAL-PREFIX-001 (R3-9, same revision)
+The SQLite WAL persistence contract (motivated by OSDI'21 "All File Systems Are Not Created Equal" — filesystems differ in torn-write behavior, so the ordering contract must be explicit): durability is a monotone persisted-prefix; a crash truncates to the persisted prefix; replay is watermark-idempotent.
+
+### THM-WAL-RECOVERY-PREFIX / THM-WAL-REPLAY-IDEMPOTENT / THM-WAL-FSYNC-MONOTONE
+Recovery yields a prefix of the issued log; replay is idempotent below the watermark; fsync only grows the durable prefix. [Proved — Lean `recovery_prefix`, `replay_idempotent`, `fsync_monotone`, WalCrash.lean]

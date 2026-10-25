@@ -251,6 +251,397 @@ impl ErasureCoder for XorErasureCoder {
     }
 }
 
+/// LRC-style layered erasure coder: global Reed-Solomon parity plus one
+/// group-local XOR parity shard per data group.
+///
+/// Layout: indices `0..k` are data shards, `k..k+l` are local parity shards
+/// (group `g` covers data `[g*gs, (g+1)*gs)`), `k+l..k+l+r` are global RS
+/// parity over the data shards. A single data-shard loss is repaired from
+/// its group (`k/l` fragments read) instead of the full RS stripe (`k`
+/// fragments); all other losses fall back to the MDS global code.
+pub struct LrcErasureCoder {
+    config: ErasureConfig,
+    groups: usize,
+}
+
+impl LrcErasureCoder {
+    /// Create a layered coder with `groups` local parity shards.
+    ///
+    /// # Panics
+    /// Panics if `data_shards + groups + parity_shards > 255` or
+    /// `data_shards` is not divisible by `groups`.
+    pub fn new(config: ErasureConfig, groups: usize) -> Self {
+        assert!(groups >= 1, "at least one local group required");
+        assert!(
+            config.data_shards % groups == 0,
+            "data_shards must be divisible by groups"
+        );
+        assert!(
+            config.data_shards + groups + config.parity_shards <= 255,
+            "GF(2^8) field supports at most 255 total shards"
+        );
+        Self { config, groups }
+    }
+
+    pub fn group_size(&self) -> usize {
+        self.config.data_shards / self.groups
+    }
+
+    pub fn local_parity_indices(&self) -> std::ops::Range<usize> {
+        self.config.data_shards..self.config.data_shards + self.groups
+    }
+
+    pub fn global_parity_indices(&self) -> std::ops::Range<usize> {
+        self.config.data_shards + self.groups..self.config.data_shards + self.groups + self.config.parity_shards
+    }
+
+    fn group_of(&self, idx: usize) -> usize {
+        idx / self.group_size()
+    }
+
+    fn local_parity_of_group<'a>(&self, shards: &'a [Option<Shard>], group: usize) -> Option<&'a Shard> {
+        shards.get(self.config.data_shards + group).and_then(|s| s.as_ref())
+    }
+
+    fn compute_local_parity(&self, group: usize, data_shard_bufs: &[Vec<u8>]) -> Vec<u8> {
+        let gs = self.group_size();
+        let mut parity = vec![0u8; data_shard_bufs[0].len()];
+        for i in (group * gs)..((group + 1) * gs) {
+            for (p, &b) in parity.iter_mut().zip(data_shard_bufs[i].iter()) {
+                *p ^= b;
+            }
+        }
+        parity
+    }
+
+    /// Decode data shards locally where possible, then fall back to RS.
+    fn decode_with_path(&self, shards: &[Option<Shard>]) -> Result<(Vec<u8>, DecodePath), DistributedError> {
+        let data_shards = self.config.data_shards;
+        let total = data_shards + self.groups + self.config.parity_shards;
+        if shards.len() != total {
+            return Err(DistributedError::DecodingFailed {
+                reason: format!("expected {total} shard slots, got {}", shards.len()),
+            });
+        }
+
+        let mut bufs: Vec<Option<Vec<u8>>> = (0..data_shards).map(|_| None).collect();
+        for (i, b) in bufs.iter_mut().enumerate() {
+            if let Some(ref s) = shards[i] {
+                if !s.is_parity {
+                    *b = Some(s.data.clone());
+                }
+            }
+        }
+
+        let missing: Vec<usize> = (0..data_shards).filter(|&i| bufs[i].is_none()).collect();
+
+        if missing.len() > 1 {
+            return self.decode_via_rs(shards, bufs);
+        }
+
+        if let Some(&idx) = missing.first() {
+            let group = self.group_of(idx);
+            let gs = self.group_size();
+            let siblings_present = ((group * gs)..((group + 1) * gs))
+                .filter(|&i| i != idx)
+                .all(|i| bufs[i].is_some());
+            let parity = self.local_parity_of_group(shards, group);
+            if siblings_present {
+                let Some(parity) = parity else {
+                    return self.decode_via_rs(shards, bufs);
+                };
+                let mut recovered = parity.data.clone();
+                for i in (group * gs)..((group + 1) * gs) {
+                    if i != idx {
+                        if let Some(ref d) = bufs[i] {
+                            for (r, &b) in recovered.iter_mut().zip(d.iter()) {
+                                *r ^= b;
+                            }
+                        }
+                    }
+                }
+                bufs[idx] = Some(recovered);
+                let result = self.assemble(&bufs);
+                return Ok((result, DecodePath::Local));
+            }
+            return self.decode_via_rs(shards, bufs);
+        }
+
+        Ok((self.assemble(&bufs), DecodePath::Direct))
+    }
+
+    fn decode_via_rs(
+        &self,
+        shards: &[Option<Shard>],
+        mut bufs: Vec<Option<Vec<u8>>>,
+    ) -> Result<(Vec<u8>, DecodePath), DistributedError> {
+        let data_shards = self.config.data_shards;
+        let k_plus_r = data_shards + self.config.parity_shards;
+
+        let mut rs_slots: Vec<Option<Vec<u8>>> = (0..k_plus_r).map(|_| None).collect();
+        for (i, b) in bufs.iter().enumerate() {
+            rs_slots[i] = b.clone();
+        }
+        for (j, gi) in self.global_parity_indices().enumerate() {
+            if let Some(ref s) = shards[gi] {
+                rs_slots[data_shards + j] = Some(s.data.clone());
+            }
+        }
+
+        let present = rs_slots.iter().filter(|s| s.is_some()).count();
+        if present < data_shards {
+            return Err(DistributedError::DecodingFailed {
+                reason: format!("insufficient shards for RS decode: {present}/{k_plus_r} (need {data_shards})"),
+            });
+        }
+
+        let rs = ReedSolomon::<Field>::new(data_shards, self.config.parity_shards).map_err(|e| {
+            DistributedError::DecodingFailed {
+                reason: format!("Reed-Solomon init error: {e}"),
+            }
+        })?;
+        rs.reconstruct(&mut rs_slots)
+            .map_err(|e| DistributedError::DecodingFailed {
+                reason: format!("Reed-Solomon reconstruct error: {e}"),
+            })?;
+
+        for (i, slot) in rs_slots.iter().take(data_shards).enumerate() {
+            match slot {
+                Some(d) => bufs[i] = Some(d.clone()),
+                None => {
+                    return Err(DistributedError::DecodingFailed {
+                        reason: "data shard not reconstructed".to_string(),
+                    });
+                }
+            }
+        }
+
+        Ok((self.assemble(&bufs), DecodePath::Global))
+    }
+
+    fn assemble(&self, bufs: &[Option<Vec<u8>>]) -> Vec<u8> {
+        let mut result = Vec::new();
+        for b in bufs.iter().take(self.config.data_shards) {
+            if let Some(ref d) = *b {
+                result.extend_from_slice(d);
+            }
+        }
+        result
+    }
+
+    /// Verify every present shard against its checksum.
+    ///
+    /// Returns the indices of shards that are missing or corrupt.
+    pub fn verify(&self, shards: &[Option<Shard>]) -> Vec<usize> {
+        let mut bad = Vec::new();
+        for (i, s) in shards.iter().enumerate() {
+            match s {
+                None => bad.push(i),
+                Some(s) if s.checksum != sha256(&s.data) => bad.push(i),
+                Some(_) => {}
+            }
+        }
+        bad
+    }
+
+    /// Verify and repair a shard set in place.
+    ///
+    /// Each missing or checksum-corrupt shard is re-derived via the cheapest
+    /// applicable path (`reconstruct`: local group parity first, then the
+    /// global MDS code). Repaired indices are returned; shards that cannot be
+    /// repaired within the code's loss budget are left `None`.
+    pub fn scrub(&self, shards: &mut [Option<Shard>]) -> Result<Vec<usize>, DistributedError> {
+        let bad = self.verify(shards);
+        let mut repaired = Vec::new();
+        for idx in bad {
+            if shards[idx].is_some() {
+                shards[idx] = None;
+            }
+            if let Some(rebuilt) = self.reconstruct(shards)? {
+                if rebuilt.index as usize == idx {
+                    shards[idx] = Some(rebuilt);
+                    repaired.push(idx);
+                }
+            }
+        }
+        Ok(repaired)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DecodePath {
+    Direct,
+    Local,
+    Global,
+}
+
+impl ErasureCoder for LrcErasureCoder {
+    fn encode(&self, data: &[u8]) -> Result<Vec<Shard>, DistributedError> {
+        if data.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let data_shards = self.config.data_shards;
+        let global_parity = self.config.parity_shards;
+        let padded = pad_to_multiple(data, data_shards);
+        let chunk_size = padded.len() / data_shards;
+        if chunk_size == 0 {
+            return Err(DistributedError::EncodingFailed {
+                reason: "data too small for shard count".into(),
+            });
+        }
+
+        let mut data_bufs: Vec<Vec<u8>> = (0..data_shards).map(|_| vec![0u8; chunk_size]).collect();
+        for (i, buf) in data_bufs.iter_mut().enumerate() {
+            let start = i * chunk_size;
+            buf.copy_from_slice(&padded[start..start + chunk_size]);
+        }
+
+        let mut rs_bufs: Vec<Vec<u8>> = data_bufs.clone();
+        if global_parity > 0 {
+            rs_bufs.resize(data_shards + global_parity, vec![0u8; chunk_size]);
+            let rs = ReedSolomon::<Field>::new(data_shards, global_parity).map_err(|e| {
+                DistributedError::EncodingFailed {
+                    reason: format!("Reed-Solomon init error: {e}"),
+                }
+            })?;
+            let mut slices: Vec<&mut [u8]> = rs_bufs.iter_mut().map(|s| s.as_mut_slice()).collect();
+            rs.encode(&mut slices).map_err(|e| DistributedError::EncodingFailed {
+                reason: format!("Reed-Solomon encode error: {e}"),
+            })?;
+        }
+
+        let mut result = Vec::with_capacity(data_shards + self.groups + global_parity);
+        for (i, buf) in data_bufs.iter().enumerate() {
+            result.push(Shard {
+                index: i as u8,
+                checksum: sha256(buf),
+                is_parity: false,
+                data: buf.clone(),
+            });
+        }
+        for g in 0..self.groups {
+            let parity = self.compute_local_parity(g, &data_bufs);
+            result.push(Shard {
+                index: (data_shards + g) as u8,
+                checksum: sha256(&parity),
+                is_parity: true,
+                data: parity,
+            });
+        }
+        for j in 0..global_parity {
+            let parity_buf = rs_bufs[data_shards + j].clone();
+            result.push(Shard {
+                index: (data_shards + self.groups + j) as u8,
+                checksum: sha256(&parity_buf),
+                is_parity: true,
+                data: parity_buf,
+            });
+        }
+        Ok(result)
+    }
+
+    fn decode(&self, shards: &[Option<Shard>]) -> Result<Vec<u8>, DistributedError> {
+        self.decode_with_path(shards).map(|(data, _)| data)
+    }
+
+    fn reconstruct(&self, shards: &[Option<Shard>]) -> Result<Option<Shard>, DistributedError> {
+        let total = self.config.data_shards + self.groups + self.config.parity_shards;
+        if shards.len() != total {
+            return Ok(None);
+        }
+
+        let target = shards.iter().position(|s| s.is_none());
+        let Some(target_idx) = target else {
+            return Ok(None);
+        };
+
+        let data_shards = self.config.data_shards;
+        if target_idx < data_shards {
+            let group = self.group_of(target_idx);
+            let gs = self.group_size();
+            let siblings_present = ((group * gs)..((group + 1) * gs))
+                .filter(|&i| i != target_idx)
+                .all(|i| shards[i].is_some());
+            if siblings_present {
+                if let Some(parity) = self.local_parity_of_group(shards, group) {
+                    let mut recovered = parity.data.clone();
+                    for i in (group * gs)..((group + 1) * gs) {
+                        if i != target_idx {
+                            if let Some(ref s) = shards[i] {
+                                for (r, &b) in recovered.iter_mut().zip(s.data.iter()) {
+                                    *r ^= b;
+                                }
+                            }
+                        }
+                    }
+                    return Ok(Some(Shard {
+                        index: target_idx as u8,
+                        checksum: sha256(&recovered),
+                        is_parity: false,
+                        data: recovered,
+                    }));
+                }
+            }
+        }
+
+        let mut slots: Vec<Option<Shard>> = Vec::with_capacity(shards.len());
+        for (i, s) in shards.iter().enumerate() {
+            if i == target_idx {
+                slots.push(None);
+            } else {
+                slots.push(s.clone());
+            }
+        }
+        let data: Vec<Option<&Shard>> = slots.iter().take(data_shards).map(|s| s.as_ref()).collect();
+        let mut rs_slots: Vec<Option<Vec<u8>>> = (0..data_shards + self.config.parity_shards).map(|_| None).collect();
+        for (i, d) in data.iter().enumerate() {
+            if let Some(s) = d {
+                rs_slots[i] = Some(s.data.clone());
+            }
+        }
+        for (j, gi) in self.global_parity_indices().enumerate() {
+            if let Some(ref s) = shards[gi] {
+                rs_slots[data_shards + j] = Some(s.data.clone());
+            }
+        }
+        if target_idx >= data_shards + self.groups {
+            let j = target_idx - (data_shards + self.groups);
+            rs_slots[data_shards + j] = None;
+        }
+
+        let present = rs_slots.iter().filter(|s| s.is_some()).count();
+        if present < data_shards {
+            return Ok(None);
+        }
+
+        let rs = ReedSolomon::<Field>::new(data_shards, self.config.parity_shards).map_err(|e| {
+            DistributedError::DecodingFailed {
+                reason: format!("Reed-Solomon init error: {e}"),
+            }
+        })?;
+        rs.reconstruct(&mut rs_slots)
+            .map_err(|e| DistributedError::DecodingFailed {
+                reason: format!("Reed-Solomon reconstruct error: {e}"),
+            })?;
+
+        let slot_index = if target_idx >= data_shards + self.groups {
+            data_shards + (target_idx - data_shards - self.groups)
+        } else {
+            target_idx
+        };
+        match &rs_slots[slot_index] {
+            Some(data) => Ok(Some(Shard {
+                index: target_idx as u8,
+                checksum: sha256(data),
+                is_parity: target_idx >= data_shards,
+                data: data.clone(),
+            })),
+            None => Ok(None),
+        }
+    }
+}
+
 /// Reed-Solomon erasure coder using GF(2^8) Vandermonde matrix.
 ///
 /// Supports recovery from up to `parity_shards` lost shards.
@@ -718,5 +1109,237 @@ mod tests {
         let small_data = vec![1u8; 252];
         let encoded = coder.encode(&small_data).unwrap();
         assert_eq!(encoded.len(), 255);
+    }
+
+    // === LRC (layered: global RS + group-local XOR parity) tests ===
+
+    fn lrc_coder() -> LrcErasureCoder {
+        LrcErasureCoder::new(
+            ErasureConfig {
+                data_shards: 4,
+                parity_shards: 2,
+                shard_size: 1024,
+            },
+            2,
+        )
+    }
+
+    fn lrc_coder_8_2_2() -> LrcErasureCoder {
+        LrcErasureCoder::new(
+            ErasureConfig {
+                data_shards: 8,
+                parity_shards: 2,
+                shard_size: 1024,
+            },
+            2,
+        )
+    }
+
+    #[test]
+    fn test_lrc_encode_layout() {
+        let coder = lrc_coder();
+        let data = b"hello layered erasure world!!!!".to_vec();
+        let encoded = coder.encode(&data).unwrap();
+        assert_eq!(encoded.len(), 4 + 2 + 2);
+        for (i, s) in encoded.iter().enumerate() {
+            assert_eq!(s.index as usize, i);
+            assert_eq!(s.is_parity, i >= 4);
+        }
+        assert_eq!(coder.group_size(), 2);
+        assert_eq!(coder.local_parity_indices(), 4..6);
+        assert_eq!(coder.global_parity_indices(), 6..8);
+    }
+
+    #[test]
+    fn test_lrc_roundtrip() {
+        let coder = lrc_coder();
+        let mut data = b"round trip through layered parity!!".to_vec();
+        data.resize(data.len() + (4 - data.len() % 4) % 4, 0);
+        let encoded = coder.encode(&data).unwrap();
+        let shards: Vec<Option<Shard>> = encoded.iter().map(|s| Some(s.clone())).collect();
+        let (decoded, path) = coder.decode_with_path(&shards).unwrap();
+        assert_eq!(decoded, data);
+        assert_eq!(path, DecodePath::Direct);
+    }
+
+    #[test]
+    fn test_lrc_single_loss_uses_local_path() {
+        let coder = lrc_coder();
+        let mut data = b"local repair beats full stripe!!!".to_vec();
+        data.resize(data.len() + (4 - data.len() % 4) % 4, 0);
+        let encoded = coder.encode(&data).unwrap();
+
+        let mut shards: Vec<Option<Shard>> = encoded.iter().map(|s| Some(s.clone())).collect();
+        shards[1] = None;
+        let (decoded, path) = coder.decode_with_path(&shards).unwrap();
+        assert_eq!(decoded, data);
+        assert_eq!(path, DecodePath::Local);
+
+        shards[3] = None;
+        shards[1] = Some(encoded[1].clone());
+        let (decoded2, path2) = coder.decode_with_path(&shards).unwrap();
+        assert_eq!(decoded2, data);
+        assert_eq!(path2, DecodePath::Local);
+    }
+
+    #[test]
+    fn test_lrc_two_losses_same_group_global_path() {
+        let coder = lrc_coder();
+        let mut data = b"two losses in one group need RS!!".to_vec();
+        data.resize(data.len() + (4 - data.len() % 4) % 4, 0);
+        let encoded = coder.encode(&data).unwrap();
+
+        let mut shards: Vec<Option<Shard>> = encoded.iter().map(|s| Some(s.clone())).collect();
+        shards[0] = None;
+        shards[1] = None;
+        let (decoded, path) = coder.decode_with_path(&shards).unwrap();
+        assert_eq!(decoded, data);
+        assert_eq!(path, DecodePath::Global);
+    }
+
+    #[test]
+    fn test_lrc_data_and_local_loss_global_path() {
+        let coder = lrc_coder();
+        let mut data = b"one data one local parity gone!!".to_vec();
+        data.resize(data.len() + (4 - data.len() % 4) % 4, 0);
+        let encoded = coder.encode(&data).unwrap();
+
+        let mut shards: Vec<Option<Shard>> = encoded.iter().map(|s| Some(s.clone())).collect();
+        shards[2] = None;
+        shards[5] = None;
+        let (decoded, path) = coder.decode_with_path(&shards).unwrap();
+        assert_eq!(decoded, data);
+        assert_eq!(path, DecodePath::Global);
+    }
+
+    #[test]
+    fn test_lrc_three_data_losses_fail() {
+        let coder = lrc_coder();
+        let data = b"three data losses exceed budget!".to_vec();
+        let encoded = coder.encode(&data).unwrap();
+
+        let mut shards: Vec<Option<Shard>> = encoded.iter().map(|s| Some(s.clone())).collect();
+        shards[0] = None;
+        shards[1] = None;
+        shards[2] = None;
+        assert!(coder.decode(&shards).is_err());
+    }
+
+    #[test]
+    fn test_lrc_reconstruct_local_beats_global() {
+        let coder = lrc_coder_8_2_2();
+        let data = vec![7u8; 8 * 512];
+        let encoded = coder.encode(&data).unwrap();
+
+        let original = encoded[3].clone();
+        let mut shards: Vec<Option<Shard>> = encoded.iter().map(|s| Some(s.clone())).collect();
+        shards[3] = None;
+
+        let recovered = coder.reconstruct(&shards).unwrap().unwrap();
+        assert_eq!(recovered.index, 3);
+        assert_eq!(recovered.data, original.data);
+        assert!(!recovered.is_parity);
+    }
+
+    #[test]
+    fn test_lrc_reconstruct_global_parity_shard() {
+        let coder = lrc_coder();
+        let mut data = b"rebuild a global parity shard!!!".to_vec();
+        data.resize(data.len() + (4 - data.len() % 4) % 4, 0);
+        let encoded = coder.encode(&data).unwrap();
+
+        let original = encoded[6].clone();
+        let mut shards: Vec<Option<Shard>> = encoded.iter().map(|s| Some(s.clone())).collect();
+        shards[6] = None;
+
+        let recovered = coder.reconstruct(&shards).unwrap().unwrap();
+        assert_eq!(recovered.index, 6);
+        assert_eq!(recovered.data, original.data);
+        assert!(recovered.is_parity);
+    }
+
+    #[test]
+    fn test_lrc_checksums() {
+        let coder = lrc_coder();
+        let mut data = b"every shard carries a checksum!!".to_vec();
+        data.resize(data.len() + (4 - data.len() % 4) % 4, 0);
+        let encoded = coder.encode(&data).unwrap();
+        for shard in &encoded {
+            assert_eq!(shard.checksum, sha256(&shard.data));
+        }
+    }
+
+    #[test]
+    fn test_lrc_verify_detects_corruption() {
+        let coder = lrc_coder();
+        let data = vec![9u8; 4 * 256];
+        let encoded = coder.encode(&data).unwrap();
+        let mut shards: Vec<Option<Shard>> = encoded.iter().map(|s| Some(s.clone())).collect();
+        shards[2].as_mut().unwrap().data[0] ^= 0xff;
+
+        assert_eq!(coder.verify(&shards), vec![2]);
+    }
+
+    #[test]
+    fn test_lrc_scrub_repairs_single_corrupt_shard() {
+        let coder = lrc_coder();
+        let mut data = b"scrub restores the broken shard!!".to_vec();
+        data.resize(data.len() + (4 - data.len() % 4) % 4, 0);
+        let encoded = coder.encode(&data).unwrap();
+
+        let mut shards: Vec<Option<Shard>> = encoded.iter().map(|s| Some(s.clone())).collect();
+        shards[1].as_mut().unwrap().data[0] ^= 0xff;
+
+        let repaired = coder.scrub(&mut shards).unwrap();
+        assert_eq!(repaired, vec![1]);
+        assert_eq!(shards[1].as_ref().unwrap().data, encoded[1].data);
+        assert!(coder.verify(&shards).is_empty());
+    }
+
+    #[test]
+    fn test_lrc_scrub_repairs_missing_shard() {
+        let coder = lrc_coder();
+        let mut data = b"missing shards come back from p!!".to_vec();
+        data.resize(data.len() + (4 - data.len() % 4) % 4, 0);
+        let encoded = coder.encode(&data).unwrap();
+
+        let mut shards: Vec<Option<Shard>> = encoded.iter().map(|s| Some(s.clone())).collect();
+        shards[3] = None;
+
+        let repaired = coder.scrub(&mut shards).unwrap();
+        assert_eq!(repaired, vec![3]);
+        assert_eq!(shards[3].as_ref().unwrap().data, encoded[3].data);
+    }
+
+    #[test]
+    fn test_lrc_scrub_beyond_budget_leaves_hole() {
+        let coder = lrc_coder();
+        let data = vec![3u8; 4 * 256];
+        let encoded = coder.encode(&data).unwrap();
+
+        let mut shards: Vec<Option<Shard>> = encoded.iter().map(|s| Some(s.clone())).collect();
+        shards[0] = None;
+        shards[1] = None;
+        shards[2] = None;
+
+        let repaired = coder.scrub(&mut shards).unwrap();
+        assert!(repaired.is_empty());
+        assert!(shards[0].is_none());
+        assert_eq!(coder.verify(&shards), vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn test_lrc_rejects_uneven_groups() {
+        let result = std::panic::catch_unwind(|| {
+            LrcErasureCoder::new(
+                ErasureConfig {
+                    data_shards: 5,
+                    parity_shards: 2,
+                    shard_size: 1024,
+                },
+                2,
+            )
+        });
+        assert!(result.is_err());
     }
 }

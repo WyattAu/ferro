@@ -55,10 +55,13 @@ pub struct BlockManifest {
 pub struct ManifestQuery {
     /// File path to compute manifest for.
     pub path: String,
-    /// Target average block size in bytes (default 65536 = 64KB).
-    /// Minimum 4096, maximum 1048576 (1MB).
+    /// Target average block size in bytes (legacy buzhash-v1 only).
+    /// Minimum 4096, maximum 1048576 (1MB). Ignored for fastcdc-v1.
     #[serde(default = "default_block_size")]
     pub block_size: u64,
+    /// Chunking algorithm: "fastcdc-v1" (default) or "buzhash-v1" (legacy).
+    #[serde(default)]
+    pub algo: Option<String>,
 }
 
 /// Response to a manifest request: the manifest plus which blocks
@@ -178,15 +181,22 @@ pub async fn get_manifest(
     };
 
     let file_hash = ContentHash::compute(&content);
-    let block_size = params.block_size.clamp(4096, 1_048_576);
-
-    // Chunk the file
-    let raw_blocks = chunk_data(
-        &content,
-        block_size,
-        common::chunk::CHUNK_MIN_SIZE,
-        common::chunk::CHUNK_MAX_SIZE,
-    );
+    // fastcdc-v1 (YP-DEDUP-CDC-001 rev 1.1): manifests are cut with FastCDC
+    // (Gear + normalization, 256 KiB/1 MiB/8 MiB) on both client and server.
+    // The client `block_size` hint applies only to legacy buzhash-v1
+    // manifests requested via `?algo=buzhash-v1`.
+    let legacy = params.algo.as_deref() == Some(common::chunk::CHUNK_ALGO_BUZHASH_V1);
+    let raw_blocks = if legacy {
+        let block_size = params.block_size.clamp(4096, 1_048_576);
+        chunk_data(
+            &content,
+            block_size,
+            common::chunk::CHUNK_MIN_SIZE,
+            common::chunk::CHUNK_MAX_SIZE,
+        )
+    } else {
+        common::chunk::fastcdc_triples(&content)
+    };
 
     let blocks: Vec<BlockDescriptor> = raw_blocks
         .iter()

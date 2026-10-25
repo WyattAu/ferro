@@ -189,7 +189,6 @@ pub async fn dispatch_post_op<S: ApiCoreState>(state: &S, event: FileEvent) {
     });
 }
 
-
 /// Relay loop: drains the durable outbox and delivers external effects with
 /// lease-claim + retry + DLQ semantics (YP-EVENT-DURABILITY-001 ALG-RELAY-001).
 /// Spawn once at startup when an outbox is configured.
@@ -235,12 +234,9 @@ pub fn spawn_outbox_relay<S: ApiCoreState + 'static>(state: S) {
 }
 
 /// Deliver one claimed outbox row by its event type.
-async fn deliver_outbox_row<S: ApiCoreState>(
-    state: &S,
-    row: &common::outbox::OutboxRow,
-) -> Result<(), anyhow::Error> {
-    let webhook_event: crate::webhooks::WebhookEvent = serde_json::from_value(row.payload.clone())
-        .map_err(|e| anyhow::anyhow!("payload deserialize: {e}"))?;
+async fn deliver_outbox_row<S: ApiCoreState>(state: &S, row: &common::outbox::OutboxRow) -> Result<(), anyhow::Error> {
+    let webhook_event: crate::webhooks::WebhookEvent =
+        serde_json::from_value(row.payload.clone()).map_err(|e| anyhow::anyhow!("payload deserialize: {e}"))?;
     match row.event_type.as_str() {
         "webhook" => {
             crate::webhooks::fire_webhooks(

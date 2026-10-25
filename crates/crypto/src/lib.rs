@@ -14,6 +14,7 @@
 
 #[cfg(feature = "ring")]
 pub mod ring_provider;
+pub mod stream;
 pub mod traits;
 
 pub use traits::{CryptoProvider, Result};

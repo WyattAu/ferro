@@ -36,17 +36,25 @@ pub struct BlockManifest {
 }
 
 /// Chunk a local file into content-defined blocks.
+///
+/// New manifests use fastcdc-v1 (YP-DEDUP-CDC-001 rev 1.1): Gear hash with
+/// normalized chunking, identical to the server's canonical path via the
+/// shared `common::chunk` implementation.
 pub fn chunk_file(path: &Path, relative_path: &str, target_block_size: u64) -> Result<BlockManifest> {
     let data = std::fs::read(path)?;
     let file_hash = compute_hash(&data);
     let total_size = data.len() as u64;
 
-    let raw_blocks = chunk_data(
-        &data,
-        target_block_size,
-        common::chunk::CHUNK_MIN_SIZE,
-        common::chunk::CHUNK_MAX_SIZE,
-    );
+    let raw_blocks = if target_block_size == common::chunk::CHUNK_TARGET_SIZE {
+        common::chunk::fastcdc_triples(&data)
+    } else {
+        chunk_data(
+            &data,
+            target_block_size,
+            common::chunk::CHUNK_MIN_SIZE,
+            common::chunk::CHUNK_MAX_SIZE,
+        )
+    };
 
     let blocks: Vec<BlockDescriptor> = raw_blocks
         .iter()

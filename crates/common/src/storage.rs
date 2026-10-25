@@ -127,6 +127,13 @@ mod tests {
 pub trait LockManagerTrait: Send + Sync {
     async fn check_lock(&self, path: &str) -> Option<LockInfo>;
     async fn check_lock_for_write(&self, path: &str) -> Result<()>;
+    /// Token-aware write check (RFC 4918 §7.1): the write passes only if
+    /// every covering lock's token is among the submitted tokens (the
+    /// non-negated tokens of the §10.4 If header). Default: strict (none).
+    async fn check_lock_for_write_with_token(&self, path: &str, submitted: &[String]) -> Result<()> {
+        let _ = submitted;
+        self.check_lock_for_write(path).await
+    }
     async fn acquire_lock(
         &self,
         path: &str,
