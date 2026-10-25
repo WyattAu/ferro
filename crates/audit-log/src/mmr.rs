@@ -42,6 +42,10 @@ fn subtree_hash(leaves: &[[u8; 32]], start: usize, height: u32) -> [u8; 32] {
     sha256_pair(&l, &r)
 }
 
+/// One step of an inclusion proof: the sibling subtree digest and whether
+/// it was combined on the right.
+pub type PeakBit = ([u8; 32], bool);
+
 /// Perfect-subtree decomposition: peaks (oldest first), each with its
 /// start offset and covered leaf count.
 fn decompose(len: usize) -> Vec<(usize, u32)> {
@@ -49,8 +53,8 @@ fn decompose(len: usize) -> Vec<(usize, u32)> {
     let mut start = 0usize;
     let mut remaining = len;
     while remaining > 0 {
-        let k = 63 - u64::from(remaining as u64).leading_zeros();
-        out.push((start, k as u32));
+        let k = 63 - (remaining as u64).leading_zeros();
+        out.push((start, k));
         let size = 1usize << k;
         start += size;
         remaining -= size;
@@ -194,6 +198,7 @@ pub fn verify_inclusion(data: &[u8], index: u64, proof: &[([u8; 32], bool)], pea
 mod tests {
     use super::*;
 
+    #[allow(dead_code)] // used by tests gated behind optional features
     fn h(b: u8) -> [u8; 32] {
         let mut a = [0u8; 32];
         a[0] = b;

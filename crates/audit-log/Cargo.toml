@@ -14,6 +14,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 ring = { version = "0.17" }
+ml-dsa = "0.1.0-rc.11"
 thiserror = { workspace = true }
 tokio = { workspace = true }
 

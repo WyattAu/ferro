@@ -222,3 +222,9 @@ Nextcloud admin audit: plain DB rows, no hashing. Seafile: no audit chain. S3: C
 ## R5 Addendum: Epoch Anchor Signing — IMPLEMENTED (Ed25519 half)
 
 `crates/audit-log/src/anchor.rs`: Ed25519-signed epoch anchors over the bagged MMR digest (ring; PKCS#8 root key). `AuditLog::sign_epoch_anchor` / `verify_epoch_anchor` bind the anchor to the live bag — new entries invalidate old anchors (tamper/truncation evidence). The YP's dual signature carries a reserved `mldsa65_signature` slot; the ML-DSA-65 half is staged pending a PQ dependency. 49 audit-log tests green.
+
+---
+
+## R6 Addendum: Dual Signature COMPLETE (Ed25519 + ML-DSA-65)
+
+The ML-DSA-65 half is live: `crates/audit-log/src/anchor.rs` now implements `sign_anchor_dual` / `verify_anchor_dual` over the FIPS 204 ML-DSA-65 parameter set (`ml-dsa = "0.1.1"`, RustCrypto; deterministic variant, seed-based keys via `generate_mldsa65_seed`). `AuditLog::sign_epoch_anchor_dual` produces both signatures over the bagged MMR digest; `verify_epoch_anchor` enforces the dual contract whenever the PQ half is present (a tampered or truncated ML-DSA signature fails even when the Ed25519 half is valid — tested). Classical-only anchors remain verifiable on the Ed25519 half for backward compatibility. 54 audit-log tests green.

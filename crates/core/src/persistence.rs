@@ -603,8 +603,10 @@ impl ferro_common::audit::AuditLogPersistence for SqlitePersistence {
 pub struct CasGcReport {
     /// Total rows in `cas_content`.
     pub scanned: u64,
-    /// Rows protected by a reference (metadata, snapshots, or extra roots).
+    /// Rows protected by a metadata reference.
     pub referenced: u64,
+    /// Rows pinned by appearing in a snapshot's entries_json.
+    pub snapshot_pinned: u64,
     /// Rows older than the cutoff with no reference found.
     pub orphan_candidates: u64,
     /// Rows actually deleted (0 in dry-run mode).
@@ -689,6 +691,7 @@ impl SqlitePersistence {
         let mut report = CasGcReport {
             scanned: scanned.0.max(0) as u64,
             referenced: meta_referenced.0.max(0) as u64,
+            snapshot_pinned: snap_protected.0.max(0) as u64,
             orphan_candidates: orphans.len() as u64,
             swept: 0,
             corrupt: Vec::new(),
@@ -981,7 +984,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cas_gc_dry_run_and_sweep() {
-        let (tmp, url) = make_db_path();
+        let (_tmp, url) = make_db_path();
         let store = SqlitePersistence::new(&url).await.unwrap();
 
         let live = store.put_content(Bytes::from_static(b"live content")).await.unwrap();
@@ -1017,7 +1020,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cas_gc_respects_extra_roots_and_age() {
-        let (tmp, url) = make_db_path();
+        let (_tmp, url) = make_db_path();
         let store = SqlitePersistence::new(&url).await.unwrap();
 
         let pinned = store.put_content(Bytes::from_static(b"pinned by root")).await.unwrap();
@@ -1057,7 +1060,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cas_gc_snapshot_pin_and_verify() {
-        let (tmp, url) = make_db_path();
+        let (_tmp, url) = make_db_path();
         let store = SqlitePersistence::new(&url).await.unwrap();
 
         let pinned = store

@@ -120,52 +120,59 @@ impl SyncStateManager {
 
     /// Get the sync state for a peer, creating a default if it doesn't exist.
     pub fn get_or_create(&self, node_id: &str) -> Result<PeerSyncState, SyncStateError> {
-        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
-        let mut stmt = conn.prepare(
-            "SELECT node_id, status, last_sync_clock, last_sync_at,
-                    last_attempt_at, consecutive_failures, last_error,
-                    last_sync_file_count
-             FROM sync_peer_state WHERE node_id = ?1",
-        )?;
+        // Scope the connection guard: the create-default arm below calls
+        // `self.save`, which re-locks the same std Mutex — holding the
+        // guard across it deadlocked the calling thread (R6 fix; the
+        // "sync-protocol test hangs" were this bug, and the same path
+        // deadlocks production on first sync with a new peer).
+        let result = {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let mut stmt = conn.prepare(
+                "SELECT node_id, status, last_sync_clock, last_sync_at,
+                        last_attempt_at, consecutive_failures, last_error,
+                        last_sync_file_count
+                 FROM sync_peer_state WHERE node_id = ?1",
+            )?;
 
-        let result = stmt.query_row(params![node_id], |row| {
-            let status_str: String = row.get(1)?;
-            let clock_json: String = row.get(2)?;
-            let last_sync_at: Option<String> = row.get(3)?;
-            let last_attempt_at: Option<String> = row.get(4)?;
-            let consecutive_failures: u32 = row.get(5)?;
-            let last_error: Option<String> = row.get(6)?;
-            let last_sync_file_count: u64 = row.get(7)?;
+            stmt.query_row(params![node_id], |row| {
+                let status_str: String = row.get(1)?;
+                let clock_json: String = row.get(2)?;
+                let last_sync_at: Option<String> = row.get(3)?;
+                let last_attempt_at: Option<String> = row.get(4)?;
+                let consecutive_failures: u32 = row.get(5)?;
+                let last_error: Option<String> = row.get(6)?;
+                let last_sync_file_count: u64 = row.get(7)?;
 
-            let status = match status_str.as_str() {
-                "idle" => SyncStatus::Idle,
-                "syncing" => SyncStatus::Syncing,
-                "conflict" => SyncStatus::Conflict,
-                "error" => SyncStatus::Error,
-                _ => SyncStatus::Idle,
-            };
+                let status = match status_str.as_str() {
+                    "idle" => SyncStatus::Idle,
+                    "syncing" => SyncStatus::Syncing,
+                    "conflict" => SyncStatus::Conflict,
+                    "error" => SyncStatus::Error,
+                    _ => SyncStatus::Idle,
+                };
 
-            let clock: VectorClock = serde_json::from_str(&clock_json).unwrap_or_default();
+                let clock: VectorClock = serde_json::from_str(&clock_json).unwrap_or_default();
 
-            let last_sync_at = last_sync_at
-                .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
-                .map(|dt| dt.with_timezone(&Utc));
+                let last_sync_at = last_sync_at
+                    .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
+                    .map(|dt| dt.with_timezone(&Utc));
 
-            let last_attempt_at = last_attempt_at
-                .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
-                .map(|dt| dt.with_timezone(&Utc));
+                let last_attempt_at = last_attempt_at
+                    .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
+                    .map(|dt| dt.with_timezone(&Utc));
 
-            Ok(PeerSyncState {
-                node_id: node_id.to_string(),
-                status,
-                last_sync_clock: clock,
-                last_sync_at,
-                last_attempt_at,
-                consecutive_failures,
-                last_error,
-                last_sync_file_count,
+                Ok(PeerSyncState {
+                    node_id: node_id.to_string(),
+                    status,
+                    last_sync_clock: clock,
+                    last_sync_at,
+                    last_attempt_at,
+                    consecutive_failures,
+                    last_error,
+                    last_sync_file_count,
+                })
             })
-        });
+        };
 
         match result {
             Ok(state) => Ok(state),
@@ -341,6 +348,25 @@ mod tests {
         assert_eq!(state.node_id, "node-a");
         assert_eq!(state.status, SyncStatus::Idle);
         assert_eq!(state.consecutive_failures, 0);
+    }
+
+    #[test]
+    fn test_get_or_create_concurrent_first_contact() {
+        // Regression (R6): the create-default path used to re-lock the
+        // connection mutex while already holding it — deadlock on first
+        // contact with any new peer. Hammer the path from several threads
+        // against one fresh manager.
+        let mgr = std::sync::Arc::new(make_manager());
+        let handles: Vec<_> = (0..8)
+            .map(|i| {
+                let mgr = mgr.clone();
+                std::thread::spawn(move || mgr.get_or_create(&format!("node-{i}")).unwrap())
+            })
+            .collect();
+        for h in handles {
+            h.join().unwrap();
+        }
+        assert_eq!(mgr.list_peers().unwrap().len(), 8);
     }
 
     #[test]

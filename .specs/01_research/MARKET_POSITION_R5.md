@@ -28,7 +28,7 @@ Scored after R3–R5. Dimensions: [+] ahead, [=] at parity, [–] behind (R6 can
 ## Cross-cutting
 - [+] Only tool in class with formal verification (Lean 4: 110+ theorems, 0 sorry, covering sync, locks, cache, rate limits, audit, crypto containers, placement, EC).
 - [–] Mobile/desktop client maturity (Tauri early), e2ee per-file sharing links, multi-server clustering at Nextcloud scale, i18n/accessibility depth.
-- [–] Known open items: MMR ML-DSA half of dual signing, If-header ETag conditions live, sync-protocol test hangs (investigation documented), litmus suite run.
+- [–] Known open items: litmus suite run, axum-stack middleware consolidation. CLOSED in R6: MMR ML-DSA-65 dual signing (FIPS 204 live), If-header ETag conditions (RFC 4918 §10.4.4), sync-protocol first-contact deadlock (root-caused: conn-mutex re-entry in `get_or_create`; production sync with a new peer deadlocked — fixed + concurrent regression test).
 
 ## Verdict
 Ferro surpasses incumbents on **verifiable correctness, auditability, and extension safety** — dimensions none of them address. It trails on **ecosystem breadth, client polish, and scale hardening**. R6 priorities: mobile/desktop depth, NAT traversal, clustering, litmus + ETag conditions.

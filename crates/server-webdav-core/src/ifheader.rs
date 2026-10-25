@@ -5,13 +5,15 @@
 //! lists, `Not`, multiple parenthesized lists (OR of ANDs), and tolerant
 //! whitespace. Lock-token submission collects non-negated state tokens.
 
-/// One condition inside a list: optional `Not` + a state token
-/// (`<opaquelocktoken:…>`; entity-tag conditions are parsed but always
-/// treated as unsatisfied — Ferro tags ETags on resources, not in If).
+/// One condition inside a list: optional `Not` + either a state token
+/// (`<opaquelocktoken:…>`) or an entity-tag condition (`["…"]`, RFC 4918
+/// §10.4.4). For ETag conditions `token` carries the tag text as written
+/// (usually including the entity-tag quotes) and `etag` is true.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Condition {
     pub negate: bool,
     pub token: String,
+    pub etag: bool,
 }
 
 /// A parenthesized list of conditions (AND semantics).
@@ -42,7 +44,9 @@ impl IfHeader {
         fn push(lists: &[ConditionList], out: &mut Vec<String>) {
             for list in lists {
                 for c in &list.conditions {
-                    if !c.negate && !out.contains(&c.token) {
+                    // ETag conditions are not state tokens; lock-token
+                    // submission collects lock tokens only.
+                    if !c.etag && !c.negate && !out.contains(&c.token) {
                         out.push(c.token.clone());
                     }
                 }
@@ -68,15 +72,19 @@ impl IfHeader {
     /// header passes (RFC 4918 §10.4.3 — tagged lists only apply to their
     /// listed resources).
     #[must_use]
-    pub fn evaluate(&self, resource: &str, current_tokens: &[String]) -> bool {
-        fn list_holds(list: &ConditionList, current: &[String]) -> bool {
+    pub fn evaluate(&self, resource: &str, current_tokens: &[String], current_etag: Option<&str>) -> bool {
+        fn list_holds(list: &ConditionList, current: &[String], etag: Option<&str>) -> bool {
             list.conditions.iter().all(|c| {
-                let present = current.iter().any(|t| t == &c.token);
+                let present = if c.etag {
+                    etag.is_some_and(|cur| norm_etag(cur) == norm_etag(&c.token))
+                } else {
+                    current.iter().any(|t| t == &c.token)
+                };
                 c.negate ^ present
             })
         }
         match self {
-            IfHeader::Untagged(lists) => lists.iter().any(|l| list_holds(l, current_tokens)),
+            IfHeader::Untagged(lists) => lists.iter().any(|l| list_holds(l, current_tokens, current_etag)),
             IfHeader::Tagged(groups) => {
                 let matching: Vec<&TaggedGroup> = groups
                     .iter()
@@ -87,7 +95,7 @@ impl IfHeader {
                 }
                 matching
                     .iter()
-                    .any(|g| g.lists.iter().any(|l| list_holds(l, current_tokens)))
+                    .any(|g| g.lists.iter().any(|l| list_holds(l, current_tokens, current_etag)))
             }
         }
     }
@@ -96,6 +104,15 @@ impl IfHeader {
 /// Path component of a resource tag: `<scheme://host>/path` → `/path`;
 /// a bare path passes through (trimmed of any trailing slash comparison is
 /// done by the caller).
+/// Normalize an entity-tag for §10.4.4 comparison: strip one layer of
+/// surrounding double quotes so `["abc"]` in the header matches a stored
+/// etag of `"abc"` or `abc` (clients transmit the quoted form; Ferro's
+/// metadata etags are bare).
+fn norm_etag(t: &str) -> &str {
+    let t = t.trim();
+    t.strip_prefix('"').and_then(|x| x.strip_suffix('"')).unwrap_or(t)
+}
+
 fn tag_path(tag: &str) -> &str {
     if let Some(idx) = tag.find("://") {
         let rest = &tag[idx + 3..];
@@ -168,16 +185,19 @@ impl<'a> Parser<'a> {
                 Some(Condition {
                     negate,
                     token: token.to_string(),
+                    etag: false,
                 })
             }
             b'[' => {
-                // Entity-tag condition: parsed, never satisfied (Ferro does
-                // not tag If ETags; documented in YP-WEBDAV-PROTOCOL-001 1.1).
+                // Entity-tag condition (RFC 4918 §10.4.4): satisfied when the
+                // resource's current ETag matches (strong comparison after
+                // optional-quote normalization).
                 self.i += 1;
-                let _tag = self.until(b']')?;
+                let tag = self.until(b']')?;
                 Some(Condition {
                     negate,
-                    token: String::new(),
+                    token: tag.to_string(),
+                    etag: true,
                 })
             }
             _ => None,
@@ -220,9 +240,7 @@ pub fn parse(value: &str) -> Option<IfHeader> {
             // in an untagged list — disambiguate by what follows the '>'.
             let save = p.i;
             p.i += 1;
-            let Some(resource) = p.until(b'>') else {
-                return None;
-            };
+            let resource = p.until(b'>')?;
             p.skip_ws();
             if p.i < p.s.len() && p.s[p.i] == b'(' {
                 // Tagged group.
@@ -244,15 +262,11 @@ pub fn parse(value: &str) -> Option<IfHeader> {
             } else {
                 // Bare token in an untagged list.
                 p.i = save;
-                let Some(list) = p.list() else {
-                    return None;
-                };
+                let list = p.list()?;
                 untagged.push(list);
             }
         } else if p.s[p.i] == b'(' {
-            let Some(list) = p.list() else {
-                return None;
-            };
+            let list = p.list()?;
             untagged.push(list);
         } else {
             return None;
@@ -285,31 +299,31 @@ mod tests {
             IfHeader::Untagged(lists) => assert_eq!(lists.len(), 1),
             _ => panic!("wrong form"),
         }
-        assert!(h.evaluate("/r", &tokens(&[T1])));
-        assert!(!h.evaluate("/r", &tokens(&[T2])));
+        assert!(h.evaluate("/r", &tokens(&[T1]), None));
+        assert!(!h.evaluate("/r", &tokens(&[T2]), None));
     }
 
     #[test]
     fn test_untagged_and_semantics() {
         let h = parse(&format!("(<{T1}> <{T2}>)")).expect("parse");
-        assert!(!h.evaluate("/r", &tokens(&[T1])), "AND requires both");
-        assert!(h.evaluate("/r", &tokens(&[T1, T2])));
+        assert!(!h.evaluate("/r", &tokens(&[T1]), None), "AND requires both");
+        assert!(h.evaluate("/r", &tokens(&[T1, T2]), None));
     }
 
     #[test]
     fn test_untagged_or_across_lists() {
         let h = parse(&format!("(<{T1}>) (<{T2}>)")).expect("parse");
-        assert!(h.evaluate("/r", &tokens(&[T1])));
-        assert!(h.evaluate("/r", &tokens(&[T2])));
-        assert!(!h.evaluate("/r", &tokens(&[])));
+        assert!(h.evaluate("/r", &tokens(&[T1]), None));
+        assert!(h.evaluate("/r", &tokens(&[T2]), None));
+        assert!(!h.evaluate("/r", &tokens(&[]), None));
     }
 
     #[test]
     fn test_not_condition() {
         let h = parse(&format!("(Not <{T1}>)")).expect("parse");
         // Not <t1> holds when t1 is NOT current.
-        assert!(h.evaluate("/r", &tokens(&[])));
-        assert!(!h.evaluate("/r", &tokens(&[T1])));
+        assert!(h.evaluate("/r", &tokens(&[]), None));
+        assert!(!h.evaluate("/r", &tokens(&[T1]), None));
         // Not-negated tokens are not "submitted" for lock purposes.
         assert!(h.submitted_tokens().is_empty());
     }
@@ -322,17 +336,50 @@ mod tests {
             IfHeader::Tagged(groups) => assert_eq!(groups.len(), 2),
             _ => panic!("wrong form"),
         }
-        assert!(h.evaluate("/a", &tokens(&[T1])));
-        assert!(!h.evaluate("/a", &tokens(&[T2])));
-        assert!(h.evaluate("/b", &tokens(&[T2])));
-        assert!(!h.evaluate("/b", &tokens(&[T1])));
+        assert!(h.evaluate("/a", &tokens(&[T1]), None));
+        assert!(!h.evaluate("/a", &tokens(&[T2]), None));
+        assert!(h.evaluate("/b", &tokens(&[T2]), None));
+        assert!(!h.evaluate("/b", &tokens(&[T1]), None));
     }
 
     #[test]
     fn test_tagged_no_match_passes_vacuously() {
         let v = format!("<http://h/a> (<{T1}>)");
         let h = parse(&v).expect("parse");
-        assert!(h.evaluate("/other", &tokens(&[])));
+        assert!(h.evaluate("/other", &tokens(&[]), None));
+    }
+
+    #[test]
+    fn test_etag_condition_satisfied() {
+        // §10.4.4: (["abc"]) matches a resource whose ETag is abc (quote
+        // normalization: the bracket content is the quoted entity-tag).
+        let h = parse(r#"(["abc"])"#).unwrap();
+        assert!(h.evaluate("/r", &tokens(&[]), Some("abc")));
+        assert!(h.evaluate("/r", &tokens(&[]), Some(r#""abc""#)));
+        assert!(!h.evaluate("/r", &tokens(&[]), Some("other")));
+        assert!(!h.evaluate("/r", &tokens(&[]), None));
+    }
+
+    #[test]
+    fn test_not_etag_condition() {
+        let h = parse(r#"(Not ["stale"])"#).unwrap();
+        assert!(h.evaluate("/r", &tokens(&[]), Some("current")));
+        assert!(!h.evaluate("/r", &tokens(&[]), Some("stale")));
+    }
+
+    #[test]
+    fn test_mixed_lock_token_and_etag_list() {
+        // AND of a lock token and an ETag: both must hold.
+        let h = parse(&format!(r#"(<{T1}> ["abc"])"#)).unwrap();
+        assert!(h.evaluate("/r", &tokens(&[T1]), Some("abc")));
+        assert!(!h.evaluate("/r", &tokens(&[]), Some("abc")), "token missing");
+        assert!(!h.evaluate("/r", &tokens(&[T1]), Some("zzz")), "etag stale");
+    }
+
+    #[test]
+    fn test_submitted_tokens_exclude_etags() {
+        let h = parse(&format!(r#"(Not <{T1}> <{T2}> ["abc"])"#)).unwrap();
+        assert_eq!(h.submitted_tokens(), vec![T2.to_string()]);
     }
 
     #[test]
@@ -345,7 +392,7 @@ mod tests {
     #[test]
     fn test_whitespace_tolerant() {
         let h = parse(&format!("  (  <{T1}>   <{T2}> )  ")).expect("parse");
-        assert!(h.evaluate("/r", &tokens(&[T1, T2])));
+        assert!(h.evaluate("/r", &tokens(&[T1, T2]), None));
     }
 
     #[test]

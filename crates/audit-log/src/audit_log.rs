@@ -146,7 +146,7 @@ impl AuditLog {
 
     /// O(log n) inclusion proof for the entry recorded at `index`
     /// (0-based record order).
-    pub fn inclusion_proof(&self, index: u64) -> Result<Option<Vec<([u8; 32], bool)>>, AuditError> {
+    pub fn inclusion_proof(&self, index: u64) -> Result<Option<Vec<crate::mmr::PeakBit>>, AuditError> {
         Ok(self
             .mmr
             .lock()
@@ -163,10 +163,31 @@ impl AuditLog {
             .map_err(|e| AuditError::Export(format!("anchor signing failed: {e}")))
     }
 
-    /// Verify a signed epoch anchor against the current bag.
+    /// Sign the current bagged epoch anchor with BOTH algorithms
+    /// (YP-LIFECYCLE 1.1 dual contract: Ed25519 + ML-DSA-65).
+    pub fn sign_epoch_anchor_dual(
+        &self,
+        ed25519_pkcs8: &[u8],
+        mldsa65_seed: &[u8; 32],
+    ) -> Result<crate::anchor::EpochAnchor, AuditError> {
+        let bag = self.audit_bag()?;
+        crate::anchor::sign_anchor_dual(ed25519_pkcs8, mldsa65_seed, &bag)
+            .map_err(|e| AuditError::Export(format!("dual anchor signing failed: {e}")))
+    }
+
+    /// Verify a signed epoch anchor against the current bag. Enforces the
+    /// YP dual contract when the anchor carries the ML-DSA-65 half (both
+    /// signatures must verify); classical-only anchors pass on the Ed25519
+    /// half alone.
     pub fn verify_epoch_anchor(&self, anchor: &crate::anchor::EpochAnchor) -> Result<bool, AuditError> {
         let bag = self.audit_bag()?;
-        Ok(crate::anchor::verify_anchor(anchor) && anchor.bag == bag)
+        let bound = anchor.bag == bag;
+        let valid = if anchor.mldsa65_signature.is_some() || anchor.mldsa65_public.is_some() {
+            crate::anchor::verify_anchor_dual(anchor)
+        } else {
+            crate::anchor::verify_anchor(anchor)
+        };
+        Ok(valid && bound)
     }
 
     /// Verify `data`'s inclusion at `index` against the current peaks.

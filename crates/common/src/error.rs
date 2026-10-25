@@ -78,6 +78,13 @@ impl FerroError {
 /// Result alias using [`FerroError`].
 pub type Result<T> = std::result::Result<T, FerroError>;
 
+#[cfg(feature = "db")]
+impl From<rusqlite::Error> for FerroError {
+    fn from(e: rusqlite::Error) -> Self {
+        FerroError::Db(e.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -157,12 +164,5 @@ mod tests {
         use std::error::Error;
         let err = FerroError::NotFound("test".into());
         assert!(err.source().is_none());
-    }
-}
-
-#[cfg(feature = "db")]
-impl From<rusqlite::Error> for FerroError {
-    fn from(e: rusqlite::Error) -> Self {
-        FerroError::Db(e.to_string())
     }
 }

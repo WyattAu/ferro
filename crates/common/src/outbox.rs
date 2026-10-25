@@ -23,6 +23,7 @@
 use crate::error::{FerroError, Result};
 
 /// Map a rusqlite error into the crate error type.
+#[allow(dead_code)] // exercised only under feature combinations that hit the DB path
 fn db_err(e: rusqlite::Error) -> FerroError {
     FerroError::Internal(format!("outbox db: {e}"))
 }
@@ -269,6 +270,7 @@ mod tests {
         let outbox = Outbox::open_in_memory().unwrap();
         outbox.enqueue("push", &serde_json::json!({"user": "u"})).unwrap();
 
+        #[allow(unused_assignments)] // initializer documents the "no claim yet" state
         let mut last_id = 0;
         for attempt in 1..=MAX_ATTEMPTS {
             // Fast-forward past the backoff window (backoff is correct
