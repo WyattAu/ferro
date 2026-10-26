@@ -138,7 +138,14 @@ pub async fn handle_any<S: WebDavCoreState>(
 
         match method.as_str() {
             "OPTIONS" => handle_options(&resolved_path).await,
-            "PROPFIND" => handle_propfind(state, &resolved_path, &headers).await,
+            "PROPFIND" => {
+                let bytes = body
+                    .collect()
+                    .await
+                    .map_err(|e| FerroError::Internal(format!("body read: {}", e)))?
+                    .to_bytes();
+                handle_propfind(state, &resolved_path, &headers, &bytes).await
+            }
             "GET" => handle_get(state, &resolved_path, &headers).await,
             "HEAD" => handle_head(state, &resolved_path, &headers).await,
             "PUT" => handle_put_dispatch(state, &resolved_path, &headers, body).await,

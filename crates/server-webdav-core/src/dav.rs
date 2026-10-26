@@ -372,14 +372,20 @@ pub async fn caldav_calendar_or_event<S: WebDavCoreState>(
             let calendar = segments[2].to_string();
             ferro_dav::caldav::delete_calendar_handler(axum::extract::State(cal_state), Path(calendar)).await
         }
-        "PROPFIND" => match crate::handlers::propfind::handle_propfind(state, &path, &headers).await {
-            Ok(resp) => resp,
-            Err(e) => (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                format!("PROPFIND error: {}", e),
-            )
-                .into_response(),
-        },
+        "PROPFIND" => {
+            let bytes = http_body_util::BodyExt::collect(body)
+                .await
+                .map(|b| b.to_bytes())
+                .unwrap_or_default();
+            match crate::handlers::propfind::handle_propfind(state, &path, &headers, &bytes).await {
+                Ok(resp) => resp,
+                Err(e) => (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("PROPFIND error: {}", e),
+                )
+                    .into_response(),
+            }
+        }
         // ── Event-level operations (need body) ─────────────────────────
         "MKCALENDAR" => ferro_dav::caldav::create_calendar_handler(axum::extract::State(cal_state)).await,
         "REPORT" => {
@@ -452,14 +458,20 @@ pub async fn carddav_book_or_contact<S: WebDavCoreState>(
             let book = segments[2].to_string();
             ferro_dav::carddav::delete_address_book_handler(axum::extract::State(card_state), Path(book)).await
         }
-        "PROPFIND" => match crate::handlers::propfind::handle_propfind(state, &path, &headers).await {
-            Ok(resp) => resp,
-            Err(e) => (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                format!("PROPFIND error: {}", e),
-            )
-                .into_response(),
-        },
+        "PROPFIND" => {
+            let bytes = http_body_util::BodyExt::collect(body)
+                .await
+                .map(|b| b.to_bytes())
+                .unwrap_or_default();
+            match crate::handlers::propfind::handle_propfind(state, &path, &headers, &bytes).await {
+                Ok(resp) => resp,
+                Err(e) => (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("PROPFIND error: {}", e),
+                )
+                    .into_response(),
+            }
+        }
         "REPORT" => {
             let body_bytes = match body.collect().await {
                 Ok(b) => b.to_bytes(),

@@ -11,10 +11,10 @@ per-user root resolution active).
 |---|---|---|---|
 | basic (PUT/GET/MKCOL/conditionals) | 13/16 (81.2%) | **16/16 (100%)** | +3 |
 | copymove | 7/13 (53.8%) | **10/13 (76.9%)** | +3 |
-| props | 8/14 (57.1%) | 8/14 (57.1%) | 0 |
+| props | 8/14 (57.1%) | **10/14 (71.4%)** | +2 |
 | locks | 25/34 (73.5%) | **29/34 (85.3%)** | +4 |
 | http | 4/4 (100%) | 4/4 (100%) | 0 |
-| **Total** | **57/81 (70.4%)** | **67/81 (82.7%)** | **+10** |
+| **Total** | **57/81 (70.4%)** | **69/81 (85.2%)** | **+12** |
 
 ## Fixed this round
 
@@ -39,6 +39,11 @@ per-user root resolution active).
    subtree-safe (list() walks object metadata and misses COPY-created
    directories; the old `remove_dir` poisoned every later suite via cleanup
    failures).
+9. **§9.1.2 PROPFIND body validation** — malformed XML (unclosed elements)
+   and undeclared namespace prefixes now 400 instead of 207 (+2 props).
+10. **§6.4 lock-token uniqueness (SECURITY)** — `LockToken::new()` returned
+   the nil UUID for EVERY lock; any client holding any lock token could
+   satisfy any other lock's token check. Now UUID v4 per lock.
 
 ## Reproduction
 

@@ -58,10 +58,13 @@ impl LockDepth {
 pub struct LockToken(Uuid);
 
 impl LockToken {
-    /// Generate a new random lock token.
+    /// Generate a new random lock token (UUID v4). MUST be universally
+    /// unique per RFC 4918 §6.4 — `Default` (the nil UUID) made every lock
+    /// share one token, letting any client satisfy any other lock's token
+    /// check (R6 fix, security-relevant).
     #[must_use]
     pub fn new() -> Self {
-        Self::default()
+        Self(Uuid::new_v4())
     }
 
     /// Parse a lock token from a UUID string, accepting the bare UUID or
@@ -158,6 +161,16 @@ pub struct MultiStatusItem {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn test_lock_tokens_are_unique() {
+        // RFC 4918 §6.4: tokens MUST be universally unique. `new()` used to
+        // return the nil UUID for every lock (R6 fix).
+        let a = LockToken::new();
+        let b = LockToken::new();
+        assert_ne!(a, b);
+        assert_ne!(a.0, Uuid::nil());
+    }
+
     use super::*;
 
     #[test]
