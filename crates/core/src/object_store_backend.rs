@@ -259,10 +259,31 @@ impl StorageEngine for ObjectStoreStorageEngine {
                 let clean = path.trim_start_matches('/').trim_end_matches('/');
                 let fs_path = base.join(clean);
                 if fs_path.is_dir() {
-                    tokio::fs::remove_dir(&fs_path)
+                    // remove_dir_all, not remove_dir: directories created by
+                    // collection COPY may not appear in list() (which walks
+                    // object metadata), so a subtree delete here must be
+                    // self-contained — the caller asked to delete the node
+                    // and everything under it (RFC 4918 §9.6).
+                    let mut total = 0usize;
+                    async fn rm_all(dir: std::path::PathBuf, total: &mut usize) -> std::io::Result<()> {
+                        let mut rd = tokio::fs::read_dir(&dir).await?;
+                        while let Some(entry) = rd.next_entry().await? {
+                            let p = entry.path();
+                            if p.is_dir() {
+                                let _ = Box::pin(rm_all(p, total)).await;
+                            } else {
+                                tokio::fs::remove_file(&p).await?;
+                                *total += 1;
+                            }
+                        }
+                        tokio::fs::remove_dir(&dir).await?;
+                        *total += 1;
+                        Ok(())
+                    }
+                    rm_all(fs_path, &mut total)
                         .await
                         .map_err(|e| FerroError::StorageBackend(format!("{path}: {e}")))?;
-                    debug!("DELETE dir {}", path);
+                    debug!("DELETE dir {} ({} objects)", path, total);
                     return Ok(());
                 }
             }

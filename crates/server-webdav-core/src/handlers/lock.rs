@@ -44,6 +44,8 @@ pub(crate) async fn handle_lock<S: WebDavCoreState>(
             .to_string()
     });
 
+    let existed = state.storage().exists(&path).await.unwrap_or(false);
+
     let lock = state
         .lock_manager()
         .acquire_lock(&path, &principal, lock_request.scope, depth, lock_request.timeout_hint)
@@ -68,7 +70,13 @@ pub(crate) async fn handle_lock<S: WebDavCoreState>(
         HeaderValue::from_str(&format!("<{}>", lock_token)).map_err(|e| FerroError::Internal(e.to_string()))?,
     );
 
-    Ok((StatusCode::OK, resp_headers, Body::from(xml)).into_response())
+    let status = if existed {
+        StatusCode::OK
+    } else {
+        // LOCK on an unmapped URL creates an empty resource (RFC 4918 §7.3).
+        StatusCode::CREATED
+    };
+    Ok((status, resp_headers, Body::from(xml)).into_response())
 }
 
 pub(crate) async fn handle_unlock<S: WebDavCoreState>(state: S, path: &str, headers: &HeaderMap) -> Result<Response> {

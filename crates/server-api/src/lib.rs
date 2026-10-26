@@ -136,10 +136,14 @@ pub async fn auth_change_password_impl<S: ferro_server_state::ServerState>(
 
     // OIDC callers manage credentials at the identity provider — do NOT let
     // them silently rotate the local admin password (the fallback below).
-    let oidc_caller = parts
-        .extensions
-        .get::<common::auth::Claims>()
-        .is_some_and(|c| c.sub != "anonymous");
+    // Only meaningful when OIDC is actually configured: in simple-auth mode
+    // (FERRO_ADMIN_USER) the authenticated principal now carries real Claims
+    // (R6 identity bridge), and those callers must reach the local rotation.
+    let oidc_caller = state.oidc().is_some()
+        && parts
+            .extensions
+            .get::<common::auth::Claims>()
+            .is_some_and(|c| c.sub != "anonymous");
     if oidc_caller {
         return ApiError::bad_request(
             ApiError::BAD_REQUEST,

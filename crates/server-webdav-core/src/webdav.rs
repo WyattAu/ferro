@@ -143,7 +143,14 @@ pub async fn handle_any<S: WebDavCoreState>(
             "HEAD" => handle_head(state, &resolved_path, &headers).await,
             "PUT" => handle_put_dispatch(state, &resolved_path, &headers, body).await,
             "DELETE" => handle_delete(state, &resolved_path, &headers).await,
-            "MKCOL" => handle_mkcol(state, &resolved_path).await,
+            "MKCOL" => {
+                let bytes = body
+                    .collect()
+                    .await
+                    .map_err(|e| FerroError::Internal(format!("body read: {}", e)))?
+                    .to_bytes();
+                handle_mkcol(state, &resolved_path, &bytes).await
+            }
             "COPY" => handle_copy(state, &resolved_path, &headers).await,
             "MOVE" => handle_move(state, &resolved_path, &headers).await,
             "LOCK" => {

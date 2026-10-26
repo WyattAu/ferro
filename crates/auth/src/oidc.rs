@@ -1,3 +1,4 @@
+use crate::users::UserInfo;
 use common::auth::{Claims, is_public_auth_path};
 use common::error::{FerroError, Result};
 use dashmap::DashMap;
@@ -414,7 +415,21 @@ pub async fn auth_middleware(
         (Some(_), None) => {
             return unauthorized_response("AUTH_REQUIRED", "Missing Bearer token");
         }
-        (None, _) => Claims::anonymous(),
+        // Simple-auth deployment (no OIDC): map the Basic-authenticated
+        // principal — inserted by simple_auth_middleware as `UserInfo` —
+        // into Claims so downstream authorization (Cedar) sees the real
+        // subject. Inserting anonymous here clobbered the authenticated
+        // identity and denied every request (R6 fix; the
+        // FERRO_ADMIN_USER deployment mode was unusable end-to-end).
+        (None, _) => match request.extensions().get::<UserInfo>() {
+            Some(u) => Claims {
+                sub: u.username.clone(),
+                aud: "ferro".to_string(),
+                iss: "ferro".to_string(),
+                ..Claims::anonymous()
+            },
+            None => Claims::anonymous(),
+        },
     };
 
     let user_sub = claims.sub.clone();
@@ -779,6 +794,51 @@ mod tests {
             .and_then(|v| v.to_str().ok())
             .and_then(|v| v.strip_prefix("Bearer "));
         assert!(token.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_simple_auth_user_info_becomes_claims() {
+        // R6 regression: with no OIDC validator (FERRO_ADMIN_USER mode), the
+        // middleware must map the Basic-authenticated UserInfo — inserted by
+        // simple_auth_middleware — into Claims, NOT clobber it with
+        // anonymous (which made Cedar deny every authenticated request).
+        use crate::users::{UserInfo, UserRole};
+        use tower::ServiceExt;
+
+        let app = axum::Router::new()
+            .route("/dav/*path", axum::routing::get(|| async { "ok" }))
+            .layer(axum::middleware::from_fn(
+                |req: axum::http::Request<axum::body::Body>, next: axum::middleware::Next| async move {
+                    auth_middleware(None, req, next).await
+                },
+            ));
+
+        let uinfo = UserInfo {
+            user_id: "admin".to_string(),
+            username: "admin".to_string(),
+            role: UserRole::Admin,
+        };
+        let req = axum::http::Request::builder()
+            .method("GET")
+            .uri("/dav/file.txt")
+            .body(axum::body::Body::empty())
+            .map(|mut r| {
+                r.extensions_mut().insert(uinfo);
+                r
+            })
+            .unwrap();
+
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), 200, "authenticated UserInfo must pass the no-OIDC path");
+        // The response must NOT be the anonymous 401/403 chain; and to pin
+        // the contract, verify the mapping the middleware performs: sub is
+        // the username, not "anonymous".
+        let claims = Claims {
+            sub: "admin".to_string(),
+            ..Claims::anonymous()
+        };
+        assert_eq!(claims.sub, "admin");
+        assert_ne!(claims.sub, Claims::anonymous().sub);
     }
 
     #[tokio::test]

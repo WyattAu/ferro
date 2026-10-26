@@ -36,11 +36,20 @@ pub(crate) async fn handle_delete<S: WebDavCoreState>(state: S, path: &str, head
         return Err(FerroError::InvalidArgument(format!("Invalid path: {}", path)));
     }
 
-    if let Some(lock) = state.lock_manager().check_lock(&path).await {
-        return Err(FerroError::LockConflict(format!(
-            "Resource locked by {}",
-            lock.principal
-        )));
+    // Token-aware lock check (RFC 4918 §7.1): a DELETE of a locked
+    // resource succeeds only when the request submits the covering token.
+    let submitted: Vec<String> = headers
+        .get("If")
+        .and_then(|v| v.to_str().ok())
+        .and_then(crate::ifheader::parse)
+        .map(|h| h.submitted_tokens())
+        .unwrap_or_default();
+    if let Err(e) = state
+        .lock_manager()
+        .check_lock_for_write_with_token(&path, &submitted)
+        .await
+    {
+        return Err(FerroError::LockConflict(format!("Resource locked: {}", e)));
     }
 
     if state.is_worm_protected(&path) {

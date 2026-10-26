@@ -59,6 +59,23 @@ async fn handle_put_streaming<S: WebDavCoreState>(
         .check_lock_for_write_with_token(&path, &submitted)
         .await?;
 
+    // RFC 4918 §10.4: full If-header evaluation. Conditions are matched
+    // against SERVER-VALIDATED tokens (a bogus token must not satisfy its
+    // own condition) and the resource's current ETag; unsatisfied → 412.
+    if let Some(if_header) = headers
+        .get("If")
+        .and_then(|v| v.to_str().ok())
+        .and_then(crate::ifheader::parse)
+    {
+        let valid_tokens = state.lock_manager().valid_submitted_tokens(&path, &submitted);
+        let current_etag = state.storage().head(&path).await.ok().map(|m| m.etag);
+        if !if_header.evaluate(&path, &valid_tokens, current_etag.as_deref()) {
+            return Err(FerroError::PreconditionFailed(
+                "If header conditions not satisfied".to_string(),
+            ));
+        }
+    }
+
     if let Some(_if_match) = headers.get("If-Match").and_then(|v| v.to_str().ok()) {
         let current = state.storage().head(&path).await?;
         check_conditional_if_match(headers, &current.etag)?;
@@ -369,6 +386,23 @@ pub(crate) async fn handle_put<S: WebDavCoreState>(
         .lock_manager()
         .check_lock_for_write_with_token(&path, &submitted)
         .await?;
+
+    // RFC 4918 §10.4: full If-header evaluation. Conditions are matched
+    // against SERVER-VALIDATED tokens (a bogus token must not satisfy its
+    // own condition) and the resource's current ETag; unsatisfied → 412.
+    if let Some(if_header) = headers
+        .get("If")
+        .and_then(|v| v.to_str().ok())
+        .and_then(crate::ifheader::parse)
+    {
+        let valid_tokens = state.lock_manager().valid_submitted_tokens(&path, &submitted);
+        let current_etag = state.storage().head(&path).await.ok().map(|m| m.etag);
+        if !if_header.evaluate(&path, &valid_tokens, current_etag.as_deref()) {
+            return Err(FerroError::PreconditionFailed(
+                "If header conditions not satisfied".to_string(),
+            ));
+        }
+    }
 
     // Conditional PUT: If-Match on existing resource
     if let Some(_if_match) = headers.get("If-Match").and_then(|v| v.to_str().ok()) {

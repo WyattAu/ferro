@@ -208,7 +208,7 @@ pub async fn inbox(State(state): State<FederationState>, req: axum::http::Reques
     // again inside the window is acknowledged without side effects.
     if !activity.id.is_empty() {
         let is_replay = match state.replay.lock() {
-            Ok(mut guard) => guard.check(&activity.id).is_err(),
+            Ok(guard) => guard.check(&activity.id).is_err(),
             Err(_) => {
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,

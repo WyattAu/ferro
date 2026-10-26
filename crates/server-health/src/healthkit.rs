@@ -27,7 +27,7 @@ pub fn subsystem_registry<S: HealthState>(state: &S) -> HealthRegistry {
 }
 
 fn build_registry<S: HealthState>(state: Arc<S>) -> HealthRegistry {
-    let registry = HealthRegistry::new();
+    let registry = HealthRegistry::new().with_default_timeout(Duration::from_secs(5));
 
     registry.add_check("storage", {
         let state = state.clone();
@@ -107,19 +107,11 @@ fn build_registry<S: HealthState>(state: Arc<S>) -> HealthRegistry {
     // problem — Healthy keeps liveness green; readiness is unaffected
     // because there is nothing partially broken.
     registry.add_check("wasm", {
-        let state = state.clone();
-        move || {
-            let state = state.clone();
-            async move { Ok::<HealthStatus, HealthCheckError>(HealthStatus::Healthy) }
-        }
+        move || async move { Ok::<HealthStatus, HealthCheckError>(HealthStatus::Healthy) }
     });
 
     registry.add_check("oidc", {
-        let state = state.clone();
-        move || {
-            let state = state.clone();
-            async move { Ok::<HealthStatus, HealthCheckError>(HealthStatus::Healthy) }
-        }
+        move || async move { Ok::<HealthStatus, HealthCheckError>(HealthStatus::Healthy) }
     });
 
     registry

@@ -266,7 +266,7 @@ async fn deliver_outbox_row<S: ApiCoreState>(state: &S, row: &common::outbox::Ou
         "push" => {
             if let Some(push_store) = state.push_notification_store() {
                 crate::push_notifications::dispatch_push_notifications(
-                    &push_store,
+                    push_store,
                     &state.push_notification_config().clone(),
                     &webhook_event.user.clone().unwrap_or_default(),
                     "file.event",

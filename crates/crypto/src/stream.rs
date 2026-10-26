@@ -117,7 +117,7 @@ fn encrypt_inner(
     for (idx, chunk) in plaintext.chunks(CHUNK_SIZE).enumerate() {
         let counter = idx as u32;
         let last = idx + 1 == total_chunks;
-        let nonce = build_nonce(&prefix, counter, last);
+        let nonce = build_nonce(prefix, counter, last);
         let ct = cipher
             .encrypt(
                 Nonce::from_slice(&nonce),
@@ -134,7 +134,7 @@ fn encrypt_inner(
     }
 
     // Empty plaintext: emit the single final empty chunk.
-    let nonce = build_nonce(&prefix, 0, true);
+    let nonce = build_nonce(prefix, 0, true);
     let ct = cipher
         .encrypt(
             Nonce::from_slice(&nonce),

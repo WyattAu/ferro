@@ -19,7 +19,7 @@
 
 | Repo | Why deferred |
 |---|---|
-| `axum-stack` | Its middleware stack (CORS, request-ID, compression) overlaps Ferro's **security-relevant** middleware ordering (CSRF exemptions, authz layers). Swapping risks silent ordering changes; revisit as a dedicated R5 loop with the security test suite green. |
+| `axum-stack` | **RESOLVED R6 — no adoption, fully assessed.** Piece-by-piece: request-ID → *redundant* (Ferro's `server/src/request_id.rs` honors inbound `X-Request-Id` and inserts into extensions — a superset of axum-stack's generate+propagate); compression → *redundant* (tower-http `CompressionLayer` already in the stack); CORS → *do not swap* (Ferro's hand-rolled `cors_layer` is order-coupled to `csrf_middleware` preflight exemptions at `routes.rs:1330-1343`; a tower-http CorsLayer silently changes preflight/credential semantics); timeout → *not applicable as-is* (a global 30 s `TimeoutLayer` breaks WebDAV large transfers — the only adoptable idea is a **per-route timeout for API/auth routes**, R7 candidate); health mount → *redundant* (R5 healthkit integration covers it). Ferro's middleware order is a documented security invariant: cors → auth_guard → state_gate → guest_expiry → csrf → simple_auth → auth → cedar → rate_limit (request order, layers apply bottom-up). |
 | `fetch-kit` | Retry/circuit-breaker would **duplicate Ferro's formally verified breaker** (`CircuitBreakerLiveness.lean`) and the outbox lease-retry. Use only for net-new outbound integrations; never as a replacement. |
 | `telemetry-init` | Wires `metrics-kit` + OTLP; Ferro's `observability` crate has its own registry and loki/victoria exporters. Only relevant under a deliberate observability migration. |
 | `chisel-doc` | Pre-alpha PDF engine — watch for a future preview/extraction worker. |
@@ -39,3 +39,13 @@
 ## RESOLVED (R6): sync-protocol test hangs — mutex re-entry deadlock
 
 Root cause: `SyncStateManager::get_or_create` held the `conn` std-Mutex guard across the `QueryReturnedNoRows` arm, which calls `self.save` — re-locking the same mutex deadlocked the calling thread. `test_save_and_get` passed only because the row pre-existed. Production impact: `SyncEngine::sync_with_peer` → `record_success` → `get_or_create` on a **first-contact peer deadlocked the sync path**. Fix: scope the guard to the query block (`state.rs::get_or_create`); regression test `test_get_or_create_concurrent_first_contact` (8 threads, fresh manager). Full suite now 30 passed in 0.01s — the `--skip state --skip engine` quarantine is removed.
+
+## R6: simple-auth deployment mode was broken end-to-end (fixed via litmus work)
+
+Setting up the litmus run exposed two production bugs in the `FERRO_ADMIN_USER` (Basic-auth, no-OIDC) deployment mode:
+
+1. **Identity clobbering** (`crates/auth/src/oidc.rs::auth_middleware`): with no OIDC validator, the middleware inserted `Claims::anonymous()` for every non-public path — after `simple_auth_middleware` had already authenticated the Basic credentials. Downstream Cedar then denied every authenticated request (principal `anonymous` ≠ `User::"admin"`). Fix: map the authenticated `UserInfo` into `Claims` (sub = username) on the no-OIDC path; regression test `test_simple_auth_user_info_becomes_claims`.
+2. **Password rotation locked out** (`crates/server-api/src/lib.rs::auth_change_password_impl`): the OIDC-caller guard fired on any non-anonymous `Claims`, so (with fix 1) the simple-auth admin could never rotate the mandatory default password. Fix: the guard now requires `state.oidc().is_some()` — credentials are IdP-managed only when OIDC is actually configured.
+3. **Dead config flag**: `--allow-open-authz` / `FERRO_ALLOW_OPEN_AUTHZ` is defined in `server-config` but **consumed nowhere** — its own doc claims it is "required for public/simple_auth deployments". Until it is wired (or removed), simple-auth deployments need an explicit Cedar policy file permitting the admin principal.
+
+Ferro's middleware order is a security invariant worth restating (request order; axum layers apply bottom-up): cors → auth_guard → state_gate → guest_expiry → csrf → simple_auth → oidc_auth → cedar → rate_limit.

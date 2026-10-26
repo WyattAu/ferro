@@ -94,11 +94,16 @@ impl LockManager {
             if existing.is_expired() {
                 drop(existing);
                 self.locks.remove(path);
-            } else if existing.scope == LockScope::Exclusive {
-                return Err(FerroError::LockConflict(format!(
-                    "Resource {} is exclusively locked by {}",
-                    path, existing.principal
-                )));
+            } else {
+                // RFC 4918 §6.1: shared+shared is the only compatible pair
+                // on the same resource — an exclusive request conflicts
+                // with ANY existing lock (shared or exclusive).
+                if existing.scope == LockScope::Exclusive || scope == LockScope::Exclusive {
+                    return Err(FerroError::LockConflict(format!(
+                        "Resource {} is locked by {} (scope conflict)",
+                        path, existing.principal
+                    )));
+                }
             }
         }
 
@@ -185,6 +190,41 @@ impl LockManager {
     /// writes to locked resources) blocks the write.
     pub fn check_lock_for_write_sync(&self, path: &str) -> common::error::Result<()> {
         self.check_lock_for_write_with_token_sync(path, &[])
+    }
+
+    /// The subset of `submitted` tokens that match real locks covering
+    /// `path` (itself or a depth ancestor). Turns client claims into
+    /// server-validated state for If-header evaluation: a bogus token in a
+    /// condition must NOT satisfy it.
+    #[must_use]
+    pub fn valid_submitted_tokens(&self, path: &str, submitted: &[String]) -> Vec<String> {
+        self.cleanup_expired(path);
+        let mut valid: Vec<String> = Vec::new();
+        let mut consider = |lock: &LockInfo| {
+            for t in submitted {
+                let matches = t == &lock.token.as_str() || t == &lock.token.as_opaque();
+                if matches && !valid.contains(t) {
+                    valid.push(t.clone());
+                }
+            }
+        };
+        if let Some(lock) = self.locks.get(path)
+            && !lock.is_expired()
+        {
+            consider(&lock);
+        }
+        let mut check_path = path;
+        while let Some(parent) = parent_path(check_path) {
+            self.cleanup_expired(parent);
+            if let Some(lock) = self.locks.get(parent)
+                && !lock.is_expired()
+                && lock.depth == LockDepth::Infinity
+            {
+                consider(&lock);
+            }
+            check_path = parent;
+        }
+        valid
     }
 
     /// Token-aware write check (RFC 4918 §7.1, §7.5): a write to a locked
@@ -499,6 +539,43 @@ mod tests {
             .acquire_lock_sync("/doc.txt", "alice", LockScope::Shared, LockDepth::Zero, None)
             .unwrap();
         assert!(mgr.check_lock_for_write_sync("/doc.txt").is_err());
+    }
+
+    #[test]
+    fn test_exclusive_conflicts_with_shared_lock() {
+        // RFC 4918 §6.1: shared+shared is the only compatible pair — an
+        // exclusive request must 423 against ANY existing lock (R6 fix;
+        // exclusive-over-shared used to be granted).
+        let mgr = LockManager::new();
+        mgr.acquire_lock_sync("/doc.txt", "alice", LockScope::Shared, LockDepth::Zero, None)
+            .unwrap();
+        assert!(
+            mgr.acquire_lock_sync("/doc.txt", "bob", LockScope::Exclusive, LockDepth::Zero, None)
+                .is_err()
+        );
+        // ...and two shared locks remain compatible.
+        assert!(
+            mgr.acquire_lock_sync("/doc.txt", "bob", LockScope::Shared, LockDepth::Zero, None)
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn test_valid_submitted_tokens_filters_bogus() {
+        let mgr = LockManager::new();
+        let lock = mgr
+            .acquire_lock_sync("/doc.txt", "alice", LockScope::Exclusive, LockDepth::Zero, None)
+            .unwrap();
+        let bogus = "opaquelocktoken:bogus".to_string();
+        let valid = mgr.valid_submitted_tokens("/doc.txt", &[lock.token.as_str().to_string(), bogus.clone()]);
+        assert_eq!(valid, vec![lock.token.as_str().to_string()]);
+        assert!(mgr.valid_submitted_tokens("/other.txt", &[bogus]).is_empty());
+        // Depth-infinity ancestor locks validate descendants.
+        let dir_lock = mgr
+            .acquire_lock_sync("/dir", "carol", LockScope::Exclusive, LockDepth::Infinity, None)
+            .unwrap();
+        let valid = mgr.valid_submitted_tokens("/dir/child.txt", &[dir_lock.token.as_str().to_string()]);
+        assert_eq!(valid, vec![dir_lock.token.as_str().to_string()]);
     }
 
     #[test]

@@ -32,6 +32,9 @@ pub enum FerroError {
     #[error("Precondition failed: {0}")]
     PreconditionFailed(String),
 
+    #[error("Conflict: {0}")]
+    Conflict(String),
+
     #[error("Unsupported media type: {0}")]
     UnsupportedMediaType(String),
 
@@ -65,6 +68,7 @@ impl FerroError {
             Self::LockConflict(_) => 423,
             Self::LockTokenNotFound(_) => 409,
             Self::PreconditionFailed(_) => 412,
+            Self::Conflict(_) => 409,
             Self::UnsupportedMediaType(_) => 415,
             Self::Timeout => 504,
             Self::StorageBackend(_) => 502,

@@ -181,3 +181,18 @@ Lean coverage R3 additions: ErasureCode, Rendezvous, FastCDC, DeltaCRDT, LockSaf
 | XOR pad retired; STREAM container pending (YP-CRYPTO 1.1) | R4-7 | **FIXED** — STREAM chunked AEAD container (`crypto/src/stream.rs`, 11 tests) |
 
 Pre-existing issues discovered and documented (not yet fixed): `sync-protocol` `state::`/`engine::` tests hang (untouched by R3/R4 changes — likely pre-existing blocking IO in tests); `ferro-server/src/cache.rs` SIEVE queue is per-cache (multi-instance coherence inherits the epoch mechanism).
+
+---
+
+## R6 Round (2026-10-26): gap closure — compliance + PQ + deadlock
+
+| Open item | Fix | Status |
+|---|---|---|
+| sync-protocol `state::`/`engine::` test hangs (open since R4) | **ROOT-CAUSED + FIXED** — not a test flake: `SyncStateManager::get_or_create` held the conn mutex across the create-default arm that calls `self.save` (std-Mutex re-entry deadlock). Production impact: `sync_with_peer` → `record_success` deadlocked on **first sync with any new peer**. Guard scoped to the query block; concurrent 8-thread regression test. Suite: 30 tests in 0.01 s; `--skip` quarantine removed. |
+| If-header ETag conditions unsatisfied-by-design (R4 note) | **FIXED** — §10.4.4 live: `[etag]` conditions stored with discriminator, `evaluate` takes the current ETag (quote-normalized strong comparison), `Not` + mixed token/ETag lists, submission excludes ETags (`server-webdav-core/src/ifheader.rs`, +4 tests → 38). |
+| MMR dual signing: ML-DSA-65 half staged (YP-LIFECYCLE 1.1) | **CLOSED** — FIPS 204 ML-DSA-65 via `ml-dsa 0.1.1`: `sign_anchor_dual`/`verify_anchor_dual` (seed-based keys, deterministic variant), `AuditLog::sign_epoch_anchor_dual`; verify enforces the dual contract whenever the PQ half is present (tamper/truncation tests) (`audit-log/src/anchor.rs`, +5 tests → 54). |
+| axum-stack adoption deferred (R5) | **RESOLVED — no adoption** — piece-by-piece assessment: request-ID/compression/health redundant with existing code, CORS swap unsafe (CSRF order-coupling), global timeout breaks WebDAV transfers; per-route API timeout is the only R7 candidate. Middleware order documented as a security invariant. |
+| Pre-commit clippy gate failing in-hook | **FIXED** — cleared the latent `--all-features -D warnings` debt (type-complexity via `PeakBit` alias, useless conversions, dead-code, unused vars, `let…else` → `?`, items-after-test-module); commits pass all 5 hook stages without `SKIP_PRECOMMIT`. |
+| Litmus WebDAV compliance run | **DONE — 57/81 (70.4%) → 67/81 (82.7%)**: basic 100%, copymove 77%, locks 85%. Fixed: Overwrite:F (412), MKCOL strictness (415/409), If-header enforcement with server-validated tokens, exclusive/shared scope conflicts, unmapped-LOCK 201, depth-infinity collection COPY, subtree-safe collection DELETE, and a security-relevant Destination-header isolation bypass. Remaining: PROPPATCH dead props, PROPFIND body validation, collection-overwrite, 2 conditional edge cases (`LITMUS_COMPLIANCE_R6.md`). |
+
+R6 verification: `lake build` green, 0 `sorry`; sync-protocol 30, webdav-core 38, audit-log 54, common 304, core 102 — all green.

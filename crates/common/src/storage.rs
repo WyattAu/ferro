@@ -134,6 +134,12 @@ pub trait LockManagerTrait: Send + Sync {
         let _ = submitted;
         self.check_lock_for_write(path).await
     }
+    /// The subset of `submitted` tokens matching real locks covering `path`
+    /// — server-validated state for §10.4 If-header evaluation. Default:
+    /// none (conditions with tokens then fail closed).
+    fn valid_submitted_tokens(&self, _path: &str, _submitted: &[String]) -> Vec<String> {
+        Vec::new()
+    }
     async fn acquire_lock(
         &self,
         path: &str,
