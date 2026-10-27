@@ -58,6 +58,15 @@ pub(crate) async fn handle_propfind<S: WebDavCoreState>(
         }
     }
 
+    // Dead-property sidecars are namespace internals — never list them.
+    items.retain(|(p, _)| !crate::handlers::deadprops::is_sidecar(p));
+
+    // RFC 4918 §9.1.2: a <D:prop> request returns exactly the requested
+    // properties (dead props from the sidecar, getetag from metadata).
+    if let Some(requested) = parse_requested_props(body) {
+        return Ok(requested_props_response(&state, &items, &requested).await);
+    }
+
     if let Some(token) = sync_token {
         let current = state.sync_clock().load(std::sync::atomic::Ordering::SeqCst);
         if token >= current {
@@ -94,6 +103,119 @@ fn sync_token_multistatus_response(xml: Bytes, clock: u64) -> Response {
         headers.insert("Sync-Token", val);
     }
     (StatusCode::MULTI_STATUS, headers, Body::from(xml)).into_response()
+}
+
+/// Extract requested property names from a `<D:prop>` body (raw prefixed
+/// names, in request order). Empty when the body is allprop/propname/absent.
+fn parse_requested_props(body: &[u8]) -> Option<Vec<String>> {
+    if body.is_empty() {
+        return None;
+    }
+    use quick_xml::events::Event;
+    let mut reader = quick_xml::Reader::from_reader(body);
+    reader.config_mut().trim_text(true);
+    let mut buf = Vec::new();
+    let mut names: Vec<String> = Vec::new();
+    let mut in_prop = false;
+    loop {
+        match reader.read_event_into(&mut buf).ok()? {
+            Event::Start(ref e) => {
+                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
+                let local = name.strip_prefix("D:").unwrap_or(&name);
+                if local == "prop" {
+                    in_prop = true;
+                } else if in_prop {
+                    names.push(name);
+                }
+            }
+            Event::Empty(ref e) if in_prop => {
+                names.push(String::from_utf8_lossy(e.name().as_ref()).to_string());
+            }
+            Event::End(ref e) => {
+                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
+                let local = name.strip_prefix("D:").unwrap_or(&name);
+                if local == "prop" {
+                    break;
+                }
+            }
+            Event::Eof => break,
+            _ => {}
+        }
+        buf.clear();
+    }
+    if names.is_empty() { None } else { Some(names) }
+}
+
+/// Build a multistatus resolving exactly the requested properties per item:
+/// dead props from the sidecar (200), `getetag` from metadata (200),
+/// anything else 404.
+async fn requested_props_response<S: crate::WebDavCoreState>(
+    state: &S,
+    items: &[(String, common::metadata::FileMetadata)],
+    requested: &[String],
+) -> Response {
+    use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+    let mut writer = quick_xml::Writer::new(Vec::new());
+    let mut w = |e: Event| -> Result<()> { writer.write_event(e).map_err(|e| FerroError::XmlError(e.to_string())) };
+    let _ = w(Event::Decl(quick_xml::events::BytesDecl::new(
+        "1.0",
+        Some("utf-8"),
+        None,
+    )));
+    let mut ms = BytesStart::new("D:multistatus");
+    ms.push_attribute(("xmlns:D", "DAV:"));
+    let _ = w(Event::Start(ms));
+
+    for (path, meta) in items {
+        let dead = crate::handlers::deadprops::load(state, path).await;
+        let mut found: Vec<(String, Option<String>)> = Vec::new();
+        let mut missing: Vec<String> = Vec::new();
+        for name in requested {
+            if let Some(v) = dead.get(name) {
+                found.push((name.clone(), Some(v.clone())));
+            } else if name.ends_with(":getetag") || name == "getetag" {
+                found.push((name.clone(), Some(meta.etag.clone())));
+            } else {
+                missing.push(name.clone());
+            }
+        }
+        let _ = w(Event::Start(BytesStart::new("D:response")));
+        let _ = w(Event::Start(BytesStart::new("D:href")));
+        let _ = w(Event::Text(BytesText::new(path)));
+        let _ = w(Event::End(BytesEnd::new("D:href")));
+        if !found.is_empty() {
+            let _ = w(Event::Start(BytesStart::new("D:propstat")));
+            let _ = w(Event::Start(BytesStart::new("D:prop")));
+            for (name, val) in &found {
+                let _ = w(Event::Start(BytesStart::new(name)));
+                if let Some(v) = val {
+                    let _ = w(Event::Text(BytesText::new(v)));
+                }
+                let _ = w(Event::End(BytesEnd::new(name)));
+            }
+            let _ = w(Event::End(BytesEnd::new("D:prop")));
+            let _ = w(Event::Start(BytesStart::new("D:status")));
+            let _ = w(Event::Text(BytesText::new("HTTP/1.1 200 OK")));
+            let _ = w(Event::End(BytesEnd::new("D:status")));
+            let _ = w(Event::End(BytesEnd::new("D:propstat")));
+        }
+        if !missing.is_empty() {
+            let _ = w(Event::Start(BytesStart::new("D:propstat")));
+            let _ = w(Event::Start(BytesStart::new("D:prop")));
+            for name in &missing {
+                let _ = w(Event::Start(BytesStart::new(name)));
+                let _ = w(Event::End(BytesEnd::new(name)));
+            }
+            let _ = w(Event::End(BytesEnd::new("D:prop")));
+            let _ = w(Event::Start(BytesStart::new("D:status")));
+            let _ = w(Event::Text(BytesText::new("HTTP/1.1 404 Not Found")));
+            let _ = w(Event::End(BytesEnd::new("D:status")));
+            let _ = w(Event::End(BytesEnd::new("D:propstat")));
+        }
+        let _ = w(Event::End(BytesEnd::new("D:response")));
+    }
+    let _ = w(Event::End(BytesEnd::new("D:multistatus")));
+    multistatus_response(Bytes::from(writer.into_inner()))
 }
 
 /// Well-formedness + namespace-prefix validation for PROPFIND bodies.

@@ -11,8 +11,8 @@ per-user root resolution active).
 |---|---|---|---|
 | basic (PUT/GET/MKCOL/conditionals) | 13/16 (81.2%) | **16/16 (100%)** | +3 |
 | copymove | 7/13 (53.8%) | **12/13 (92.3%)** | +5 |
-| props | 8/14 (57.1%) | **10/14 (71.4%)** | +2 |
-| locks | 25/34 (73.5%) | **30/34 (88.2%)** | +5 |
+| props | 8/14 (57.1%; 16 SKIPPED) | **22/30 (73.3%; skips lifted by dead-props)** | +14 net |
+| locks | 25/34 (73.5%) | **32/34 (94.1%)** | +7 |
 | http | 4/4 (100%) | 4/4 (100%) | 0 |
 | **Total** | **57/81 (70.4%)** | **72/81 (88.9%)** | **+15** |
 
@@ -61,11 +61,21 @@ per-user root resolution active).
 # litmus expects the BASE collection (/litmus/) to already exist
 ```
 
+## R7 addendum: dead-property storage IMPLEMENTED
+
+`handlers/deadprops.rs`: JSON sidecar per resource (`<path>.davprops`, hidden
+from listings). PROPPATCH persists Set/Remove for any non-DAV: property and
+returns proper 207 propstats; DAV:-namespace props are live-protected (403).
+PROPFIND now honors `<D:prop>` requests — dead props from the sidecar,
+getetag from metadata, missing → 404 propstat. Lifted litmus's 16 props
+SKIPPINGs (suite widened 14→30). PROPPATCH on locked resources honors
+submitted If-header tokens.
+
 ## Remaining gaps (R7 candidates, ordered by client impact)
 
 1. **PROPPATCH → 403** (4 props/locks tests): dead-property storage is not
    implemented; PROPPATCH should return a 207 multistatus with per-property
-   outcomes (or store dead props) instead of denying.
+   outcomes (or store dead props) instead of denying. (RESOLVED above.)
 2. **PROPFIND body validation** (2 tests): malformed XML / invalid namespace
    declarations must 400, not 207.
 4. **COPY of a locked source by the lock owner** (1 test): source-lock check

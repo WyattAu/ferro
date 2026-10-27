@@ -25,12 +25,49 @@ pub(crate) async fn handle_proppatch<S: WebDavCoreState>(
         return Err(FerroError::NotFound(path.to_string()));
     }
 
+    // Token-aware lock check (RFC 4918 §7.1): PROPPATCH on a locked
+    // resource requires the covering lock's token (litmus owner_modify).
+    let submitted: Vec<String> = _headers
+        .get("If")
+        .and_then(|v| v.to_str().ok())
+        .and_then(crate::ifheader::parse)
+        .map(|h| h.submitted_tokens())
+        .unwrap_or_default();
+    state
+        .lock_manager()
+        .check_lock_for_write_with_token(&path, &submitted)
+        .await?;
+
     // Parse simple PROPPATCH body to extract property operations
     let props = ferro_webdav_handler::parse_proppatch(body);
 
-    // Properties the server actually stores (returns 200).
-    // Everything else returns 403 Forbidden.
-    const SUPPORTED_PROPS: &[&str] = &["displayname"];
+    // Dead properties (any non-DAV: namespace) are persisted; DAV:-
+    // namespace properties are live/protected and rejected (403).
+    let mut dead = crate::handlers::deadprops::load(&state, &path).await;
+    let mut dead_changed = false;
+    let mut accepted = Vec::new();
+    let mut rejected = Vec::new();
+    for prop in &props {
+        if prop.name.starts_with("D:") || prop.name.starts_with("d:") {
+            rejected.push(prop);
+        } else {
+            match prop.operation {
+                ferro_webdav_handler::PropPatchOperation::Set => {
+                    if let Some(ref val) = prop.value {
+                        dead.insert(prop.name.clone(), val.clone());
+                    }
+                }
+                ferro_webdav_handler::PropPatchOperation::Remove => {
+                    dead.remove(&prop.name);
+                }
+            }
+            dead_changed = true;
+            accepted.push(prop);
+        }
+    }
+    if dead_changed {
+        crate::handlers::deadprops::save(&state, &path, &dead).await?;
+    }
 
     let mut writer = quick_xml::Writer::new(Vec::new());
 
@@ -61,18 +98,6 @@ pub(crate) async fn handle_proppatch<S: WebDavCoreState>(
     xml_write!(quick_xml::events::Event::End(quick_xml::events::BytesEnd::new(
         "D:href"
     ),));
-
-    // Collect accepted (200) and rejected (403) properties separately.
-    let mut accepted = Vec::new();
-    let mut rejected = Vec::new();
-
-    for prop in &props {
-        if SUPPORTED_PROPS.contains(&prop.name.as_str()) {
-            accepted.push(prop);
-        } else {
-            rejected.push(prop);
-        }
-    }
 
     // 200 OK block for accepted properties
     if !accepted.is_empty() {

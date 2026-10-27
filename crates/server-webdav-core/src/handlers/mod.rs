@@ -1,4 +1,5 @@
 pub(crate) mod copy_move;
+pub(crate) mod deadprops;
 pub(crate) mod delete;
 pub(crate) mod get;
 pub(crate) mod lock;
