@@ -109,8 +109,14 @@ impl IfHeader {
 /// etag of `"abc"` or `abc` (clients transmit the quoted form; Ferro's
 /// metadata etags are bare).
 fn norm_etag(t: &str) -> &str {
-    let t = t.trim();
-    t.strip_prefix('"').and_then(|x| x.strip_suffix('"')).unwrap_or(t)
+    // Strip every layer of surrounding quotes: Ferro's stored etags have
+    // historically embedded their own quotes, so the header value
+    // (`["abc"]`) can arrive double-quoted (`""abc""`) after transport.
+    let mut t = t.trim();
+    while let Some(inner) = t.strip_prefix('"').and_then(|x| x.strip_suffix('"')) {
+        t = inner;
+    }
+    t
 }
 
 fn tag_path(tag: &str) -> &str {
@@ -358,6 +364,14 @@ mod tests {
         assert!(h.evaluate("/r", &tokens(&[]), Some(r#""abc""#)));
         assert!(!h.evaluate("/r", &tokens(&[]), Some("other")));
         assert!(!h.evaluate("/r", &tokens(&[]), None));
+    }
+
+    #[test]
+    fn test_etag_double_quotes_normalized() {
+        // Ferro stored etags can embed their own quotes; the header then
+        // arrives double-quoted and must still match (R6 litmus fix).
+        let h = parse(r#"(["abc"])"#).unwrap();
+        assert!(h.evaluate("/r", &tokens(&[]), Some("\"\"abc\"\"")));
     }
 
     #[test]

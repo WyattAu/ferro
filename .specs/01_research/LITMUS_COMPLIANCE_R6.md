@@ -12,9 +12,9 @@ per-user root resolution active).
 | basic (PUT/GET/MKCOL/conditionals) | 13/16 (81.2%) | **16/16 (100%)** | +3 |
 | copymove | 7/13 (53.8%) | **10/13 (76.9%)** | +3 |
 | props | 8/14 (57.1%) | **10/14 (71.4%)** | +2 |
-| locks | 25/34 (73.5%) | **29/34 (85.3%)** | +4 |
+| locks | 25/34 (73.5%) | **30/34 (88.2%)** | +5 |
 | http | 4/4 (100%) | 4/4 (100%) | 0 |
-| **Total** | **57/81 (70.4%)** | **69/81 (85.2%)** | **+12** |
+| **Total** | **57/81 (70.4%)** | **70/81 (86.4%)** | **+13** |
 
 ## Fixed this round
 
@@ -44,6 +44,12 @@ per-user root resolution active).
 10. **§6.4 lock-token uniqueness (SECURITY)** — `LockToken::new()` returned
    the nil UUID for EVERY lock; any client holding any lock token could
    satisfy any other lock's token check. Now UUID v4 per lock.
+11. **§10.4 conditional PUT on lock+etag** — the trait-object dispatch of
+   `valid_submitted_tokens` hit the trait's empty default, so every token
+   condition evaluated false (412). Overridden in
+   `impl LockManagerTrait for LockManager`; cond_put now 204.
+12. **ETag quote normalization** — stored etags embed their own quotes
+   (`""abc""`); If-header etag comparison strips all quote layers.
 
 ## Reproduction
 

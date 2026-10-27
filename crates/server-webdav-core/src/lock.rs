@@ -359,6 +359,10 @@ impl LockManager {
 
 #[async_trait]
 impl LockManagerTrait for LockManager {
+    fn valid_submitted_tokens(&self, path: &str, submitted: &[String]) -> Vec<String> {
+        self.valid_submitted_tokens(path, submitted)
+    }
+
     async fn check_lock(&self, path: &str) -> Option<LockInfo> {
         self.check_lock_sync(path)
     }
