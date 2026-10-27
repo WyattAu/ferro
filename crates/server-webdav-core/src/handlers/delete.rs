@@ -8,7 +8,7 @@ use super::extract_owner;
 
 /// Recursively delete a path and all its children (RFC 4918 §9.6.1).
 /// For collections, deletes all descendants depth-first, then the collection itself.
-fn delete_recursive<'a, S: WebDavCoreState>(
+pub(crate) fn delete_recursive<'a, S: WebDavCoreState>(
     state: &'a S,
     path: &'a str,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {

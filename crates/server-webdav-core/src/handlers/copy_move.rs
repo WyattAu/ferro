@@ -224,6 +224,11 @@ pub(crate) async fn handle_move<S: WebDavCoreState>(state: S, path: &str, header
 
     copy_move_preflight(&state, &path, &dest, headers).await?;
 
+    // Overwrite: replace an existing destination subtree before the rename.
+    if state.storage().exists(&dest).await? {
+        super::delete::delete_recursive(&state, &dest).await?;
+    }
+
     state.storage().move_path(&path, &dest).await?;
 
     let owner = extract_owner(headers, None);

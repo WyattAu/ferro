@@ -10,11 +10,11 @@ per-user root resolution active).
 | Suite | Baseline | After R6 fixes | Delta |
 |---|---|---|---|
 | basic (PUT/GET/MKCOL/conditionals) | 13/16 (81.2%) | **16/16 (100%)** | +3 |
-| copymove | 7/13 (53.8%) | **10/13 (76.9%)** | +3 |
+| copymove | 7/13 (53.8%) | **12/13 (92.3%)** | +5 |
 | props | 8/14 (57.1%) | **10/14 (71.4%)** | +2 |
 | locks | 25/34 (73.5%) | **30/34 (88.2%)** | +5 |
 | http | 4/4 (100%) | 4/4 (100%) | 0 |
-| **Total** | **57/81 (70.4%)** | **70/81 (86.4%)** | **+13** |
+| **Total** | **57/81 (70.4%)** | **72/81 (88.9%)** | **+15** |
 
 ## Fixed this round
 
@@ -50,6 +50,9 @@ per-user root resolution active).
    `impl LockManagerTrait for LockManager`; cond_put now 204.
 12. **ETag quote normalization** — stored etags embed their own quotes
    (`""abc""`); If-header etag comparison strips all quote layers.
+13. **§9.8.4/§9.9.4 collection-overwrite COPY/MOVE** — `Overwrite: T` onto
+   an existing collection now replaces the destination subtree
+   (recursive delete, then copy) instead of 502 (+2 copymove).
 
 ## Reproduction
 
@@ -65,9 +68,6 @@ per-user root resolution active).
    outcomes (or store dead props) instead of denying.
 2. **PROPFIND body validation** (2 tests): malformed XML / invalid namespace
    declarations must 400, not 207.
-3. **Collection overwrite COPY/MOVE** (2 tests): `Overwrite: T` onto an
-   existing collection must replace it (currently 502 — needs recursive
-   delete-then-copy).
 4. **COPY of a locked source by the lock owner** (1 test): source-lock check
    must honor the submitted token exactly like destination locks.
 5. **Complex conditional PUT with valid lock+etag** (1 test): the If-header
