@@ -90,6 +90,32 @@ pub fn extract_id3_text(content: &[u8]) -> Option<String> {
     if parts.is_empty() { None } else { Some(parts.join("\n")) }
 }
 
+/// Extract searchable text from MP4/M4A/M4B iTunes metadata (ilst):
+/// title, artist, album (R7 estate dogfood: mp4-core).
+#[must_use]
+pub fn extract_mp4_text(content: &[u8]) -> Option<String> {
+    let top = mp4_core::container::parse_boxes(content).ok()?;
+    let moov = top.iter().find(|b| b.box_type == *b"moov")?;
+    let udta = moov.children.iter().find(|b| b.box_type == *b"udta")?;
+    let meta = udta.children.iter().find(|b| b.box_type == *b"meta")?;
+    let md = mp4_core::metadata::parse_meta(meta);
+    let md = md?;
+    let mut parts: Vec<String> = Vec::new();
+    for key in [
+        mp4_core::metadata::atoms::TITLE,
+        mp4_core::metadata::atoms::ARTIST,
+        mp4_core::metadata::atoms::ALBUM,
+    ] {
+        if let Some(v) = md.text(key) {
+            let v = v.trim();
+            if !v.is_empty() {
+                parts.push(v.to_string());
+            }
+        }
+    }
+    if parts.is_empty() { None } else { Some(parts.join("\n")) }
+}
+
 pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, content: &[u8]) {
     let Some(search_lock) = &state.search else {
         return;
@@ -152,6 +178,23 @@ pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, 
         let truncated = &text[..text.len().min(1_000_000)];
         if let Err(e) = engine.index_content(metadata, truncated) {
             warn!(error = %e, path = %metadata.path, "ID3 content indexing failed");
+        } else {
+            content_extracted = true;
+        }
+    }
+
+    // iTunes metadata extraction for MP4/M4A/M4B (R7, mp4-core).
+    if content_to_index.is_none()
+        && (matches!(
+            metadata.mime_type.as_str(),
+            "audio/mp4" | "audio/x-m4a" | "audio/x-m4b" | "video/mp4"
+        ) || metadata.path.to_lowercase().ends_with(".m4a")
+            || metadata.path.to_lowercase().ends_with(".m4b"))
+        && let Some(text) = extract_mp4_text(content)
+    {
+        let truncated = &text[..text.len().min(1_000_000)];
+        if let Err(e) = engine.index_content(metadata, truncated) {
+            warn!(error = %e, path = %metadata.path, "MP4 content indexing failed");
         } else {
             content_extracted = true;
         }
@@ -317,5 +360,48 @@ mod id3_tests {
     fn test_extract_id3_rejects_non_id3() {
         assert!(extract_id3_text(b"not an mp3").is_none());
         assert!(extract_id3_text(b"").is_none());
+    }
+}
+
+#[cfg(test)]
+mod mp4_tests {
+    use super::*;
+
+    fn box_bytes(t: &[u8; 4], body: &[u8]) -> Vec<u8> {
+        let mut v = ((body.len() + 8) as u32).to_be_bytes().to_vec();
+        v.extend_from_slice(t);
+        v.extend_from_slice(body);
+        v
+    }
+
+    fn ilst_text_atom(name: &[u8; 4], value: &str) -> Vec<u8> {
+        // data box payload: version(1) + flags(3) + type flag(4; 1 =
+        // UTF-8, at offset 4) + locale(4) + text.
+        let mut data_body = vec![0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0];
+        data_body.extend_from_slice(value.as_bytes());
+        box_bytes(name, &box_bytes(b"data", &data_body))
+    }
+
+    #[test]
+    fn test_extract_mp4_roundtrip() {
+        let ilst_body = [
+            ilst_text_atom(b"\xa9nam", "Neuromancer"),
+            ilst_text_atom(b"\xa9ART", "William Gibson"),
+        ]
+        .concat();
+        // meta carries a 4-byte version/flags prefix before its children.
+        let mut meta_body = vec![0, 0, 0, 0];
+        meta_body.extend_from_slice(&box_bytes(b"ilst", &ilst_body));
+        let moov = box_bytes(b"moov", &box_bytes(b"udta", &box_bytes(b"meta", &meta_body)));
+
+        let text = extract_mp4_text(&moov).expect("text");
+        assert!(text.contains("Neuromancer"));
+        assert!(text.contains("William Gibson"));
+    }
+
+    #[test]
+    fn test_extract_mp4_rejects_non_mp4() {
+        assert!(extract_mp4_text(b"not an mp4").is_none());
+        assert!(extract_mp4_text(b"").is_none());
     }
 }

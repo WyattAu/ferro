@@ -3872,6 +3872,7 @@ dependencies = [
  "libc",
  "mailkit",
  "mimalloc",
+ "mp4-core",
  "object_store",
  "opentelemetry",
  "opentelemetry-otlp",
@@ -7610,6 +7611,15 @@ checksum = "bb85c154ba489f01b25c0d36ae69a87e4a1c73a72631fc6c0eb6dde34a73e44b"
 dependencies = [
  "num-traits",
  "pxfm",
+]
+
+[[package]]
+name = "mp4-core"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47869ab79ee1a33b8751a00da7eb5932bdda156af5b551b93d8eb299fbdc62a4"
+dependencies = [
+ "thiserror 2.0.18",
 ]
 
 [[package]]
