@@ -3865,6 +3865,7 @@ dependencies = [
  "hex",
  "hmac 0.13.0",
  "http-body-util",
+ "id3-core",
  "image",
  "ldap3",
  "lettre",
@@ -6116,6 +6117,15 @@ name = "id-arena"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d3067d79b975e8844ca9eb072e16b31c3c1c36928edf9c6789548c524d0d954"
+
+[[package]]
+name = "id3-core"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e38df25805d5d401b2e3bfac286110242d3cb9946fc99bfb19794ab1008fe53f"
+dependencies = [
+ "thiserror 2.0.18",
+]
 
 [[package]]
 name = "idempotency-kit"

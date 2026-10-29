@@ -273,7 +273,7 @@ impl LrcErasureCoder {
     pub fn new(config: ErasureConfig, groups: usize) -> Self {
         assert!(groups >= 1, "at least one local group required");
         assert!(
-            config.data_shards % groups == 0,
+            config.data_shards.is_multiple_of(groups),
             "data_shards must be divisible by groups"
         );
         assert!(
@@ -306,8 +306,8 @@ impl LrcErasureCoder {
     fn compute_local_parity(&self, group: usize, data_shard_bufs: &[Vec<u8>]) -> Vec<u8> {
         let gs = self.group_size();
         let mut parity = vec![0u8; data_shard_bufs[0].len()];
-        for i in (group * gs)..((group + 1) * gs) {
-            for (p, &b) in parity.iter_mut().zip(data_shard_bufs[i].iter()) {
+        for buf in &data_shard_bufs[(group * gs)..((group + 1) * gs)] {
+            for (p, &b) in parity.iter_mut().zip(buf.iter()) {
                 *p ^= b;
             }
         }
@@ -326,10 +326,10 @@ impl LrcErasureCoder {
 
         let mut bufs: Vec<Option<Vec<u8>>> = (0..data_shards).map(|_| None).collect();
         for (i, b) in bufs.iter_mut().enumerate() {
-            if let Some(ref s) = shards[i] {
-                if !s.is_parity {
-                    *b = Some(s.data.clone());
-                }
+            if let Some(ref s) = shards[i]
+                && !s.is_parity
+            {
+                *b = Some(s.data.clone());
             }
         }
 
@@ -351,12 +351,12 @@ impl LrcErasureCoder {
                     return self.decode_via_rs(shards, bufs);
                 };
                 let mut recovered = parity.data.clone();
-                for i in (group * gs)..((group + 1) * gs) {
-                    if i != idx {
-                        if let Some(ref d) = bufs[i] {
-                            for (r, &b) in recovered.iter_mut().zip(d.iter()) {
-                                *r ^= b;
-                            }
+                for (i, buf) in bufs.iter().enumerate().skip(group * gs).take(gs) {
+                    if i != idx
+                        && let Some(d) = buf
+                    {
+                        for (r, &b) in recovered.iter_mut().zip(d.iter()) {
+                            *r ^= b;
                         }
                     }
                 }
@@ -457,11 +457,11 @@ impl LrcErasureCoder {
             if shards[idx].is_some() {
                 shards[idx] = None;
             }
-            if let Some(rebuilt) = self.reconstruct(shards)? {
-                if rebuilt.index as usize == idx {
-                    shards[idx] = Some(rebuilt);
-                    repaired.push(idx);
-                }
+            if let Some(rebuilt) = self.reconstruct(shards)?
+                && rebuilt.index as usize == idx
+            {
+                shards[idx] = Some(rebuilt);
+                repaired.push(idx);
             }
         }
         Ok(repaired)
@@ -563,25 +563,23 @@ impl ErasureCoder for LrcErasureCoder {
             let siblings_present = ((group * gs)..((group + 1) * gs))
                 .filter(|&i| i != target_idx)
                 .all(|i| shards[i].is_some());
-            if siblings_present {
-                if let Some(parity) = self.local_parity_of_group(shards, group) {
-                    let mut recovered = parity.data.clone();
-                    for i in (group * gs)..((group + 1) * gs) {
-                        if i != target_idx {
-                            if let Some(ref s) = shards[i] {
-                                for (r, &b) in recovered.iter_mut().zip(s.data.iter()) {
-                                    *r ^= b;
-                                }
-                            }
+            if siblings_present && let Some(parity) = self.local_parity_of_group(shards, group) {
+                let mut recovered = parity.data.clone();
+                for (i, slot) in shards.iter().enumerate().skip(group * gs).take(gs) {
+                    if i != target_idx
+                        && let Some(s) = slot
+                    {
+                        for (r, &b) in recovered.iter_mut().zip(s.data.iter()) {
+                            *r ^= b;
                         }
                     }
-                    return Ok(Some(Shard {
-                        index: target_idx as u8,
-                        checksum: sha256(&recovered),
-                        is_parity: false,
-                        data: recovered,
-                    }));
                 }
+                return Ok(Some(Shard {
+                    index: target_idx as u8,
+                    checksum: sha256(&recovered),
+                    is_parity: false,
+                    data: recovered,
+                }));
             }
         }
 

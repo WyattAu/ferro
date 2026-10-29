@@ -104,7 +104,6 @@ use axum::http::HeaderMap;
 use axum::http::{Request, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use axum::routing::any;
 use tower::limit::ConcurrencyLimitLayer;
 use tower_http::compression::CompressionLayer;
 

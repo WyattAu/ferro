@@ -48,7 +48,7 @@ pub fn extract_xlsx_text(content: &[u8]) -> Option<String> {
     for sheet in &wb.sheets {
         text.push_str(&sheet.name);
         text.push('\n');
-        for (_coord, cell) in &sheet.cells {
+        for cell in sheet.cells.values() {
             let line = match &cell.value {
                 sheet_xlsx::XlsxValue::InlineString(s) => Some(s.clone()),
                 sheet_xlsx::XlsxValue::SharedString(idx) => wb.shared_text(*idx).map(str::to_string),
@@ -64,6 +64,30 @@ pub fn extract_xlsx_text(content: &[u8]) -> Option<String> {
         }
     }
     if text.is_empty() { None } else { Some(text) }
+}
+
+/// Extract searchable text from ID3v2 tags (MP3): title, artist, album,
+/// genre, year. Returns `None` when the bytes carry no parseable ID3 tag
+/// (R7 estate dogfood: id3-core; mirrors the XLSX path).
+#[must_use]
+pub fn extract_id3_text(content: &[u8]) -> Option<String> {
+    let tag = id3_core::Tag::parse(content).ok()?;
+    let mut parts: Vec<String> = Vec::new();
+    for field in [
+        id3_core::TextField::Title,
+        id3_core::TextField::Artist,
+        id3_core::TextField::Album,
+        id3_core::TextField::Genre,
+        id3_core::TextField::Year,
+    ] {
+        if let Some(v) = tag.text_field(field) {
+            let v = v.trim();
+            if !v.is_empty() {
+                parts.push(v.to_string());
+            }
+        }
+    }
+    if parts.is_empty() { None } else { Some(parts.join("\n")) }
 }
 
 pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, content: &[u8]) {
@@ -109,14 +133,27 @@ pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, 
     if content_to_index.is_none()
         && (metadata.mime_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             || metadata.path.to_lowercase().ends_with(".xlsx"))
+        && let Some(text) = extract_xlsx_text(content)
     {
-        if let Some(text) = extract_xlsx_text(content) {
-            let truncated = &text[..text.len().min(1_000_000)];
-            if let Err(e) = engine.index_content(metadata, truncated) {
-                warn!(error = %e, path = %metadata.path, "XLSX content indexing failed");
-            } else {
-                content_extracted = true;
-            }
+        let truncated = &text[..text.len().min(1_000_000)];
+        if let Err(e) = engine.index_content(metadata, truncated) {
+            warn!(error = %e, path = %metadata.path, "XLSX content indexing failed");
+        } else {
+            content_extracted = true;
+        }
+    }
+
+    // ID3 metadata extraction for MP3s (R7, id3-core): tags make audio
+    // files searchable by title/artist/album like text documents.
+    if content_to_index.is_none()
+        && (metadata.mime_type == "audio/mpeg" || metadata.path.to_lowercase().ends_with(".mp3"))
+        && let Some(text) = extract_id3_text(content)
+    {
+        let truncated = &text[..text.len().min(1_000_000)];
+        if let Err(e) = engine.index_content(metadata, truncated) {
+            warn!(error = %e, path = %metadata.path, "ID3 content indexing failed");
+        } else {
+            content_extracted = true;
         }
     }
 
@@ -252,5 +289,33 @@ mod tests {
     fn test_extract_xlsx_rejects_non_xlsx() {
         assert!(extract_xlsx_text(b"not a workbook").is_none());
         assert!(extract_xlsx_text(b"").is_none());
+    }
+}
+
+#[cfg(test)]
+mod id3_tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_id3_roundtrip() {
+        let mut tag = id3_core::Tag::new();
+        tag.set_text(id3_core::TextField::Title, id3_core::TextEncoding::Utf8, "Dune");
+        tag.set_text(
+            id3_core::TextField::Artist,
+            id3_core::TextEncoding::Utf8,
+            "The Sisterhood",
+        );
+        tag.set_text(id3_core::TextField::Album, id3_core::TextEncoding::Utf8, "Soundtracks");
+        let bytes = tag.to_bytes().unwrap();
+        let text = extract_id3_text(&bytes).expect("text");
+        assert!(text.contains("Dune"));
+        assert!(text.contains("The Sisterhood"));
+        assert!(text.contains("Soundtracks"));
+    }
+
+    #[test]
+    fn test_extract_id3_rejects_non_id3() {
+        assert!(extract_id3_text(b"not an mp3").is_none());
+        assert!(extract_id3_text(b"").is_none());
     }
 }
