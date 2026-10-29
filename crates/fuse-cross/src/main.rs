@@ -309,12 +309,11 @@ fn parse_propfind_children(xml: &str, parent_path: &str) -> Vec<(String, bool, u
         if let Some(start) = response_chunk
             .find("<D:href>")
             .or_else(|| response_chunk.find("<d:href>"))
+            && let Some(s) = response_chunk[start..].find('>')
         {
-            if let Some(s) = response_chunk[start..].find('>') {
-                let s = start + s + 1;
-                if let Some(e) = response_chunk[s..].find('<') {
-                    current_href = Some(response_chunk[s..s + e].to_string());
-                }
+            let s = start + s + 1;
+            if let Some(e) = response_chunk[s..].find('<') {
+                current_href = Some(response_chunk[s..s + e].to_string());
             }
         }
         // Check for collection
@@ -325,12 +324,11 @@ fn parse_propfind_children(xml: &str, parent_path: &str) -> Vec<(String, bool, u
         if let Some(start) = response_chunk
             .find("<D:getcontentlength>")
             .or_else(|| response_chunk.find("<d:getcontentlength>"))
+            && let Some(s) = response_chunk[start..].find('>')
         {
-            if let Some(s) = response_chunk[start..].find('>') {
-                let s = start + s + 1;
-                if let Some(e) = response_chunk[s..].find('<') {
-                    current_size = response_chunk[s..s + e].parse().unwrap_or(0);
-                }
+            let s = start + s + 1;
+            if let Some(e) = response_chunk[s..].find('<') {
+                current_size = response_chunk[s..s + e].parse().unwrap_or(0);
             }
         }
 
@@ -372,7 +370,7 @@ impl Filesystem for FerroFs {
         for (href, is_dir, size) in &children {
             let child_name = href.trim_end_matches('/').rsplit('/').next().unwrap_or("").to_string();
             if child_name == name_str {
-                let ino = self.get_or_create_inode(&href, *is_dir, *size);
+                let ino = self.get_or_create_inode(href, *is_dir, *size);
                 let entry = self.inodes.read().unwrap().get(&ino).cloned().unwrap();
                 let attr = entry.to_file_attr(self.uid, self.gid);
                 reply.entry(&TTL, &attr, fuser::Generation(0));

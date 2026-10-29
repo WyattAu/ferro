@@ -71,3 +71,13 @@ Not applicable: dsp-*, font-*, can-*/xcp-core/dbc-parse/a2l-parse (automotive), 
 - **tantivy-ext 1.0.0: NOT consumable** — crates.io API lists it, but the sparse index lacks it and the CDN download returns AccessDenied (failed/partial publish). Upstream: re-run `cargo publish`. Adopt autocomplete/highlighting once resolvable.
 - **Verified resolvable**: crdts-kit 1.0, metrics-kit 1.0, eventbus 0.5.1, graceful 0.1.1, percentile-kit 0.1.1, webauthn-kit 1.0.
 - Next integration order: metrics-kit (route metrics → Prometheus counters/histograms), then graceful (CancellationToken shutdown swap), then crdts-kit (collab_ws RGA).
+
+## Hook fix + remaining workspace clippy debt (2026-10-29)
+
+`.githooks/pre-commit` now lints `ferro-mobile` without `--all-features`
+(upstream tauri-plugin-camera 0.1.4 breaks desktop all-features builds).
+Remaining `--all-features -D warnings` debt that trips the hook's
+workspace fallback on doc-only commits: `migrate` (~20), `client` (~6),
+`desktop` (~2) — mostly let-chain collapses and needless borrows. One
+session pass should clear it; code-change commits (per-crate path) are
+unaffected.
