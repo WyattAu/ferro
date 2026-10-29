@@ -63,7 +63,7 @@ pub(crate) async fn handle_propfind<S: WebDavCoreState>(
 
     // RFC 4918 §9.1.2: a <D:prop> request returns exactly the requested
     // properties (dead props from the sidecar, getetag from metadata).
-    if let Some(requested) = parse_requested_props(body) {
+    if let Some(requested) = crate::handlers::deadprops::canonical_prop_names(body) {
         return Ok(requested_props_response(&state, &items, &requested).await);
     }
 
@@ -105,54 +105,13 @@ fn sync_token_multistatus_response(xml: Bytes, clock: u64) -> Response {
     (StatusCode::MULTI_STATUS, headers, Body::from(xml)).into_response()
 }
 
-/// Extract requested property names from a `<D:prop>` body (raw prefixed
-/// names, in request order). Empty when the body is allprop/propname/absent.
-fn parse_requested_props(body: &[u8]) -> Option<Vec<String>> {
-    if body.is_empty() {
-        return None;
-    }
-    use quick_xml::events::Event;
-    let mut reader = quick_xml::Reader::from_reader(body);
-    reader.config_mut().trim_text(true);
-    let mut buf = Vec::new();
-    let mut names: Vec<String> = Vec::new();
-    let mut in_prop = false;
-    loop {
-        match reader.read_event_into(&mut buf).ok()? {
-            Event::Start(ref e) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = name.strip_prefix("D:").unwrap_or(&name);
-                if local == "prop" {
-                    in_prop = true;
-                } else if in_prop {
-                    names.push(name);
-                }
-            }
-            Event::Empty(ref e) if in_prop => {
-                names.push(String::from_utf8_lossy(e.name().as_ref()).to_string());
-            }
-            Event::End(ref e) => {
-                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = name.strip_prefix("D:").unwrap_or(&name);
-                if local == "prop" {
-                    break;
-                }
-            }
-            Event::Eof => break,
-            _ => {}
-        }
-        buf.clear();
-    }
-    if names.is_empty() { None } else { Some(names) }
-}
-
 /// Build a multistatus resolving exactly the requested properties per item:
 /// dead props from the sidecar (200), `getetag` from metadata (200),
 /// anything else 404.
 async fn requested_props_response<S: crate::WebDavCoreState>(
     state: &S,
     items: &[(String, common::metadata::FileMetadata)],
-    requested: &[String],
+    requested: &[(String, String)],
 ) -> Response {
     use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
     let mut writer = quick_xml::Writer::new(Vec::new());
@@ -170,13 +129,13 @@ async fn requested_props_response<S: crate::WebDavCoreState>(
         let dead = crate::handlers::deadprops::load(state, path).await;
         let mut found: Vec<(String, Option<String>)> = Vec::new();
         let mut missing: Vec<String> = Vec::new();
-        for name in requested {
-            if let Some(v) = dead.get(name) {
-                found.push((name.clone(), Some(v.clone())));
-            } else if name.ends_with(":getetag") || name == "getetag" {
-                found.push((name.clone(), Some(meta.etag.clone())));
+        for (raw, canonical) in requested {
+            if let Some(v) = dead.get(canonical) {
+                found.push((raw.clone(), Some(v.clone())));
+            } else if canonical.ends_with(":getetag") || canonical == "getetag" {
+                found.push((raw.clone(), Some(meta.etag.clone())));
             } else {
-                missing.push(name.clone());
+                missing.push(raw.clone());
             }
         }
         let _ = w(Event::Start(BytesStart::new("D:response")));

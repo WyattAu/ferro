@@ -47,18 +47,25 @@ pub(crate) async fn handle_proppatch<S: WebDavCoreState>(
     let mut dead_changed = false;
     let mut accepted = Vec::new();
     let mut rejected = Vec::new();
-    for prop in &props {
+    // Canonical (Clark-notation) keys make stored props independent of the
+    // client's prefix choice; the 207 echoes the request's raw name.
+    let canonical_names = crate::handlers::deadprops::canonical_prop_names(body);
+    for (idx, prop) in props.iter().enumerate() {
         if prop.name.starts_with("D:") || prop.name.starts_with("d:") {
             rejected.push(prop);
-        } else {
+            continue;
+        }
+        if let Some(pairs) = &canonical_names
+            && let Some((_, canonical)) = pairs.get(idx)
+        {
             match prop.operation {
                 ferro_webdav_handler::PropPatchOperation::Set => {
                     if let Some(ref val) = prop.value {
-                        dead.insert(prop.name.clone(), val.clone());
+                        dead.insert(canonical.clone(), val.clone());
                     }
                 }
                 ferro_webdav_handler::PropPatchOperation::Remove => {
-                    dead.remove(&prop.name);
+                    dead.remove(canonical);
                 }
             }
             dead_changed = true;
