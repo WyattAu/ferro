@@ -131,7 +131,7 @@ impl SmbBackend {
         let ret = unsafe { libc::umount2(target_c.as_ptr(), libc::MNT_DETACH) };
 
         if ret != 0 {
-            let err = std::io::Error::last_os_error();
+            let _err = std::io::Error::last_os_error();
             return Err(MountError::NotMounted {
                 mount_point: local_path.to_string(),
             });

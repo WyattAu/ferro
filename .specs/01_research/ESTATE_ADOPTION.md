@@ -49,3 +49,18 @@ Setting up the litmus run exposed two production bugs in the `FERRO_ADMIN_USER` 
 3. **Dead config flag**: `--allow-open-authz` / `FERRO_ALLOW_OPEN_AUTHZ` is defined in `server-config` but **consumed nowhere** — its own doc claims it is "required for public/simple_auth deployments". Until it is wired (or removed), simple-auth deployments need an explicit Cedar policy file permitting the admin principal.
 
 Ferro's middleware order is a security invariant worth restating (request order; axum layers apply bottom-up): cors → auth_guard → state_gate → guest_expiry → csrf → simple_auth → oidc_auth → cedar → rate_limit.
+
+## 2026-10-29 estate re-scan: ~60 NEW repos; dogfood priorities for R8
+
+All published on crates.io (UA required for API). Top dogfood candidates for Ferro:
+
+1. **mp4-core 0.3.2 + id3-core 0.3.1** — audio metadata extraction (ilst/ID3v2: title/artist/album) → indexer search text. SAME pattern as the shipped sheet-xlsx integration (`extract_audio_metadata_text` pure fn + branch in `index_file_with_content`). mp4-core has a writer for test fixtures; id3-core has Tag::new/frame builders. **Highest value/effort — next session's first item.**
+2. **tantivy-ext 1.0.0** — Tantivy wrapper (autocomplete, highlighting). Ferro's `core::search` uses Tantivy directly; adopt additively (highlighting for search API) rather than swapping the engine.
+3. **crdts-kit 1.0.0** — RGA replicated string + participant presence: direct fit for `collab_ws` (Ferro's DeltaCRDT Lean proofs pair with it).
+4. **metrics-kit 1.0.0** — lock-free Prometheus counters/gauges/histograms: candidate to replace Ferro's hand-rolled metrics registry (route latency/counters live in `startup.rs`).
+5. **graceful 0.1.1** — signal handling/drain: Ferro's CancellationToken shutdown could adopt it.
+6. **webauthn-kit 1.0.0** — replace/augment `webauthn_api`.
+7. **eventbus 0.5.1** — typed async pub/sub with persistence: candidate under `WebdavFileEvent` dispatch (compare with the formally-verified outbox first — do NOT duplicate YP-EVENT).
+8. **percentile-kit, envstack, flag-kit, clock-kit, app-error** — assess alongside their Ferro counterparts (metrics histograms, server-config, no flag system yet, time sources, error taxonomy).
+
+Not applicable: dsp-*, font-*, can-*/xcp-core/dbc-parse/a2l-parse (automotive), accounting suite (ledger-kit/double-entry/vat-*/pay-kit/ap-kit/invoice-kit/report-kit/group-kit/fx-kit/recon-kit/statement-*/sales-tax — for the WyattAu accounting product), audiobook-* (uses mp4-core/id3-core), argus/aileron/clawdius/waves (platforms), ui-text-edit/input-kit/tui-actions (GUI/terminal), docs-core/theme-kit/a11y-kit (for ferro-web — secondary), mcp-doctor/skillkit/agentic-awesome-skills (agent tooling).
