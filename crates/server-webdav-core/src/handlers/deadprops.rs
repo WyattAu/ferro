@@ -118,3 +118,20 @@ pub(crate) fn canonical_prop_names(body: &[u8]) -> Option<Vec<(String, String)>>
     }
     if names.is_empty() { None } else { Some(names) }
 }
+
+/// `xmlns:` attributes to declare on a response root so the request's raw
+/// prefixed names remain valid XML and namespace-resolvable: prefix from
+/// the raw name, URI from the Clark form.
+pub(crate) fn xmlns_attrs_for(requested: &[(String, String)]) -> Vec<(String, String)> {
+    requested
+        .iter()
+        .filter_map(|(raw, canonical)| {
+            let prefix = raw.split_once(':').map(|(p, _)| p.to_string())?;
+            let uri = canonical
+                .split_once('{')
+                .and_then(|(_, rest)| rest.split_once('}'))
+                .map(|(uri, _)| uri.to_string())?;
+            Some((format!("xmlns:{prefix}"), uri))
+        })
+        .collect()
+}

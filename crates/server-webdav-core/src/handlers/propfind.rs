@@ -123,6 +123,9 @@ async fn requested_props_response<S: crate::WebDavCoreState>(
     )));
     let mut ms = BytesStart::new("D:multistatus");
     ms.push_attribute(("xmlns:D", "DAV:"));
+    for (attr, uri) in crate::handlers::deadprops::xmlns_attrs_for(requested) {
+        ms.push_attribute((attr.as_str(), uri.as_str()));
+    }
     let _ = w(Event::Start(ms));
 
     for (path, meta) in items {

@@ -93,6 +93,11 @@ pub(crate) async fn handle_proppatch<S: WebDavCoreState>(
     ),));
     let mut multistatus = quick_xml::events::BytesStart::new("D:multistatus");
     multistatus.push_attribute(("xmlns:D", "DAV:"));
+    if let Some(pairs) = &canonical_names {
+        for (attr, uri) in crate::handlers::deadprops::xmlns_attrs_for(pairs) {
+            multistatus.push_attribute((attr.as_str(), uri.as_str()));
+        }
+    }
     xml_write!(quick_xml::events::Event::Start(multistatus));
 
     xml_write!(quick_xml::events::Event::Start(quick_xml::events::BytesStart::new(
