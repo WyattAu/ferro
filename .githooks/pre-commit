@@ -61,14 +61,25 @@ if [ "${SKIP_CLIPPY:-0}" != "1" ]; then
         echo "[pre-commit] WARNING: Could not resolve package for '$CRATE', skipping clippy"
         continue
       fi
-      # Single clippy invocation with --all-features (auto-syncs with Cargo.toml)
-      if ! cargo clippy -p "$PKG" --all-targets --all-features --locked -- -D warnings 2>/dev/null; then
+      # Single clippy invocation with --all-features (auto-syncs with Cargo.toml).
+      # EXCEPTION: ferro-mobile cannot build under --all-features on desktop —
+      # the ios/android features pull tauri-plugin-camera 0.1.4, which has an
+      # upstream compile error. Lint it without the flag instead.
+      if [ "$PKG" = "ferro-mobile" ]; then
+        if ! cargo clippy -p "$PKG" --all-targets --locked -- -D warnings 2>/dev/null; then
+          CLIPPY_FAILED=1
+        fi
+      elif ! cargo clippy -p "$PKG" --all-targets --all-features --locked -- -D warnings 2>/dev/null; then
         CLIPPY_FAILED=1
       fi
     done
   else
     echo "[pre-commit] No crate changes detected, running clippy on full workspace..."
-    if ! cargo clippy --workspace --all-targets --all-features --locked -- -D warnings 2>/dev/null; then
+    # Same ferro-mobile --all-features exception for the workspace pass.
+    if ! cargo clippy --workspace --exclude ferro-mobile --all-targets --all-features --locked -- -D warnings 2>/dev/null; then
+      CLIPPY_FAILED=1
+    fi
+    if ! cargo clippy -p ferro-mobile --all-targets --locked -- -D warnings 2>/dev/null; then
       CLIPPY_FAILED=1
     fi
   fi

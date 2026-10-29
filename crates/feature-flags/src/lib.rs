@@ -317,12 +317,15 @@ impl FeatureFlags {
     /// For `Percentage` flags this is per-user deterministic (`bucket % 100`).
     /// `TenantOnly`/`UserOnly` are handled via the legacy allow-lists.
     pub async fn enabled_for(&self, flag_name: &str, user_id: &str, org_id: Option<&str>) -> bool {
-        let snapshot = self.inner.read();
-        let flag = match snapshot.flags.get(flag_name) {
-            Some(f) => f.clone(),
+        // Scope the guard so it provably ends before any await below.
+        let flag = {
+            let snapshot = self.inner.read();
+            snapshot.flags.get(flag_name).cloned()
+        };
+        let flag = match flag {
+            Some(f) => f,
             None => return false,
         };
-        drop(snapshot);
 
         match flag {
             FeatureFlag::Enabled => true,
@@ -830,9 +833,12 @@ mod tests {
         let path = dir.path().join("flags.db");
         let path = path.to_str().unwrap().to_string();
 
-        let mut config = FeatureFlagConfig::default();
-        config.persist_path = Some(path.clone());
-        config.flags.insert("persist_flag".into(), FeatureFlag::Enabled);
+        let mut flags_map = std::collections::HashMap::new();
+        flags_map.insert("persist_flag".into(), FeatureFlag::Enabled);
+        let config = FeatureFlagConfig {
+            persist_path: Some(path.clone()),
+            flags: flags_map,
+        };
         {
             let mut flags = FeatureFlags::from_config(&config);
             // First run: default seeded from config.
@@ -853,8 +859,10 @@ mod tests {
         let path = dir.path().join("audit.db");
         let path = path.to_str().unwrap().to_string();
 
-        let mut config = FeatureFlagConfig::default();
-        config.persist_path = Some(path.clone());
+        let config = FeatureFlagConfig {
+            persist_path: Some(path.clone()),
+            ..FeatureFlagConfig::default()
+        };
         {
             let mut flags = FeatureFlags::from_config(&config);
             flags.set_flag_as("audit_flag", FeatureFlag::Enabled, "tester").unwrap();
