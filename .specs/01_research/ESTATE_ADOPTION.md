@@ -64,3 +64,10 @@ All published on crates.io (UA required for API). Top dogfood candidates for Fer
 8. **percentile-kit, envstack, flag-kit, clock-kit, app-error** — assess alongside their Ferro counterparts (metrics histograms, server-config, no flag system yet, time sources, error taxonomy).
 
 Not applicable: dsp-*, font-*, can-*/xcp-core/dbc-parse/a2l-parse (automotive), accounting suite (ledger-kit/double-entry/vat-*/pay-kit/ap-kit/invoice-kit/report-kit/group-kit/fx-kit/recon-kit/statement-*/sales-tax — for the WyattAu accounting product), audiobook-* (uses mp4-core/id3-core), argus/aileron/clawdius/waves (platforms), ui-text-edit/input-kit/tui-actions (GUI/terminal), docs-core/theme-kit/a11y-kit (for ferro-web — secondary), mcp-doctor/skillkit/agentic-awesome-skills (agent tooling).
+
+## 2026-10-29 dogfood round 2
+
+- **DONE: mp4-core 0.3 + id3-core 0.3** — audio metadata (M4A/M4B ilst + MP3 ID3v2) indexed into search (server 255 tests green).
+- **tantivy-ext 1.0.0: NOT consumable** — crates.io API lists it, but the sparse index lacks it and the CDN download returns AccessDenied (failed/partial publish). Upstream: re-run `cargo publish`. Adopt autocomplete/highlighting once resolvable.
+- **Verified resolvable**: crdts-kit 1.0, metrics-kit 1.0, eventbus 0.5.1, graceful 0.1.1, percentile-kit 0.1.1, webauthn-kit 1.0.
+- Next integration order: metrics-kit (route metrics → Prometheus counters/histograms), then graceful (CancellationToken shutdown swap), then crdts-kit (collab_ws RGA).
