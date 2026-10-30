@@ -121,9 +121,10 @@ async fn requested_props_response<S: crate::WebDavCoreState>(
         Some("utf-8"),
         None,
     )));
+    let ns = crate::handlers::deadprops::NsScope::build(requested);
     let mut ms = BytesStart::new("D:multistatus");
     ms.push_attribute(("xmlns:D", "DAV:"));
-    for (attr, uri) in crate::handlers::deadprops::xmlns_attrs_for(requested) {
+    for (attr, uri) in ns.decls() {
         ms.push_attribute((attr.as_str(), uri.as_str()));
     }
     let _ = w(Event::Start(ms));
@@ -134,11 +135,11 @@ async fn requested_props_response<S: crate::WebDavCoreState>(
         let mut missing: Vec<String> = Vec::new();
         for (raw, canonical) in requested {
             if let Some(v) = dead.get(canonical) {
-                found.push((raw.clone(), Some(v.clone())));
+                found.push((ns.element(canonical), Some(v.clone())));
             } else if canonical.ends_with(":getetag") || canonical == "getetag" {
-                found.push((raw.clone(), Some(meta.etag.clone())));
+                found.push((ns.element(canonical), Some(meta.etag.clone())));
             } else {
-                missing.push(raw.clone());
+                missing.push(ns.element(canonical));
             }
         }
         let _ = w(Event::Start(BytesStart::new("D:response")));
@@ -212,6 +213,14 @@ fn validate_propfind_xml(body: &[u8]) -> std::result::Result<(), String> {
                 stack.push(local);
             }
             Event::Empty(e) => {
+                // The element's OWN declarations apply to its own prefix —
+                // collect them before validating the name.
+                for a in e.attributes().flatten() {
+                    let key = String::from_utf8_lossy(a.key.as_ref()).to_string();
+                    if let Some(pfx) = key.strip_prefix("xmlns:") {
+                        declared.push(pfx.to_string());
+                    }
+                }
                 let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                 if let Some((prefix, _)) = name.split_once(':')
                     && !declared.iter().any(|d| d == prefix)
@@ -220,9 +229,7 @@ fn validate_propfind_xml(body: &[u8]) -> std::result::Result<(), String> {
                 }
                 for a in e.attributes().flatten() {
                     let key = String::from_utf8_lossy(a.key.as_ref()).to_string();
-                    if let Some(pfx) = key.strip_prefix("xmlns:") {
-                        declared.push(pfx.to_string());
-                    } else if key != "xmlns"
+                    if key != "xmlns"
                         && let Some((prefix, _)) = key.split_once(':')
                         && !declared.iter().any(|d| d == prefix)
                     {

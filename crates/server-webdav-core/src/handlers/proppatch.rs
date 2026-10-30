@@ -46,6 +46,7 @@ pub(crate) async fn handle_proppatch<S: WebDavCoreState>(
     let mut dead = crate::handlers::deadprops::load(&state, &path).await;
     let mut dead_changed = false;
     let mut accepted = Vec::new();
+    let mut accepted_names: Vec<String> = Vec::new();
     let mut rejected = Vec::new();
     // Canonical (Clark-notation) keys make stored props independent of the
     // client's prefix choice; the 207 echoes the request's raw name.
@@ -69,6 +70,14 @@ pub(crate) async fn handle_proppatch<S: WebDavCoreState>(
                 }
             }
             dead_changed = true;
+            if let Some(pairs) = &canonical_names {
+                accepted_names.push(
+                    pairs
+                        .get(idx)
+                        .map(|(_, c)| c.clone())
+                        .unwrap_or_else(|| prop.name.clone()),
+                );
+            }
             accepted.push(prop);
         }
     }
@@ -93,8 +102,11 @@ pub(crate) async fn handle_proppatch<S: WebDavCoreState>(
     ),));
     let mut multistatus = quick_xml::events::BytesStart::new("D:multistatus");
     multistatus.push_attribute(("xmlns:D", "DAV:"));
-    if let Some(pairs) = &canonical_names {
-        for (attr, uri) in crate::handlers::deadprops::xmlns_attrs_for(pairs) {
+    let ns = canonical_names
+        .as_ref()
+        .map(|pairs| crate::handlers::deadprops::NsScope::build(pairs));
+    if let Some(ns) = &ns {
+        for (attr, uri) in ns.decls() {
             multistatus.push_attribute((attr.as_str(), uri.as_str()));
         }
     }
@@ -119,15 +131,20 @@ pub(crate) async fn handle_proppatch<S: WebDavCoreState>(
         xml_write!(quick_xml::events::Event::Start(quick_xml::events::BytesStart::new(
             "D:prop"
         ),));
-        for prop in &accepted {
+        for (idx, prop) in accepted.iter().enumerate() {
+            let elem = match (&canonical_names, accepted_names.get(idx)) {
+                (Some(pairs), Some(canonical)) => ns.as_ref().map(|n| n.element(canonical)),
+                _ => None,
+            };
+            let elem = elem.unwrap_or_else(|| prop.name.clone());
             xml_write!(quick_xml::events::Event::Start(quick_xml::events::BytesStart::new(
-                prop.name.as_str()
+                elem.as_str()
             ),));
             if let Some(ref val) = prop.value {
                 xml_write!(quick_xml::events::Event::Text(quick_xml::events::BytesText::new(val),));
             }
             xml_write!(quick_xml::events::Event::End(quick_xml::events::BytesEnd::new(
-                prop.name.as_str()
+                elem.as_str()
             ),));
         }
         xml_write!(quick_xml::events::Event::End(quick_xml::events::BytesEnd::new(

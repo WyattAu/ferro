@@ -63,7 +63,12 @@ pub(crate) fn canonical_prop_names(body: &[u8]) -> Option<Vec<(String, String)>>
                 Some(uri) => format!("{{{uri}}}{local}"),
                 None => name.to_string(),
             },
-            None => name.to_string(),
+            // Prefix-less names are bound by the DEFAULT namespace
+            // (`xmlns="…"`) when declared — litmus writes props this way.
+            None => match scope.get("") {
+                Some(uri) => format!("{{{uri}}}{name}"),
+                None => name.to_string(),
+            },
         }
     };
     loop {
@@ -76,14 +81,18 @@ pub(crate) fn canonical_prop_names(body: &[u8]) -> Option<Vec<(String, String)>>
                     let val = String::from_utf8_lossy(&a.value).to_string();
                     if let Some(pfx) = key.strip_prefix("xmlns:") {
                         scope.insert(pfx.to_string(), val);
+                    } else if key == "xmlns" {
+                        scope.insert(String::new(), val);
+                    } else if key == "xmlns" {
+                        scope.insert(String::new(), val);
                     }
                 }
                 let local = raw.strip_prefix("D:").unwrap_or(&raw);
                 if local == "prop" {
                     in_prop = true;
                 } else if in_prop {
-                    let scope_now = scopes.last().cloned().unwrap_or_default();
-                    names.push((raw.clone(), canonical(&raw, &scope_now)));
+                    // The element's OWN xmlns declarations apply to its own prefix.
+                    names.push((raw.clone(), canonical(&raw, &scope)));
                 }
                 scopes.push(scope);
             }
@@ -96,6 +105,10 @@ pub(crate) fn canonical_prop_names(body: &[u8]) -> Option<Vec<(String, String)>>
                     let val = String::from_utf8_lossy(&a.value).to_string();
                     if let Some(pfx) = key.strip_prefix("xmlns:") {
                         scope.insert(pfx.to_string(), val);
+                    } else if key == "xmlns" {
+                        scope.insert(String::new(), val);
+                    } else if key == "xmlns" {
+                        scope.insert(String::new(), val);
                     }
                 }
                 let local = raw.strip_prefix("D:").unwrap_or(&raw);
@@ -119,19 +132,79 @@ pub(crate) fn canonical_prop_names(body: &[u8]) -> Option<Vec<(String, String)>>
     if names.is_empty() { None } else { Some(names) }
 }
 
+/// Namespace declarations + element naming for dead-property responses.
+///
+/// Each distinct URI gets a generated prefix (`ns0`, `ns1`, ...) declared
+/// on the multistatus root; response elements are emitted with that
+/// prefix. Correct for any mix of default/prefixed request namespaces
+/// (litmus's `manyns` sets ten props across ten namespaces).
+#[derive(Default)]
+pub(crate) struct NsScope {
+    decls: Vec<(String, String)>,
+    map: std::collections::BTreeMap<String, String>,
+}
+
+impl NsScope {
+    pub(crate) fn build(requested: &[(String, String)]) -> Self {
+        let mut out = Self::default();
+        for (_, canonical) in requested {
+            let Some((_, rest)) = canonical.split_once('{') else {
+                continue;
+            };
+            let Some((uri, _)) = rest.split_once('}') else {
+                continue;
+            };
+            if !out.map.contains_key(uri) {
+                let prefix = format!("ns{}", out.map.len());
+                out.map.insert(uri.to_string(), prefix.clone());
+                out.decls.push((format!("xmlns:{prefix}"), uri.to_string()));
+            }
+        }
+        out
+    }
+
+    /// Root attribute declarations (`xmlns:ns0="uri"`).
+    pub(crate) fn decls(&self) -> &[(String, String)] {
+        &self.decls
+    }
+
+    /// The prefixed element name for a Clark-form property name.
+    pub(crate) fn element(&self, canonical: &str) -> String {
+        let Some((_, rest)) = canonical.split_once('{') else {
+            return canonical.to_string();
+        };
+        let Some((uri, local)) = rest.split_once('}') else {
+            return canonical.to_string();
+        };
+        match self.map.get(uri) {
+            Some(prefix) => format!("{prefix}:{local}"),
+            None => local.to_string(),
+        }
+    }
+}
+
 /// `xmlns:` attributes to declare on a response root so the request's raw
 /// prefixed names remain valid XML and namespace-resolvable: prefix from
 /// the raw name, URI from the Clark form.
 pub(crate) fn xmlns_attrs_for(requested: &[(String, String)]) -> Vec<(String, String)> {
-    requested
-        .iter()
-        .filter_map(|(raw, canonical)| {
-            let prefix = raw.split_once(':').map(|(p, _)| p.to_string())?;
-            let uri = canonical
-                .split_once('{')
-                .and_then(|(_, rest)| rest.split_once('}'))
-                .map(|(uri, _)| uri.to_string())?;
-            Some((format!("xmlns:{prefix}"), uri))
-        })
-        .collect()
+    let mut out: Vec<(String, String)> = Vec::new();
+    for (raw, canonical) in requested {
+        let Some((_, rest)) = canonical.split_once('{') else {
+            continue;
+        };
+        let Some((uri, _)) = rest.split_once('}') else {
+            continue;
+        };
+        // Dedupe by attribute name: a repeated declaration for a different
+        // URI under the same prefix/default is a duplicate-attribute XML
+        // error — first declaration wins.
+        let attr = match raw.split_once(':') {
+            Some((prefix, _)) => format!("xmlns:{prefix}"),
+            None => "xmlns".to_string(),
+        };
+        if !out.iter().any(|(a, _)| a == &attr) {
+            out.push((attr, uri.to_string()));
+        }
+    }
+    out
 }
