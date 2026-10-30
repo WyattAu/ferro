@@ -231,30 +231,24 @@ impl OcisClient {
     pub async fn set_oidc_refresh(&mut self, url: &str, username: String, password: String, client_id: String) {
         // Discover OIDC token endpoint
         let discovery_url = format!("{}/.well-known/openid-configuration", url);
-        if let Ok(discovery) = reqwest::Client::builder()
-            .danger_accept_invalid_certs(true)
-            .build()
-            .and_then(|c| Ok(c))
+        if let Ok(discovery) = reqwest::Client::builder().danger_accept_invalid_certs(true).build()
+            && let Ok(resp) = discovery.get(&discovery_url).send().await
+            && let Ok(doc) = resp.json::<OidcDiscovery>().await
         {
-            if let Ok(resp) = discovery.get(&discovery_url).send().await {
-                if let Ok(doc) = resp.json::<OidcDiscovery>().await {
-                    self.oidc_creds = Some(OidcCredentials {
-                        token_endpoint: doc.token_endpoint,
-                        client_id,
-                        username,
-                        password,
-                    });
-                    // Set initial expiration to 60 seconds (token lifetime is 5 min)
-                    // This ensures the first request triggers a refresh
-                    *self.token_expires.write().await =
-                        Some(std::time::Instant::now() + std::time::Duration::from_secs(60));
-                    tracing::info!(
-                        "OIDC refresh configured (token_endpoint={})",
-                        self.oidc_creds.as_ref().unwrap().token_endpoint
-                    );
-                    return;
-                }
-            }
+            self.oidc_creds = Some(OidcCredentials {
+                token_endpoint: doc.token_endpoint,
+                client_id,
+                username,
+                password,
+            });
+            // Set initial expiration to 60 seconds (token lifetime is 5 min)
+            // This ensures the first request triggers a refresh
+            *self.token_expires.write().await = Some(std::time::Instant::now() + std::time::Duration::from_secs(60));
+            tracing::info!(
+                "OIDC refresh configured (token_endpoint={})",
+                self.oidc_creds.as_ref().unwrap().token_endpoint
+            );
+            return;
         }
         tracing::warn!("Could not configure OIDC refresh — token will not be auto-refreshed");
     }
@@ -317,15 +311,15 @@ impl OcisClient {
 
         // No OIDC credentials — try to detect JWT expiration from the current token
         // and re-acquire using the OIDC token endpoint if we know the issuer
-        if let AuthMethod::Bearer(ref token) = self.auth {
-            if token.starts_with("eyJ") {
-                // Try to decode JWT header to get kid, then find the issuer
-                // For now, just warn and continue
-                tracing::warn!(
-                    "Bearer token may expire soon but no OIDC credentials for refresh. \
+        if let AuthMethod::Bearer(ref token) = self.auth
+            && token.starts_with("eyJ")
+        {
+            // Try to decode JWT header to get kid, then find the issuer
+            // For now, just warn and continue
+            tracing::warn!(
+                "Bearer token may expire soon but no OIDC credentials for refresh. \
                     Consider using --oidc-client-id for automatic token refresh."
-                );
-            }
+            );
         }
 
         Ok(())
@@ -592,12 +586,12 @@ fn parse_metadata_propfind(xml: &str) -> MigrateResult<Vec<DavMetadataEntry>> {
 
         if in_response {
             // Extract href
-            if let Some(start) = trimmed.find("<d:href>").or_else(|| trimmed.find("<D:href>")) {
-                if let Some(s) = trimmed[start..].find('>') {
-                    let s = start + s + 1;
-                    if let Some(e) = trimmed[s..].find('<') {
-                        current_href = trimmed[s..s + e].to_string();
-                    }
+            if let Some(start) = trimmed.find("<d:href>").or_else(|| trimmed.find("<D:href>"))
+                && let Some(s) = trimmed[start..].find('>')
+            {
+                let s = start + s + 1;
+                if let Some(e) = trimmed[s..].find('<') {
+                    current_href = trimmed[s..s + e].to_string();
                 }
             }
 
@@ -610,12 +604,11 @@ fn parse_metadata_propfind(xml: &str) -> MigrateResult<Vec<DavMetadataEntry>> {
             if let Some(start) = trimmed
                 .find("<d:getcontentlength>")
                 .or_else(|| trimmed.find("<D:getcontentlength>"))
+                && let Some(s) = trimmed[start..].find('>')
             {
-                if let Some(s) = trimmed[start..].find('>') {
-                    let s = start + s + 1;
-                    if let Some(e) = trimmed[s..].find('<') {
-                        current_size = trimmed[s..s + e].parse().unwrap_or(0);
-                    }
+                let s = start + s + 1;
+                if let Some(e) = trimmed[s..].find('<') {
+                    current_size = trimmed[s..s + e].parse().unwrap_or(0);
                 }
             }
 
@@ -638,13 +631,13 @@ fn parse_metadata_propfind(xml: &str) -> MigrateResult<Vec<DavMetadataEntry>> {
             }
 
             // Extract favorite status
-            if trimmed.contains("<oc:favorite>") {
-                if let Some(start) = trimmed.find("<oc:favorite>") {
-                    let s = start + 13;
-                    if let Some(e) = trimmed[s..].find("</oc:favorite>") {
-                        current_favorite =
-                            trimmed[s..s + e].trim() == "1" || trimmed[s..s + e].trim().to_lowercase() == "true";
-                    }
+            if trimmed.contains("<oc:favorite>")
+                && let Some(start) = trimmed.find("<oc:favorite>")
+            {
+                let s = start + 13;
+                if let Some(e) = trimmed[s..].find("</oc:favorite>") {
+                    current_favorite =
+                        trimmed[s..s + e].trim() == "1" || trimmed[s..s + e].trim().to_lowercase() == "true";
                 }
             }
         }

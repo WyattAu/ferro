@@ -166,22 +166,22 @@ impl<'a> WebDavPipeline<'a> {
             // Checkpoint: skip already-done files
             {
                 let cp = checkpoint.read().await;
-                if let Some(status) = cp.entries.get(&entry.path) {
-                    if status.status == "done" {
-                        file_stats.skipped += 1;
-                        progress.inc_file(0);
-                        continue;
-                    }
+                if let Some(status) = cp.entries.get(&entry.path)
+                    && status.status == "done"
+                {
+                    file_stats.skipped += 1;
+                    progress.inc_file(0);
+                    continue;
                 }
             }
 
             // Create parent directory on-the-fly
-            if let Some(parent) = ferro_path.rsplit('/').next() {
-                if !parent.is_empty() {
-                    let parent_path = ferro_path[..ferro_path.len() - parent.len()].trim_end_matches('/');
-                    if !parent_path.is_empty() {
-                        let _ = target.create_directory(parent_path).await;
-                    }
+            if let Some(parent) = ferro_path.rsplit('/').next()
+                && !parent.is_empty()
+            {
+                let parent_path = ferro_path[..ferro_path.len() - parent.len()].trim_end_matches('/');
+                if !parent_path.is_empty() {
+                    let _ = target.create_directory(parent_path).await;
                 }
             }
 
@@ -333,21 +333,21 @@ impl<'a> WebDavPipeline<'a> {
                 // Checkpoint: skip already-done files
                 {
                     let cp = checkpoint.read().await;
-                    if let Some(status) = cp.entries.get(remote_path) {
-                        if status.status == "done" {
-                            file_stats.skipped += 1;
-                            progress.inc_file(0);
-                            continue;
-                        }
+                    if let Some(status) = cp.entries.get(remote_path)
+                        && status.status == "done"
+                    {
+                        file_stats.skipped += 1;
+                        progress.inc_file(0);
+                        continue;
                     }
                 }
 
-                if let Some(parent) = ferro_path.rsplit('/').next() {
-                    if !parent.is_empty() {
-                        let parent_path = ferro_path[..ferro_path.len() - parent.len()].trim_end_matches('/');
-                        if !parent_path.is_empty() {
-                            let _ = self.target.create_directory(parent_path).await;
-                        }
+                if let Some(parent) = ferro_path.rsplit('/').next()
+                    && !parent.is_empty()
+                {
+                    let parent_path = ferro_path[..ferro_path.len() - parent.len()].trim_end_matches('/');
+                    if !parent_path.is_empty() {
+                        let _ = self.target.create_directory(parent_path).await;
                     }
                 }
 
@@ -483,11 +483,11 @@ async fn dfs_traverse(
                         // Skip files already marked done in checkpoint
                         {
                             let cp = checkpoint.read().await;
-                            if let Some(status) = cp.entries.get(&entry.path) {
-                                if status.status == "done" {
-                                    stats.skipped.fetch_add(1, Ordering::Relaxed);
-                                    continue;
-                                }
+                            if let Some(status) = cp.entries.get(&entry.path)
+                                && status.status == "done"
+                            {
+                                stats.skipped.fetch_add(1, Ordering::Relaxed);
+                                continue;
                             }
                         }
 

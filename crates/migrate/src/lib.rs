@@ -403,7 +403,7 @@ async fn run_ocis_space_migration(
     ocis_token: &str,
     ocis_client: &OcisClient,
     options: &MigrationOptions,
-    progress: &ProgressTracker,
+    _progress: &ProgressTracker,
     report: &mut MigrationReport,
 ) -> MigrateResult<()> {
     tracing::info!("Migrating oCIS project spaces...");
@@ -439,34 +439,28 @@ async fn run_ocis_space_migration(
         }
 
         // Migrate space members as shares
-        if let Some(ref root) = space.root {
-            if let Some(ref permissions) = root.permissions {
-                for perm in permissions {
-                    if let Some(ref identities) = perm.grantedToIdentities {
-                        let role = perm
-                            .roles
-                            .as_ref()
-                            .and_then(|r| r.first())
-                            .map(|r| match r.as_str() {
-                                "312c0871-5ef7-4b3a-85b6-0e4074c64049" => "manager",
-                                "fb6c3e19-e378-47e5-b277-9732f9de6e21" => "editor",
-                                "b1e2218d-eef8-4d4c-b82d-0f1a1b48f3b5" => "viewer",
-                                _ => "viewer",
-                            })
-                            .unwrap_or("viewer");
+        if let Some(ref root) = space.root
+            && let Some(ref permissions) = root.permissions
+        {
+            for perm in permissions {
+                if let Some(ref identities) = perm.grantedToIdentities {
+                    let role = perm
+                        .roles
+                        .as_ref()
+                        .and_then(|r| r.first())
+                        .map(|r| match r.as_str() {
+                            "312c0871-5ef7-4b3a-85b6-0e4074c64049" => "manager",
+                            "fb6c3e19-e378-47e5-b277-9732f9de6e21" => "editor",
+                            "b1e2218d-eef8-4d4c-b82d-0f1a1b48f3b5" => "viewer",
+                            _ => "viewer",
+                        })
+                        .unwrap_or("viewer");
 
-                        for identity in identities {
-                            if let Some(ref user) = identity.user {
-                                let username = user.displayName.as_deref().or(user.id.as_deref()).unwrap_or("unknown");
-                                if let Err(e) = ferro.create_space_member_share(&space_ferro_path, username, role).await
-                                {
-                                    tracing::warn!(
-                                        "Share space member '{}' on '{}' failed: {}",
-                                        username,
-                                        space_name,
-                                        e
-                                    );
-                                }
+                    for identity in identities {
+                        if let Some(ref user) = identity.user {
+                            let username = user.displayName.as_deref().or(user.id.as_deref()).unwrap_or("unknown");
+                            if let Err(e) = ferro.create_space_member_share(&space_ferro_path, username, role).await {
+                                tracing::warn!("Share space member '{}' on '{}' failed: {}", username, space_name, e);
                             }
                         }
                     }
@@ -722,17 +716,17 @@ async fn run_ocis_migration(
                         continue;
                     }
                     // Add members
-                    if let Some(ref group_id) = graph_group.id {
-                        if let Ok(members) = graph.list_group_members(group_id).await {
-                            for member in &members {
-                                let username = member
-                                    .userPrincipalName
-                                    .as_deref()
-                                    .or(member.displayName.as_deref())
-                                    .unwrap_or("unknown");
-                                if let Err(e) = ferro.add_group_member(name, username).await {
-                                    tracing::warn!("Add member '{}' to group '{}' failed: {}", username, name, e);
-                                }
+                    if let Some(ref group_id) = graph_group.id
+                        && let Ok(members) = graph.list_group_members(group_id).await
+                    {
+                        for member in &members {
+                            let username = member
+                                .userPrincipalName
+                                .as_deref()
+                                .or(member.displayName.as_deref())
+                                .unwrap_or("unknown");
+                            if let Err(e) = ferro.add_group_member(name, username).await {
+                                tracing::warn!("Add member '{}' to group '{}' failed: {}", username, name, e);
                             }
                         }
                     }
@@ -749,7 +743,7 @@ async fn run_ocis_migration(
 
     if !options.skip_tags || !options.skip_favorites {
         tracing::info!("Migrating tags and favorites from oCIS via extended PROPFIND...");
-        let graph = crate::graph_api::GraphApiClient::new(&source.url, &ocis_token);
+        let _graph = crate::graph_api::GraphApiClient::new(&source.url, &ocis_token);
         // Walk the user's file tree and extract tags/favorites
         let mut dirs_to_scan: Vec<String> = vec!["/".to_string()];
         let mut file_entries: Vec<(String, Vec<String>, bool)> = Vec::new(); // (path, tags, is_favorite)

@@ -224,7 +224,7 @@ impl FerroTarget {
         &self,
         path: &str,
         share_type: &str,
-        shared_with: Option<&str>,
+        _shared_with: Option<&str>,
         permissions_read: bool,
         permissions_write: bool,
     ) -> MigrateResult<()> {
@@ -325,10 +325,10 @@ impl FerroTarget {
         let url = format!("{}/api/v1/files{}", self.url, path);
         match self.http.get(&url).send().await {
             Ok(resp) if resp.status().is_success() => {
-                if let Ok(info) = resp.json::<FileInfo>().await {
-                    if let Some(ref hash) = info.content_hash {
-                        return hash == expected_hash;
-                    }
+                if let Ok(info) = resp.json::<FileInfo>().await
+                    && let Some(ref hash) = info.content_hash
+                {
+                    return hash == expected_hash;
                 }
                 false
             }

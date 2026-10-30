@@ -10,6 +10,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 
+/// TTL hint (seconds) advertised in peer registrations; reserved for the
+/// mesh registration flow.
+#[allow(dead_code)]
 const REGISTRATION_TTL_HINT: &str = "600";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,10 +108,11 @@ pub fn discover_local_addresses() -> Vec<String> {
     let mut out = Vec::new();
     if let Ok(addrs) = std::net::ToSocketAddrs::to_socket_addrs(&(std::env::var("HOSTNAME").unwrap_or_default(), 0)) {
         for a in addrs {
-            if let std::net::IpAddr::V4(v4) = a.ip() {
-                if !v4.is_loopback() && !out.contains(&v4.to_string()) {
-                    out.push(v4.to_string());
-                }
+            if let std::net::IpAddr::V4(v4) = a.ip()
+                && !v4.is_loopback()
+                && !out.contains(&v4.to_string())
+            {
+                out.push(v4.to_string());
             }
         }
     }

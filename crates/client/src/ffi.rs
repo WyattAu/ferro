@@ -65,6 +65,9 @@ pub struct FerroBytes {
     pub result: FerroResult,
 }
 
+/// # Safety
+///
+/// `server_url` and `token` must be valid NUL-terminated C strings. The returned handle must be released with `ferro_client_free`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ferro_client_new(server_url: *const c_char, token: *const c_char) -> *mut FerroClientHandle {
     if server_url.is_null() || token.is_null() {
@@ -90,6 +93,9 @@ pub unsafe extern "C" fn ferro_client_new(server_url: *const c_char, token: *con
     Box::into_raw(Box::new(FerroClientHandle { client }))
 }
 
+/// # Safety
+///
+/// `handle` must be a pointer returned by `ferro_client_new`, or null, and must not be freed twice.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ferro_client_free(handle: *mut FerroClientHandle) {
     if !handle.is_null() {
@@ -98,6 +104,9 @@ pub unsafe extern "C" fn ferro_client_free(handle: *mut FerroClientHandle) {
     }
 }
 
+/// # Safety
+///
+/// `handle` must be a valid, non-freed pointer returned by `ferro_client_new`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ferro_test_connection(handle: *mut FerroClientHandle) -> FerroResult {
     if handle.is_null() {
@@ -117,6 +126,9 @@ pub unsafe extern "C" fn ferro_test_connection(handle: *mut FerroClientHandle) -
     }
 }
 
+/// # Safety
+///
+/// `list` must be a pointer returned by this crate's file-list API, or null, and must not be freed twice.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ferro_file_list_free(list: *mut FerroFileList) {
     if list.is_null() {
@@ -151,6 +163,9 @@ pub unsafe extern "C" fn ferro_file_list_free(list: *mut FerroFileList) {
     }
 }
 
+/// # Safety
+///
+/// `bytes` must be a pointer returned by this crate's bytes API, or null, and must not be freed twice.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ferro_bytes_free(bytes: *mut FerroBytes) {
     if bytes.is_null() {
@@ -165,6 +180,9 @@ pub unsafe extern "C" fn ferro_bytes_free(bytes: *mut FerroBytes) {
     }
 }
 
+/// # Safety
+///
+/// `s` must be a pointer returned by this crate's string API, or null.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ferro_string_free(s: *mut c_char) {
     if !s.is_null() {

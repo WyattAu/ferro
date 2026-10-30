@@ -66,6 +66,9 @@ pub struct GraphListResponse {
 pub struct GraphApiClient {
     http: reqwest::Client,
     base_url: String,
+    /// Retained for future re-auth/refresh calls; auth today goes through
+    /// the header built in `new`.
+    #[allow(dead_code)]
     token: String,
 }
 
