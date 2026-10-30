@@ -83,8 +83,6 @@ pub(crate) fn canonical_prop_names(body: &[u8]) -> Option<Vec<(String, String)>>
                         scope.insert(pfx.to_string(), val);
                     } else if key == "xmlns" {
                         scope.insert(String::new(), val);
-                    } else if key == "xmlns" {
-                        scope.insert(String::new(), val);
                     }
                 }
                 let local = raw.strip_prefix("D:").unwrap_or(&raw);
@@ -105,8 +103,6 @@ pub(crate) fn canonical_prop_names(body: &[u8]) -> Option<Vec<(String, String)>>
                     let val = String::from_utf8_lossy(&a.value).to_string();
                     if let Some(pfx) = key.strip_prefix("xmlns:") {
                         scope.insert(pfx.to_string(), val);
-                    } else if key == "xmlns" {
-                        scope.insert(String::new(), val);
                     } else if key == "xmlns" {
                         scope.insert(String::new(), val);
                     }
@@ -181,30 +177,4 @@ impl NsScope {
             None => local.to_string(),
         }
     }
-}
-
-/// `xmlns:` attributes to declare on a response root so the request's raw
-/// prefixed names remain valid XML and namespace-resolvable: prefix from
-/// the raw name, URI from the Clark form.
-pub(crate) fn xmlns_attrs_for(requested: &[(String, String)]) -> Vec<(String, String)> {
-    let mut out: Vec<(String, String)> = Vec::new();
-    for (raw, canonical) in requested {
-        let Some((_, rest)) = canonical.split_once('{') else {
-            continue;
-        };
-        let Some((uri, _)) = rest.split_once('}') else {
-            continue;
-        };
-        // Dedupe by attribute name: a repeated declaration for a different
-        // URI under the same prefix/default is a duplicate-attribute XML
-        // error — first declaration wins.
-        let attr = match raw.split_once(':') {
-            Some((prefix, _)) => format!("xmlns:{prefix}"),
-            None => "xmlns".to_string(),
-        };
-        if !out.iter().any(|(a, _)| a == &attr) {
-            out.push((attr, uri.to_string()));
-        }
-    }
-    out
 }

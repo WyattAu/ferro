@@ -133,7 +133,7 @@ async fn requested_props_response<S: crate::WebDavCoreState>(
         let dead = crate::handlers::deadprops::load(state, path).await;
         let mut found: Vec<(String, Option<String>)> = Vec::new();
         let mut missing: Vec<String> = Vec::new();
-        for (raw, canonical) in requested {
+        for (_, canonical) in requested {
             if let Some(v) = dead.get(canonical) {
                 found.push((ns.element(canonical), Some(v.clone())));
             } else if canonical.ends_with(":getetag") || canonical == "getetag" {

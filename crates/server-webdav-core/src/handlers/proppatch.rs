@@ -132,10 +132,10 @@ pub(crate) async fn handle_proppatch<S: WebDavCoreState>(
             "D:prop"
         ),));
         for (idx, prop) in accepted.iter().enumerate() {
-            let elem = match (&canonical_names, accepted_names.get(idx)) {
-                (Some(pairs), Some(canonical)) => ns.as_ref().map(|n| n.element(canonical)),
-                _ => None,
-            };
+            let elem = accepted_names
+                .get(idx)
+                .map(|canonical| ns.as_ref().map(|n| n.element(canonical)))
+                .unwrap_or(None);
             let elem = elem.unwrap_or_else(|| prop.name.clone());
             xml_write!(quick_xml::events::Event::Start(quick_xml::events::BytesStart::new(
                 elem.as_str()

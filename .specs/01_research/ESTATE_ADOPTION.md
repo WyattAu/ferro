@@ -81,3 +81,17 @@ workspace fallback on doc-only commits: `migrate` (~20), `client` (~6),
 `desktop` (~2) — mostly let-chain collapses and needless borrows. One
 session pass should clear it; code-change commits (per-crate path) are
 unaffected.
+
+## 2026-10-30: stash resolved + tantivy mystery solved
+
+- **Stash archived** (tag `stash-archive-2026-10-29`): stale draft of the crate-split
+  refactor, superseded by the committed Phase-3 extraction (23d1565d/995df2b7).
+  613 insertions are Cargo.lock churn; nothing unique. Recoverable via the tag.
+- **"tantivy-ext 1.0.0" is not our crate** — it's an unrelated/stale crates.io
+  entry (AccessDenied download, absent from sparse index). The real wrapper is
+  **`tantivy-helper` 0.3.1** (published, 232 downloads): `SearchEngine` +
+  `Highlighter` + query/schema modules. **R8 dogfood target: swap or wrap
+  Ferro's 818-line `core/src/search.rs` engine onto it** — the win is
+  `Highlighter` (snippets in search API) and a maintained engine surface.
+  Sized: moderate (search.rs has 4 public search fns + index_content used
+  across server handlers).
