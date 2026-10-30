@@ -10,6 +10,7 @@ use common::path::normalize_path;
 pub(crate) async fn handle_propfind<S: WebDavCoreState>(
     state: S,
     path: &str,
+    request_path: &str,
     headers: &HeaderMap,
     body: &[u8],
 ) -> Result<Response> {
@@ -58,13 +59,36 @@ pub(crate) async fn handle_propfind<S: WebDavCoreState>(
         }
     }
 
+    // Response hrefs must echo the REQUEST URI (RFC 4918 §9.1) — the
+    // internal /users/<sub>/ prefix is private (leaking it breaks client
+    // href-matching and discloses layout). Dead-prop sidecar lookups stay
+    // on resolved paths; the rebase happens only at emission.
+    let trimmed = request_path.trim_end_matches('/');
+    let root_prefix = if trimmed.is_empty() {
+        None
+    } else {
+        path.strip_suffix(trimmed).map(|s| s.to_string())
+    };
+
     // Dead-property sidecars are namespace internals — never list them.
     items.retain(|(p, _)| !crate::handlers::deadprops::is_sidecar(p));
 
     // RFC 4918 §9.1.2: a <D:prop> request returns exactly the requested
     // properties (dead props from the sidecar, getetag from metadata).
     if let Some(requested) = crate::handlers::deadprops::canonical_prop_names(body) {
-        return Ok(requested_props_response(&state, &items, &requested).await);
+        return Ok(requested_props_response(&state, &items, &requested, root_prefix.as_deref(), request_path).await);
+    }
+
+    if let Some(prefix) = &root_prefix {
+        let trailing = request_path.ends_with('/');
+        for (p, _) in items.iter_mut() {
+            if let Some(stripped) = p.strip_prefix(prefix.as_str()) {
+                *p = format!(
+                    "{stripped}{}",
+                    if trailing && !stripped.ends_with('/') { "/" } else { "" }
+                );
+            }
+        }
     }
 
     if let Some(token) = sync_token {
@@ -112,6 +136,8 @@ async fn requested_props_response<S: crate::WebDavCoreState>(
     state: &S,
     items: &[(String, common::metadata::FileMetadata)],
     requested: &[(String, String)],
+    root_prefix: Option<&str>,
+    request_path: &str,
 ) -> Response {
     use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
     let mut writer = quick_xml::Writer::new(Vec::new());
@@ -129,28 +155,53 @@ async fn requested_props_response<S: crate::WebDavCoreState>(
     }
     let _ = w(Event::Start(ms));
 
+    let trailing = request_path.ends_with('/');
     for (path, meta) in items {
+        let href = match root_prefix {
+            Some(prefix) => path.strip_prefix(prefix).unwrap_or(path),
+            None => path,
+        };
+        let href = if trailing && !href.ends_with('/') {
+            format!("{href}/")
+        } else {
+            href.to_string()
+        };
         let dead = crate::handlers::deadprops::load(state, path).await;
         let mut found: Vec<(String, Option<String>)> = Vec::new();
         let mut missing: Vec<String> = Vec::new();
         for (_, canonical) in requested {
+            let local = canonical.rsplit_once('}').map(|(_, l)| l).unwrap_or(canonical);
             if let Some(v) = dead.get(canonical) {
                 found.push((ns.element(canonical), Some(v.clone())));
-            } else if canonical.ends_with(":getetag") || canonical == "getetag" {
+            } else if local == "resourcetype" {
+                found.push((ns.element(canonical), None));
+            } else if local == "getetag" {
                 found.push((ns.element(canonical), Some(meta.etag.clone())));
+            } else if local == "getcontentlength" && !meta.is_collection {
+                found.push((ns.element(canonical), Some(meta.size.to_string())));
+            } else if local == "getcontenttype" {
+                found.push((ns.element(canonical), Some(meta.mime_type.clone())));
+            } else if local == "getlastmodified" {
+                found.push((ns.element(canonical), Some(meta.modified_at.to_rfc2822())));
+            } else if local == "creationdate" {
+                found.push((ns.element(canonical), Some(meta.created_at.to_rfc3339())));
             } else {
                 missing.push(ns.element(canonical));
             }
         }
         let _ = w(Event::Start(BytesStart::new("D:response")));
         let _ = w(Event::Start(BytesStart::new("D:href")));
-        let _ = w(Event::Text(BytesText::new(path)));
+        let _ = w(Event::Text(BytesText::new(&href)));
         let _ = w(Event::End(BytesEnd::new("D:href")));
         if !found.is_empty() {
             let _ = w(Event::Start(BytesStart::new("D:propstat")));
             let _ = w(Event::Start(BytesStart::new("D:prop")));
             for (name, val) in &found {
+                let is_rt = name.ends_with(":resourcetype") || name == "resourcetype";
                 let _ = w(Event::Start(BytesStart::new(name)));
+                if is_rt && meta.is_collection {
+                    let _ = w(Event::Empty(BytesStart::new("D:collection")));
+                }
                 if let Some(v) = val {
                     let _ = w(Event::Text(BytesText::new(v)));
                 }

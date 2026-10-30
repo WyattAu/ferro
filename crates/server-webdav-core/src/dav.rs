@@ -377,7 +377,7 @@ pub async fn caldav_calendar_or_event<S: WebDavCoreState>(
                 .await
                 .map(|b| b.to_bytes())
                 .unwrap_or_default();
-            match crate::handlers::propfind::handle_propfind(state, &path, &headers, &bytes).await {
+            match crate::handlers::propfind::handle_propfind(state, &path, &path, &headers, &bytes).await {
                 Ok(resp) => resp,
                 Err(e) => (
                     axum::http::StatusCode::INTERNAL_SERVER_ERROR,
@@ -463,7 +463,7 @@ pub async fn carddav_book_or_contact<S: WebDavCoreState>(
                 .await
                 .map(|b| b.to_bytes())
                 .unwrap_or_default();
-            match crate::handlers::propfind::handle_propfind(state, &path, &headers, &bytes).await {
+            match crate::handlers::propfind::handle_propfind(state, &path, &path, &headers, &bytes).await {
                 Ok(resp) => resp,
                 Err(e) => (
                     axum::http::StatusCode::INTERNAL_SERVER_ERROR,

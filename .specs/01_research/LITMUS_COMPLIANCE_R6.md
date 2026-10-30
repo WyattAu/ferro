@@ -90,6 +90,13 @@ a release build should cut that ~10×.
 
 ## 2026-10-30: namespace handling consolidated
 
+ALSO: PROPFIND/PROPPATCH response hrefs leaked the internal storage layout
+(`/users/<sub>/...`) instead of echoing the request URI — a compliance bug
+(neon matches response hrefs against the request path, which is why propget
+reported "No value given") AND an information-disclosure issue. Fixed by
+rebasing response hrefs onto the request path in both handlers (the
+user-root prefix is stripped); internal paths never leave the server.
+
 Clark-notation keys (default-ns included), element-scoped xmlns scope,
 NsScope generated prefixes for responses. props 25/30; remaining 5 are
 state-dependent propget sequences inside litmus's own test flow (responses

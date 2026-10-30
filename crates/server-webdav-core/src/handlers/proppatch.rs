@@ -12,7 +12,8 @@ use tracing::debug;
 pub(crate) async fn handle_proppatch<S: WebDavCoreState>(
     state: S,
     path: &str,
-    _headers: &HeaderMap,
+    request_path: &str,
+    headers: &HeaderMap,
     body: &Bytes,
 ) -> Result<Response> {
     let path = normalize_path(path);
@@ -27,7 +28,7 @@ pub(crate) async fn handle_proppatch<S: WebDavCoreState>(
 
     // Token-aware lock check (RFC 4918 §7.1): PROPPATCH on a locked
     // resource requires the covering lock's token (litmus owner_modify).
-    let submitted: Vec<String> = _headers
+    let submitted: Vec<String> = headers
         .get("If")
         .and_then(|v| v.to_str().ok())
         .and_then(crate::ifheader::parse)
@@ -118,7 +119,14 @@ pub(crate) async fn handle_proppatch<S: WebDavCoreState>(
     xml_write!(quick_xml::events::Event::Start(quick_xml::events::BytesStart::new(
         "D:href"
     ),));
-    xml_write!(quick_xml::events::Event::Text(quick_xml::events::BytesText::new(&path),));
+    let href_path = if request_path.is_empty() {
+        path.to_string()
+    } else {
+        request_path.to_string()
+    };
+    xml_write!(quick_xml::events::Event::Text(quick_xml::events::BytesText::new(
+        href_path.as_str()
+    ),));
     xml_write!(quick_xml::events::Event::End(quick_xml::events::BytesEnd::new(
         "D:href"
     ),));

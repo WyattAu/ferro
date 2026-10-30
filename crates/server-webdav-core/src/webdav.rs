@@ -144,7 +144,7 @@ pub async fn handle_any<S: WebDavCoreState>(
                     .await
                     .map_err(|e| FerroError::Internal(format!("body read: {}", e)))?
                     .to_bytes();
-                handle_propfind(state, &resolved_path, &headers, &bytes).await
+                handle_propfind(state, &resolved_path, path_str.trim_end_matches('/'), &headers, &bytes).await
             }
             "GET" => handle_get(state, &resolved_path, &headers).await,
             "HEAD" => handle_head(state, &resolved_path, &headers).await,
@@ -175,7 +175,7 @@ pub async fn handle_any<S: WebDavCoreState>(
                     .await
                     .map_err(|e| FerroError::Internal(format!("body read: {}", e)))?
                     .to_bytes();
-                handle_proppatch(state, &resolved_path, &headers, &bytes).await
+                handle_proppatch(state, &resolved_path, path_str.trim_end_matches('/'), &headers, &bytes).await
             }
             "MKCALENDAR" | "REPORT" if resolved_path.starts_with("/dav/cal") => {
                 let bytes = body
