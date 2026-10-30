@@ -11,7 +11,7 @@ per-user root resolution active).
 |---|---|---|---|
 | basic (PUT/GET/MKCOL/conditionals) | 13/16 (81.2%) | **16/16 (100%)** | +3 |
 | copymove | 7/13 (53.8%) | **12/13 (92.3%)** | +5 |
-| props | 8/14 (57.1%; 16 SKIPPED) | **22/30 (73.3%; skips lifted by dead-props)** | +14 net |
+| props | 8/14 (57.1%; 16 SKIPPED) | **25/30 (83.3%)** | +17 net |
 | locks | 25/34 (73.5%) | **32/34 (94.1%)** | +7 |
 | http | 4/4 (100%) | 4/4 (100%) | 0 |
 | **Total** | **57/81 (70.4%)** | **72/81 (88.9%)** | **+15** |
@@ -86,3 +86,11 @@ submitted If-header tokens.
 
 Note: litmus's debug-build server round-trips run 2-5 s each (3-8 min/suite);
 a release build should cut that ~10×.
+
+
+## 2026-10-30: namespace handling consolidated
+
+Clark-notation keys (default-ns included), element-scoped xmlns scope,
+NsScope generated prefixes for responses. props 25/30; remaining 5 are
+state-dependent propget sequences inside litmus's own test flow (responses
+verified valid via expat) — needs a request/replay trace to close.
