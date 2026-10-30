@@ -229,7 +229,9 @@ async fn requested_props_response<S: crate::WebDavCoreState>(
         let _ = w(Event::End(BytesEnd::new("D:response")));
     }
     let _ = w(Event::End(BytesEnd::new("D:multistatus")));
-    multistatus_response(Bytes::from(writer.into_inner()))
+    let xml = Bytes::from(writer.into_inner());
+    eprintln!("RP-RESP-DBG {}", String::from_utf8_lossy(&xml));
+    multistatus_response(xml)
 }
 
 /// Well-formedness + namespace-prefix validation for PROPFIND bodies.

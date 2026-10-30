@@ -101,3 +101,19 @@ Clark-notation keys (default-ns included), element-scoped xmlns scope,
 NsScope generated prefixes for responses. props 25/30; remaining 5 are
 state-dependent propget sequences inside litmus's own test flow (responses
 verified valid via expat) — needs a request/replay trace to close.
+
+## 2026-10-30 round 2: live props + href fixes, wire-verified server
+
+- PROPFIND requested-props responses now serve the live DAV: set (resourcetype
+  with nested collection, getcontentlength/type, getlastmodified, creationdate)
+  alongside dead props + getetag — `propfind_d0` passes.
+- Response hrefs rebased to the request URI (internal /users/<sub>/ no longer
+  leaked; dead-prop lookups stay on resolved paths; trailing slash preserved).
+- Wire-verified: the propget response for litmus's 10-prop sequence contains
+  all 10 values in a 200 propstat with correct namespace declarations (captured
+  via response logging; expat-parses clean).
+- Remaining 4 props failures show a STALE-VALUE pattern (removeset: got x,
+  expected y after set-x/remove/set-y) — suspect a read-cache or concurrent
+  load/save race in the sidecar path; needs a PROPPATCH-body capture (add the
+  PROPPATCH-DBG probe back) plus sidecar dumps between requests.
+- Final: props 26/30 (86.7%), overall 90/97 (92.8%).
