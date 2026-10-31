@@ -8,14 +8,14 @@ Foundation types and traits shared across the Ferro ecosystem. This crate define
 
 ## Key Types
 
-- **`StorageEngine`** — async trait defining the storage backend interface (`head`, `get`, `get_stream`, `put`, `delete`, `list`, `copy`, `move_path`, `exists`, `create_collection`, `list_all`, `put_multipart`)
-- **`FileMetadata`** — metadata for files and collections (path, content hash, size, MIME type, timestamps, owner, ETag)
-- **`ContentHash`** — SHA-256 content hash with computation, streaming, and ETag parsing
-- **`StorageReader`** — async reader wrapper for streaming file content
-- **`FerroError`** — unified error type with HTTP status code mapping
-- **`Claims`**, **`AuthDecision`**, **`AuthRequest`** — authentication and authorization types
-- **`LockToken`**, **`LockInfo`**, **`LockDepth`**, **`LockScope`** — WebDAV locking types
-- **`MultiStatusResponse`**, **`MultiStatusItem`**, **`WebDavProperty`** — WebDAV multistatus response types
+- **`StorageEngine`**; async trait defining the storage backend interface (`head`, `get`, `get_stream`, `put`, `delete`, `list`, `copy`, `move_path`, `exists`, `create_collection`, `list_all`, `put_multipart`)
+- **`FileMetadata`**; metadata for files and collections (path, content hash, size, MIME type, timestamps, owner, ETag)
+- **`ContentHash`**; SHA-256 content hash with computation, streaming, and ETag parsing
+- **`StorageReader`**; async reader wrapper for streaming file content
+- **`FerroError`**; unified error type with HTTP status code mapping
+- **`Claims`**, **`AuthDecision`**, **`AuthRequest`**; authentication and authorization types
+- **`LockToken`**, **`LockInfo`**, **`LockDepth`**, **`LockScope`**; WebDAV locking types
+- **`MultiStatusResponse`**, **`MultiStatusItem`**, **`WebDavProperty`**; WebDAV multistatus response types
 - Path utilities: `normalize_path`, `parent_path`, `base_name`, `is_collection_path`, `validate_path`, `join_path`
 
 ## Usage

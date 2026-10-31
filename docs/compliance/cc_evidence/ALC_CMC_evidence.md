@@ -55,12 +55,12 @@ The developer shall use disciplined development procedures and configuration man
 
 ### 4. Pre-commit Hooks
 
-**Path:** `.githooks/pre-commit` — **NOT YET CREATED**
+**Path:** `.githooks/pre-commit`; **NOT YET CREATED**
 
 Planned hooks (from CONTRIBUTING.md):
-- `cargo fmt` — Code formatting
-- `cargo clippy` — Linting
-- `cargo test` — Unit tests
+- `cargo fmt`; Code formatting
+- `cargo clippy`; Linting
+- `cargo test`; Unit tests
 
 ### 5. Version Control
 
@@ -128,9 +128,9 @@ rustup show active-toolchain
 
 ## References
 
-- `.github/workflows/ci.yml` — Main CI pipeline
-- `.github/workflows/quality-gate.yml` — Quality gate
-- `.github/workflows/extended-checks.yml` — Extended checks
-- `deny.toml` — cargo-deny configuration
-- `rust-toolchain.toml` — Pinned toolchain
-- `Cargo.lock` — Locked dependencies
+- `.github/workflows/ci.yml`; Main CI pipeline
+- `.github/workflows/quality-gate.yml`; Quality gate
+- `.github/workflows/extended-checks.yml`; Extended checks
+- `deny.toml`; cargo-deny configuration
+- `rust-toolchain.toml`; Pinned toolchain
+- `Cargo.lock`; Locked dependencies

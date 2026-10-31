@@ -77,7 +77,7 @@ The developer shall provide a functional specification describing the purpose an
 
 | Gap | Priority | Notes |
 |-----|----------|-------|
-| Function-to-SF mapping | Medium | Partial — manual traceability needed |
+| Function-to-SF mapping | Medium | Partial; manual traceability needed |
 | Complete API spec | Medium | OpenAPI/Swagger not generated |
 
 ## Verification Instructions
@@ -99,7 +99,7 @@ cargo doc --workspace 2>&1 | grep "missing documentation"
 
 ## References
 
-- `README.md:17-38` — Feature list
-- `README.md:293-323` — API endpoints table
-- `docs/sdk/api_reference.md` — SDK API reference
-- `docs/sdk/developer_guide.md` — Developer guide
+- `README.md:17-38`; Feature list
+- `README.md:293-323`; API endpoints table
+- `docs/sdk/api_reference.md`; SDK API reference
+- `docs/sdk/developer_guide.md`; Developer guide

@@ -61,10 +61,10 @@ new_crate = { version = "1.0", features = ["std"] }
 
 ## Verification Order
 
-1. `cargo check --workspace` — catch compilation errors
-2. `cargo clippy --workspace -- -D warnings` — catch lint issues
-3. `cargo test --workspace` — catch behavioral regressions
-4. `cargo fmt --all -- --check` — catch formatting drift
+1. `cargo check --workspace`; catch compilation errors
+2. `cargo clippy --workspace -- -D warnings`; catch lint issues
+3. `cargo test --workspace`; catch behavioral regressions
+4. `cargo fmt --all -- --check`; catch formatting drift
 
 ## Common Ferro-Specific Issues
 

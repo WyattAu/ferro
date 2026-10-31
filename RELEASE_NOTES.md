@@ -37,7 +37,7 @@ WebDAV, OIDC, block-dedup sync, WASM plugins, full-text search.
 - QUIC tunnel with 7 MB UDP buffers
 
 ## Known limitations
-- Android APK build failing (non-blocking — deferred platform)
+- Android APK build failing (non-blocking; deferred platform)
 - macOS DMG requires Xcode for universal binary
 - PDF/office preview requires Cloudflare CSP rule adjustment
 

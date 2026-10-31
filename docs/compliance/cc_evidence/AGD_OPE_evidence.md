@@ -134,7 +134,7 @@ curl -sf http://localhost:8080/.well-known/ferro
 
 ## References
 
-- `README.md` — Primary user documentation
-- `CONTRIBUTING.md` — Developer guide
-- `docs/deployment/` — Deployment documentation
-- `docs/sdk/developer_guide.md` — SDK developer guide
+- `README.md`; Primary user documentation
+- `CONTRIBUTING.md`; Developer guide
+- `docs/deployment/`; Deployment documentation
+- `docs/sdk/developer_guide.md`; SDK developer guide

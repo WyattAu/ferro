@@ -37,12 +37,12 @@ Severity is assigned based on the *gap magnitude* between Ferro and the referenc
 
 | Capability | Ferro (Current) | FAANG Baseline | HFT Baseline | Gap to FAANG | Gap to HFT | Severity |
 |---|---|---|---|---|---|---|
-| **Null safety** | Rust `Option<T>` / `Result<T, E>` — zero null pointers | Java: Optional + null analysis (Error Prone). Go: nil checks. Swift: Optional with `if let`. Hack: nullable types with strict mode | Rust `Option/Result` + custom newtypes for domain nulls (e.g., `NonZeroU32`) | 0 pts | 5 pts | PARITY |
+| **Null safety** | Rust `Option<T>` / `Result<T, E>`; zero null pointers | Java: Optional + null analysis (Error Prone). Go: nil checks. Swift: Optional with `if let`. Hack: nullable types with strict mode | Rust `Option/Result` + custom newtypes for domain nulls (e.g., `NonZeroU32`) | 0 pts | 5 pts | PARITY |
 | **Type-level invariants** | Rust enums + newtypes. 27% of public enums lack `#[non_exhaustive]` | Java sealed classes + pattern matching. Swift exhaustive switch enforcement. Hack sealed types | Rust enums + phantom types + const generics for compile-time state machines | 10 pts | 20 pts | Low |
 | **Compile-time guarantees vs runtime checks** | `Send`/`Sync` enforced by compiler. Zero unsafe `Send`/`Sync` impls. Mutex-across-await detection via Clippy | Go race detector (runtime). Java: error-prone nullness checks. Swift: actor isolation | Rust ownership + lifetime analysis + custom compile-time checks for latency budgets | 5 pts | 15 pts | Low |
 | **Memory safety model** | Rust ownership + borrowing. 26 unsafe blocks, 25/26 (96.2%) SAFETY-commented. Zero static mut, zero unsafe Send/Sync | GC-based (Java/Go/Hack). ARC/refcount (Swift). Manual (C++ with sanitizers) | Rust ownership + custom allocators + arena-based lifetime management | 5 pts | 15 pts | PARITY |
 
-**Ferro strengths:** Rust's type system provides null safety, memory safety, and data-race freedom by construction. This is Ferro's strongest dimension — on par with or exceeding all FAANG languages and matching HFT Rust shops.
+**Ferro strengths:** Rust's type system provides null safety, memory safety, and data-race freedom by construction. This is Ferro's strongest dimension; on par with or exceeding all FAANG languages and matching HFT Rust shops.
 
 **Ferro gaps:** 27% of public enums missing `#[non_exhaustive]` (39/145). No phantom type state machines for protocol correctness (e.g., connection state: `Connecting` -> `Handshaking` -> `Connected`).
 
@@ -74,7 +74,7 @@ Severity is assigned based on the *gap magnitude* between Ferro and the referenc
 | **Fuzz testing** | 12 fuzz targets. 44.9M+ iterations. No CI integration (manual only) | OSS-Fuzz (Google). Full fuzzing at Amazon/Meta/Apple | Continuous fuzzing with 24/7 corpus evolution. Custom fuzzers for protocol parsers | 20 pts | 35 pts | High |
 | **Chaos engineering** | `ferro-chaos` crate exists. 1 chaos test | Chaos Monkey (Netflix). GameDay (Amazon). Limited at Google/Meta | Full chaos: network partitions, clock skew, disk failures, CPU throttling | 25 pts | 40 pts | High |
 | **Hardware-in-the-loop testing** | None | Amazon (device testing). Apple (hardware validation) | Full hardware-in-the-loop for FPGA NIC testing, custom NIC validation | 30 pts | 50 pts | Medium |
-| **Test isolation and determinism** | Partial — async tests use `tokio::test` but no deterministic scheduler | Full determinism (Google mock time, Meta fakeclock) | Deterministic testing with custom schedulers and time control | 20 pts | 35 pts | Medium |
+| **Test isolation and determinism** | Partial; async tests use `tokio::test` but no deterministic scheduler | Full determinism (Google mock time, Meta fakeclock) | Deterministic testing with custom schedulers and time control | 20 pts | 35 pts | Medium |
 
 **Ferro strengths:** 885 tests with 92% mutation score on circuit breaker (exceeds Google's ~80% typical). 12 fuzz targets with 44.9M iterations. Zero flaky tests.
 
@@ -104,9 +104,9 @@ Severity is assigned based on the *gap magnitude* between Ferro and the referenc
 |---|---|---|---|---|---|---|
 | **Latency benchmarks (p50/p99/p999)** | Criterion benchmarks available. p50: 9.27ms, p99: 1,550ms. Not CI-gated for regression detection | Full benchmark suites in CI with regression detection (Google, Amazon, Meta) | Nanosecond-level benchmarks. p99 < 100us. Continuous regression detection | 25 pts | 80 pts | Critical |
 | **Memory allocation profiling** | No automated profiling. 20 allocation sites in hot paths identified manually | Profiling in CI (Google pprof, Amazon flamegraphs). Heap profiling mandatory | Full heap profiling with custom allocators. Allocation budgets per request | 35 pts | 60 pts | High |
-| **Cache-friendly data structures** | None — standard HashMap, Vec, Box. 2,714 `.clone()` calls (62 in `tcp_transport.rs`) | Partial cache optimization (Google: custom hash maps, Amazon: cache-aware allocators) | Full cache-line alignment. Custom cache-oblivious data structures. False-sharing prevention | 40 pts | 65 pts | Critical |
+| **Cache-friendly data structures** | None; standard HashMap, Vec, Box. 2,714 `.clone()` calls (62 in `tcp_transport.rs`) | Partial cache optimization (Google: custom hash maps, Amazon: cache-aware allocators) | Full cache-line alignment. Custom cache-oblivious data structures. False-sharing prevention | 40 pts | 65 pts | Critical |
 | **SIMD optimization** | None | Partial (Google: SIMD in protobuf, Amazon: SIMD in compression, Apple: NEON) | Full SIMD: JSON parsing, hash computation, compression, string operations | 35 pts | 60 pts | High |
-| **Zero-copy techniques** | None — all parsing produces owned types. 155 `String` in function signatures | Partial (Google: zero-copy in protobuf, Meta: zero-copy in Thrift) | Full zero-copy: network-to-disk pipeline, `bytes::Bytes` throughout, `Cow<'_, str>` | 35 pts | 55 pts | High |
+| **Zero-copy techniques** | None; all parsing produces owned types. 155 `String` in function signatures | Partial (Google: zero-copy in protobuf, Meta: zero-copy in Thrift) | Full zero-copy: network-to-disk pipeline, `bytes::Bytes` throughout, `Cow<'_, str>` | 35 pts | 55 pts | High |
 | **CPU pinning / NUMA awareness** | None | None at FAANG (except Apple for performance-critical paths) | CPU pinning for hot threads. NUMA-aware allocation. Interrupt affinity | 0 pts | 50 pts | Medium |
 
 **Ferro strengths:** Criterion benchmarks exist. p50 of 9.27ms is competitive for a CalDAV server. 52MB idle RSS is best-in-class for self-hosted.
@@ -121,8 +121,8 @@ Severity is assigned based on the *gap magnitude* between Ferro and the referenc
 |---|---|---|---|---|---|---|
 | **Dependency auditing** | `cargo-deny` in CI (advisories, bans, licenses, sources). `cargo-audit` available but not CI-gated. 6 active advisories (quick-xml DoS) | Dependabot/Snyk (Google/Meta). Custom auditing (Amazon). Automated remediation | Full dependency auditing with custom vulnerability research. Automated upgrade PRs | 15 pts | 30 pts | High |
 | **SBOM generation** | None | SLSA Level 3 (Google, Amazon). CycloneDX/SPDX (Meta, Netflix) | SLSA Level 4. Custom SBOM with binary provenance. Reproducible builds with attestation | 40 pts | 55 pts | Critical |
-| **Reproducible builds** | Partial — Nix flake exists but disabled (`flake.nix.disabled`). Cargo.lock committed. Profile settings optimized | Full hermetic builds (Google: Bazel, Amazon: Buck2, Apple: Xcode) | Fully reproducible with deterministic hashing. Bit-for-bit identical binaries | 30 pts | 45 pts | High |
-| **Signed artifacts** | None — Docker image built and pushed but not signed | Cosign/Sigstore (Google). Notary (Apple). Custom signing (Amazon) | Custom signing infrastructure. Hardware security modules for key storage | 35 pts | 50 pts | High |
+| **Reproducible builds** | Partial; Nix flake exists but disabled (`flake.nix.disabled`). Cargo.lock committed. Profile settings optimized | Full hermetic builds (Google: Bazel, Amazon: Buck2, Apple: Xcode) | Fully reproducible with deterministic hashing. Bit-for-bit identical binaries | 30 pts | 45 pts | High |
+| **Signed artifacts** | None; Docker image built and pushed but not signed | Cosign/Sigstore (Google). Notary (Apple). Custom signing (Amazon) | Custom signing infrastructure. Hardware security modules for key storage | 35 pts | 50 pts | High |
 | **Vulnerability response time** | No formal SLA. 6 active advisories tracked in `deny.toml` with documented rationale | <72h critical (Google), <1 week (Amazon/Meta) | <4h critical, <24h high. Dedicated security response team | 30 pts | 45 pts | High |
 
 **Ferro strengths:** `cargo-deny` catches advisories, license violations, and banned crates. All 6 active advisories are documented with rationale and impact assessment.
@@ -135,9 +135,9 @@ Severity is assigned based on the *gap magnitude* between Ferro and the referenc
 
 | Capability | Ferro (Current) | FAANG Baseline | HFT Baseline | Gap to FAANG | Gap to HFT | Severity |
 |---|---|---|---|---|---|---|
-| **API documentation coverage** | Partial — many public items missing rustdoc. `missing_errors_doc` at 458 instances. No `#[doc = include_str!]` | Full rustdoc on all public APIs (Google, Amazon, Apple). Internal API docs with examples | Full documentation with latency budgets, allocation costs, and threading model per API | 20 pts | 35 pts | Medium |
-| **Architecture Decision Records** | Yes — `.adrs/` directory with ADRs. CHANGELOG.md maintained | ADRs mandatory (Google, Amazon). RFC process (Meta, Netflix) | ADRs + design docs + post-mortems + competitive analysis | 5 pts | 15 pts | PARITY |
-| **Runbooks and incident playbooks** | Partial — `docs/runbooks/` exists but incomplete. No incident playbooks | Full runbooks for all services (Google SRE, Amazon, Meta). Incident playbooks mandatory | Complete runbooks with decision trees. Automated runbook execution | 25 pts | 40 pts | High |
+| **API documentation coverage** | Partial; many public items missing rustdoc. `missing_errors_doc` at 458 instances. No `#[doc = include_str!]` | Full rustdoc on all public APIs (Google, Amazon, Apple). Internal API docs with examples | Full documentation with latency budgets, allocation costs, and threading model per API | 20 pts | 35 pts | Medium |
+| **Architecture Decision Records** | Yes; `.adrs/` directory with ADRs. CHANGELOG.md maintained | ADRs mandatory (Google, Amazon). RFC process (Meta, Netflix) | ADRs + design docs + post-mortems + competitive analysis | 5 pts | 15 pts | PARITY |
+| **Runbooks and incident playbooks** | Partial; `docs/runbooks/` exists but incomplete. No incident playbooks | Full runbooks for all services (Google SRE, Amazon, Meta). Incident playbooks mandatory | Complete runbooks with decision trees. Automated runbook execution | 25 pts | 40 pts | High |
 | **Cross-project knowledge sharing** | Internal docs in `docs/` directory. No cross-repo knowledge base | Google: internal wiki + Tech Talks. Amazon: OLRs. Meta: Bootcamp + internal blog | Internal knowledge base with mandatory reading for onboarding. Technical blog | 25 pts | 35 pts | Medium |
 
 **Ferro strengths:** ADR process established. CHANGELOG maintained. Comprehensive docs directory structure.
@@ -151,7 +151,7 @@ Severity is assigned based on the *gap magnitude* between Ferro and the referenc
 | Capability | Ferro (Current) | FAANG Baseline | HFT Baseline | Gap to FAANG | Gap to HFT | Severity |
 |---|---|---|---|---|---|---|
 | **Observability (metrics, logs, traces)** | Prometheus metrics endpoint. OpenTelemetry tracing initialized. `tracing` crate for structured logging. Grafana dashboards in `monitoring/` | Full observability stack (Google: Monarch/Borgmon, Amazon: CloudWatch/X-Ray, Meta: Scuba) | Full observability with custom metrics pipeline. Sub-millisecond metric granularity | 15 pts | 30 pts | Medium |
-| **Alerting and on-call** | None — no alerting rules defined, no on-call rotation | PagerDuty/OpsGenie integration (all FAANG). 5-min alert SLA | 1-min alert SLA. Custom alerting with ML-based anomaly detection | 35 pts | 50 pts | Critical |
+| **Alerting and on-call** | None; no alerting rules defined, no on-call rotation | PagerDuty/OpsGenie integration (all FAANG). 5-min alert SLA | 1-min alert SLA. Custom alerting with ML-based anomaly detection | 35 pts | 50 pts | Critical |
 | **Incident response time** | No formal process. No incident severity levels defined | <15min response (Google P0), <1h (P1). Blameless post-mortems mandatory | <5min response. Automated incident detection and mitigation | 35 pts | 50 pts | Critical |
 | **SLA/SLO compliance** | No SLAs or SLOs defined. No error budgets | SLOs for all services. Error budgets enforced. Automated rollback on budget burn | Sub-microsecond SLOs. Zero-downtime deployment. Automated failover | 40 pts | 55 pts | Critical |
 | **Deployment strategy** | Docker image built in CI. Kubernetes deployment to staging + production. No canary, no blue-green | Canary (Google), blue-green (Amazon), rolling (Meta). Automated rollback | Zero-downtime hot deployment. Automated canary with traffic mirroring | 25 pts | 40 pts | High |
@@ -167,7 +167,7 @@ Severity is assigned based on the *gap magnitude* between Ferro and the referenc
 | Capability | Ferro (Current) | FAANG Baseline | HFT Baseline | Gap to FAANG | Gap to HFT | Severity |
 |---|---|---|---|---|---|---|
 | **Industry certifications** | None (no SOC 2, no ISO 27001) | SOC 2 Type II (all FAANG). ISO 27001 (Google, Amazon, Apple) | SOC 2 Type II + ISO 27001 + MiFID II + SEC compliance | 45 pts | 60 pts | Critical |
-| **Privacy compliance** | Partial — GDPR export/erasure endpoints exist. No CCPA-specific handling | Full GDPR + CCPA + LGPD + PIPL compliance (all FAANG) | Full privacy compliance with data residency, consent management, right to deletion | 20 pts | 30 pts | High |
+| **Privacy compliance** | Partial; GDPR export/erasure endpoints exist. No CCPA-specific handling | Full GDPR + CCPA + LGPD + PIPL compliance (all FAANG) | Full privacy compliance with data residency, consent management, right to deletion | 20 pts | 30 pts | High |
 | **Safety certifications** | None (ISO 26262, DO-178C not applicable for CalDAV server) | Apple: DO-178C for CarPlay. Amazon: ISO 26262 for automotive | N/A for CalDAV. But: SEC Rule 17a-4 for financial data retention | N/A | N/A | N/A |
 | **Formal security audit frequency** | Self-audit only. No external penetration testing | Annual external audits (all FAANG). Continuous red team exercises | Continuous red team + bug bounty + quarterly external audits | 40 pts | 55 pts | Critical |
 
@@ -181,14 +181,14 @@ Severity is assigned based on the *gap magnitude* between Ferro and the referenc
 
 | Capability | Ferro (Current) | FAANG Baseline | HFT Baseline | Gap to FAANG | Gap to HFT | Severity |
 |---|---|---|---|---|---|---|
-| **Review policy (approvals required)** | Solo developer — no multi-reviewer enforcement | 2+ reviewers mandatory (Google, Amazon, Meta, Apple). Security-critical: 3+ reviewers | 3+ reviewers mandatory. Domain expert required for critical paths | 30 pts | 45 pts | Critical (structural) |
+| **Review policy (approvals required)** | Solo developer; no multi-reviewer enforcement | 2+ reviewers mandatory (Google, Amazon, Meta, Apple). Security-critical: 3+ reviewers | 3+ reviewers mandatory. Domain expert required for critical paths | 30 pts | 45 pts | Critical (structural) |
 | **Review SLA** | None | 24h SLA (Google, Amazon). 48h (Meta) | 2h SLA for critical paths. 4h for non-critical | 30 pts | 45 pts | High |
 | **Automated checks in CI** | Full CI: clippy, test, fmt, deny, machete, coverage, semver-checks, gitleaks, semgrep, nuclei | Full CI + custom static analysis (Tricorder, Infer, Coverity) + DAST | Full CI + custom linters + sanitizer runs + fuzz regression + benchmark regression | 15 pts | 30 pts | Medium |
-| **Expertise requirements** | Solo developer — all knowledge concentrated | CODEOWNERS files. Domain experts required for critical paths. Mandatory review from security team for auth/crypto changes | CODEOWNERS + mandatory domain expert + security team + performance team review | 30 pts | 45 pts | Critical (structural) |
+| **Expertise requirements** | Solo developer; all knowledge concentrated | CODEOWNERS files. Domain experts required for critical paths. Mandatory review from security team for auth/crypto changes | CODEOWNERS + mandatory domain expert + security team + performance team review | 30 pts | 45 pts | Critical (structural) |
 
 **Ferro strengths:** Comprehensive CI with 10+ automated checks. All changes go through pre-commit hooks and CI validation.
 
-**Ferro gaps:** Solo developer — cannot enforce multi-reviewer policy without adding contributors. No review SLA. No CODEOWNERS. No domain expertise routing.
+**Ferro gaps:** Solo developer; cannot enforce multi-reviewer policy without adding contributors. No review SLA. No CODEOWNERS. No domain expertise routing.
 
 ---
 
@@ -199,7 +199,7 @@ Severity is assigned based on the *gap magnitude* between Ferro and the referenc
 | **Error propagation model** | `thiserror` + `anyhow`. 35 error types, 91% using thiserror. 3 missing `Error` impl. Discarded Results: 7 instances | Custom error hierarchies (Google). `anyhow` (Amazon). Error codes with documentation | Custom error types with compile-time checking. Zero runtime error allocation on hot paths | 10 pts | 20 pts | Low |
 | **Circuit breaker patterns** | `ferro-circuit-breaker` crate with formal Lean4 proofs. State machine: Closed -> Open -> HalfOpen -> Closed | Circuit breakers for all external deps (Google, Amazon, Netflix Hystrix) | Custom circuit breakers with adaptive thresholds and latency-aware state transitions | 5 pts | 15 pts | PARITY |
 | **Retry/backoff strategies** | Basic retry with exponential backoff in `circuit-breaker` | Full retry with jitter, circuit breaking, bulkheading (Google, Amazon) | Custom retry with latency-aware backoff, priority queuing, load shedding | 10 pts | 20 pts | Low |
-| **Graceful degradation** | Partial — circuit breaker on external deps. No degraded mode for non-critical features | Full graceful degradation (Google: serving stale, Amazon: reduced functionality) | Full degradation with feature priority tiers, automatic fallback, and capacity reservation | 15 pts | 25 pts | Medium |
+| **Graceful degradation** | Partial; circuit breaker on external deps. No degraded mode for non-critical features | Full graceful degradation (Google: serving stale, Amazon: reduced functionality) | Full degradation with feature priority tiers, automatic fallback, and capacity reservation | 15 pts | 25 pts | Medium |
 | **Error budgets (SLO)** | None | Error budgets enforced. Automated rollback on budget burn | Sub-error budgets with automated mitigation. Zero-downtime rollback | 35 pts | 45 pts | Critical |
 
 **Ferro strengths:** Circuit breaker with formal proofs. `thiserror` + `anyhow` for structured error handling. Zero panics in production. Zero unwraps on critical paths.
@@ -215,7 +215,7 @@ Severity is assigned based on the *gap magnitude* between Ferro and the referenc
 | **CI/CD pipeline speed** | ~15-30 min (check + test + security + build + docker + deploy) | <10 min (Google: Blaze, Amazon: Buck2). Build caching, remote execution | <5 min. Incremental builds, pre-built dependencies, aggressive caching | 15 pts | 25 pts | Medium |
 | **Release frequency** | On-demand (last release: v3.1.0). Manual tagging | Continuous deployment (Google, Meta). Weekly releases (Amazon) | Continuous deployment with automated canary. Multiple deploys per day | 20 pts | 30 pts | Medium |
 | **Feature flags** | None | Full feature flag infrastructure (Google: Experiments, Meta: Gatekeeper, Netflix: Flex) | Feature flags with gradual rollout, A/B testing, and automated rollback | 30 pts | 40 pts | Medium |
-| **Technical debt tracking** | Manual — documented in audit reports. No automated tracking | Automated debt tracking (Google: TODO tracking, Meta: Debt Manager) | Automated debt detection with priority scoring and automatic scheduling | 20 pts | 30 pts | Medium |
+| **Technical debt tracking** | Manual; documented in audit reports. No automated tracking | Automated debt tracking (Google: TODO tracking, Meta: Debt Manager) | Automated debt detection with priority scoring and automatic scheduling | 20 pts | 30 pts | Medium |
 
 **Ferro strengths:** CI/CD pipeline with staging + production deployment. Docker image building. Release automation.
 

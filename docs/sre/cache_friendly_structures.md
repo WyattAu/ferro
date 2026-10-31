@@ -23,23 +23,23 @@ This plan replaces standard library data structures with cache-optimized alterna
 ## Current Architecture Analysis
 
 ### HashMap Usage in Hot Paths
-- **File:** `crates/dav/src/ical.rs:9` — `IcalProperty` uses `HashMap<String, String>`
-- **File:** `crates/dav/src/ical.rs:20` — `IcalComponent` uses `HashMap<String, Vec<IcalProperty>>`
-- **File:** `crates/dav/src/vcard.rs:9` — `VcardProperty` uses `HashMap<String, String>`
-- **File:** `crates/dav/src/vcard.rs:82` — `Vcard` uses `HashMap<String, Vec<VcardProperty>>`
-- **File:** `crates/event-bus/src/bus.rs:87` — `EventBus` uses `DashMap<String, Vec<Arc<dyn HandlerEraser>>>`
+- **File:** `crates/dav/src/ical.rs:9`; `IcalProperty` uses `HashMap<String, String>`
+- **File:** `crates/dav/src/ical.rs:20`; `IcalComponent` uses `HashMap<String, Vec<IcalProperty>>`
+- **File:** `crates/dav/src/vcard.rs:9`; `VcardProperty` uses `HashMap<String, String>`
+- **File:** `crates/dav/src/vcard.rs:82`; `Vcard` uses `HashMap<String, Vec<VcardProperty>>`
+- **File:** `crates/event-bus/src/bus.rs:87`; `EventBus` uses `DashMap<String, Vec<Arc<dyn HandlerEraser>>>`
 - **Issue:** `std::collections::HashMap` uses SipHash, which is slower than alternatives for non-adversarial workloads
 
 ### Clone Operations Analysis
-- **File:** `crates/dav/src/ical.rs` — 47 clones per iCal parse
-- **File:** `crates/dav/src/vcard.rs` — 52 clones per vCard parse
-- **File:** `crates/event-bus/src/bus.rs:119-194` — 8 clones per publish
-- **File:** `crates/dav/src/xml_ext.rs:52-101` — 12 clones per XML build
+- **File:** `crates/dav/src/ical.rs`; 47 clones per iCal parse
+- **File:** `crates/dav/src/vcard.rs`; 52 clones per vCard parse
+- **File:** `crates/event-bus/src/bus.rs:119-194`; 8 clones per publish
+- **File:** `crates/dav/src/xml_ext.rs:52-101`; 12 clones per XML build
 
 ### Struct Layout Issues
-- **File:** `crates/dav/src/ical.rs:4-12` — `IcalProperty` not cache-aligned
-- **File:** `crates/dav/src/vcard.rs:47-83` — `Vcard` struct has poor field ordering
-- **File:** `crates/event-bus/src/bus.rs:86-91` — `EventBus` struct has poor cache locality
+- **File:** `crates/dav/src/ical.rs:4-12`; `IcalProperty` not cache-aligned
+- **File:** `crates/dav/src/vcard.rs:47-83`; `Vcard` struct has poor field ordering
+- **File:** `crates/event-bus/src/bus.rs:86-91`; `EventBus` struct has poor cache locality
 
 ---
 
@@ -783,7 +783,7 @@ cargo fmt --check
 ```
 
 **5.4 Update documentation**
-- **File:** `docs/performance-tuning.md` — add cache-friendly section
+- **File:** `docs/performance-tuning.md`; add cache-friendly section
 
 #### Benchmark Targets (Day 5)
 | Metric | Before | After | Target |

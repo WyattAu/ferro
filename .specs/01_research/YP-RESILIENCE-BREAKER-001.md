@@ -9,7 +9,7 @@
 | Author       | DeepThought (Research Agent, Iteration R2-8) |
 | Date         | 2026-10-14                                 |
 | Crate Ref    | `formal/Ferro/CircuitBreaker*.lean`, wasm-worker + outbound HTTP paths |
-| Supersedes   | (none; first YP for the breaker — previously only `formal/` models existed) |
+| Supersedes   | (none; first YP for the breaker; previously only `formal/` models existed) |
 
 ---
 
@@ -39,7 +39,7 @@ Ferro's wasm workers and outbound federation/webhook calls need a breaker that (
 
 - **Bounded detection:** after exactly `threshold` consecutive failures the breaker is Open.
 - **Bounded recovery:** from Open, two successful calls close the breaker (probe → HalfOpen → Closed).
-- **Capped escalation:** ejection duration ≤ `max_ejection_time` — re-probe at least once per cap window.
+- **Capped escalation:** ejection duration ≤ `max_ejection_time`; re-probe at least once per cap window.
 - **Escalation under the cap:** consecutive ejections strictly increase in duration.
 
 ---
@@ -50,7 +50,7 @@ Ferro's wasm workers and outbound federation/webhook calls need a breaker that (
 |------|------------|
 | Consecutive counter | Failures since last success; a success clears it to 0. |
 | Threshold | Consecutive failures that trip Open (consecutive-5xx analogue). |
-| Ejection duration | `min(base × consecutive_ejections, cap)` — Envoy `base_ejection_time` × count, capped by `max_ejection_time`. |
+| Ejection duration | `min(base × consecutive_ejections, cap)`; Envoy `base_ejection_time` × count, capped by `max_ejection_time`. |
 | HalfOpen probe | The single trial call allowed while Open. |
 
 ---
@@ -58,22 +58,22 @@ Ferro's wasm workers and outbound federation/webhook calls need a breaker that (
 ## YP-4: Theoretical Foundation
 
 ### THM-CB-FAILURE-INCREMENTS
-A failure strictly increments the consecutive counter. [Proved — Lean `fail_increments`]
+A failure strictly increments the consecutive counter. [Proved; Lean `fail_increments`]
 
 ### THM-CB-SUCCESS-RESETS
-A success resets the consecutive counter to zero. [Proved — Lean `success_resets`]
+A success resets the consecutive counter to zero. [Proved; Lean `success_resets`]
 
 ### THM-CB-DETECTION-BOUNDED
-After exactly `threshold` consecutive failures the breaker is Open — detection latency ≤ threshold calls regardless of history. [Proved — Lean `detection_bounded`]
+After exactly `threshold` consecutive failures the breaker is Open; detection latency ≤ threshold calls regardless of history. [Proved; Lean `detection_bounded`]
 
 ### THM-CB-RECOVERY-BOUNDED
-From Open, two successes close the breaker. Recovery is bounded; no oscillation without new failures. [Proved — Lean `recovery_bounded`, `halfopen_success_closes`]
+From Open, two successes close the breaker. Recovery is bounded; no oscillation without new failures. [Proved; Lean `recovery_bounded`, `halfopen_success_closes`]
 
 ### THM-CB-EJECTION-CAPPED
-`ejectTime = min(base × mult, cap) ≤ cap` — a dead dependency is re-probed at least once per cap window; liveness of the probe path. [Proved — Lean `ejection_capped`]
+`ejectTime = min(base × mult, cap) ≤ cap`; a dead dependency is re-probed at least once per cap window; liveness of the probe path. [Proved; Lean `ejection_capped`]
 
 ### THM-CB-EJECTION-ESCALATES / THM-CB-EJECTION-MONOTONE
-While `base × mult < cap`, consecutive ejections strictly lengthen; never shorten. [Proved — Lean `ejection_escalates`, `ejection_monotone`]
+While `base × mult < cap`, consecutive ejections strictly lengthen; never shorten. [Proved; Lean `ejection_escalates`, `ejection_monotone`]
 
 ---
 
@@ -116,5 +116,5 @@ Trip at threshold (5th consecutive failure); success resets budget mid-streak; e
 
 ## YP-8: Bibliography
 
-1. Envoy Proxy. "Outlier detection," *Architecture Overview* — envoyproxy.io docs (fetched 2026-10-14): consecutive-5xx, ejection-time escalation with cap, success uneject, max_ejection_percent. [VERIFIED]
-2. Netflix. "Concurrency Limits & adaptive limiting" (reference for future adaptive thresholds). [UNCERTAIN — not fetched]
+1. Envoy Proxy. "Outlier detection," *Architecture Overview*; envoyproxy.io docs (fetched 2026-10-14): consecutive-5xx, ejection-time escalation with cap, success uneject, max_ejection_percent. [VERIFIED]
+2. Netflix. "Concurrency Limits & adaptive limiting" (reference for future adaptive thresholds). [UNCERTAIN; not fetched]

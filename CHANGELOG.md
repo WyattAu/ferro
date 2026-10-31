@@ -87,7 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Total test count: 885 (was 496).
 
 ### Fixed
-- Circuit breaker deadlock: `parking_lot::Mutex` reentrant lock in `state()` and `record_success()` — wrapped first lock in block scope to drop before re-lock.
+- Circuit breaker deadlock: `parking_lot::Mutex` reentrant lock in `state()` and `record_success()`; wrapped first lock in block scope to drop before re-lock.
 - Benchmark CI regression detection: tightened from 120% to 105% alert threshold, set to fail on alert.
 - k6 load test scripts: fixed auth header encoding and health endpoint path.
 
@@ -276,9 +276,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Import formatting: removed unnecessary braces in `ferro-server::policies`
 
 ### Added
-- `rustfmt.toml` — codified formatting rules (imports granularity, comment width, etc.)
-- `.clippy.toml` — cognitive complexity, struct size, argument thresholds
-- `deny.toml` — cargo-deny config with documented ignores for desktop-only transitive advisories
+- `rustfmt.toml`; codified formatting rules (imports granularity, comment width, etc.)
+- `.clippy.toml`; cognitive complexity, struct size, argument thresholds
+- `deny.toml`; cargo-deny config with documented ignores for desktop-only transitive advisories
 
 ### Changed
 - CI audit job: hardened with `deny.toml` baseline for future cargo-deny integration
@@ -287,7 +287,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.5.0] - 2026-05-01
 
 ### Added
-- **ferro-client** SDK crate — async WebDAV client with C-FFI for Swift/Kotlin mobile binding
+- **ferro-client** SDK crate; async WebDAV client with C-FFI for Swift/Kotlin mobile binding
 - Chunked upload API (`POST /api/upload/init`, `PUT /api/upload/:id/chunk/:n`, `POST /api/upload/:id/complete`)
 - mdBook documentation site (35 pages across 6 sections)
 - Comprehensive SECURITY.md with penetration testing guide
@@ -324,7 +324,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.3.0] - 2026-04-29
 
 ### Added
-- FUSE filesystem mount (crates/fuse/) — real read/write/create/mkdir/unlink/rmdir/rename
+- FUSE filesystem mount (crates/fuse/); real read/write/create/mkdir/unlink/rmdir/rename
 - Inode table and file handle table with access mode tracking
 - WebDAV sync-token delta sync (AtomicU64 sync_clock)
 - CalDAV/CardDAV persistence (rusqlite bundled, 4 SQLite tables)

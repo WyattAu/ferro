@@ -104,7 +104,7 @@
 
 ## Next: v18.0 Cross-Platform Mount
 
-### P0 — Critical
+### P0: Critical
 
 | Item | Scope | Effort | Status |
 |------|-------|--------|--------|
@@ -114,7 +114,7 @@
 | External WebDAV via Headscale | ACL rules, mount documentation | 0.5 days | Done |
 | External WebDAV via Cloudflare | Tunnel ingress for /dav/ path | 0.5 days | Done |
 
-### P1 — High
+### P1: High
 
 | Item | Scope | Effort | Status |
 |------|-------|--------|--------|
@@ -124,7 +124,7 @@
 | Lock down Cedar policy | Replace permit-all with per-user rules from Keycloak groups | 1 day | Done |
 | Crawlkit re-crawl | Verify security headers + meta tags fix all warnings | 0.5 days | Done |
 
-### P2 — Medium
+### P2: Medium
 
 | Item | Scope | Effort | Status |
 |------|-------|--------|--------|
@@ -134,7 +134,7 @@
 | Consolidate comments/tags | Make server-collaboration the single source of truth | 1 day | Done (verified single source: `ferro_server_collaboration::tags::TagStore` + `comments::CommentStore`) |
 | Frontend use_data_loader hook | Extract loading/error/empty state pattern | 1 day | Done (crates/web/src/hooks/data_loader.rs + crates/ferro-ui/src/hooks/data_loader.rs) |
 
-### P3 — Low
+### P3: Low
 
 | Item | Scope | Effort | Status |
 |------|-------|--------|--------|

@@ -1,4 +1,4 @@
-# Ferro Attack Scenarios — Red Team Exercise Document
+# Ferro Attack Scenarios: Red Team Exercise Document
 
 **Document:** Comprehensive Attack Scenarios  
 **Version:** 1.0.0  
@@ -8,7 +8,7 @@
 
 ---
 
-## OWASP A01:2021 — Broken Access Control
+## OWASP A01:2021: Broken Access Control
 
 ### AS-AC-001: Horizontal Privilege Escalation via IDOR
 
@@ -62,7 +62,7 @@
 
 ---
 
-## OWASP A02:2021 — Cryptographic Failures
+## OWASP A02:2021: Cryptographic Failures
 
 ### AS-CF-001: JWT Algorithm Confusion
 
@@ -126,7 +126,7 @@
 
 ---
 
-## OWASP A03:2021 — Injection
+## OWASP A03:2021: Injection
 
 ### AS-INJ-001: SQL Injection via Query Parameters
 
@@ -230,7 +230,7 @@
 
 ---
 
-## OWASP A04:2021 — Insecure Design
+## OWASP A04:2021: Insecure Design
 
 ### AS-ID-001: Missing Rate Limiting on Auth Endpoints
 
@@ -264,7 +264,7 @@
 
 ---
 
-## OWASP A05:2021 — Security Misconfiguration
+## OWASP A05:2021: Security Misconfiguration
 
 ### AS-SC-001: Default Admin Password in Production
 
@@ -318,7 +318,7 @@
 
 ---
 
-## OWASP A06:2021 — Vulnerable and Outdated Components
+## OWASP A06:2021: Vulnerable and Outdated Components
 
 ### AS-VC-001: Known Vulnerability in Dependencies
 
@@ -342,7 +342,7 @@
 
 ---
 
-## OWASP A07:2021 — Identification and Authentication Failures
+## OWASP A07:2021: Identification and Authentication Failures
 
 ### AS-AUTH-001: OIDC State Parameter Reuse
 
@@ -386,7 +386,7 @@
 
 ---
 
-## OWASP A08:2021 — Software and Data Integrity Failures
+## OWASP A08:2021: Software and Data Integrity Failures
 
 ### AS-DI-001: WASM Module Tampering
 
@@ -420,7 +420,7 @@
 
 ---
 
-## OWASP A09:2021 — Security Logging and Monitoring Failures
+## OWASP A09:2021: Security Logging and Monitoring Failures
 
 ### AS-LOG-001: Missing Audit Logging for Sensitive Operations
 
@@ -454,7 +454,7 @@
 
 ---
 
-## OWASP A10:2021 — Server-Side Request Forgery (SSRF)
+## OWASP A10:2021: Server-Side Request Forgery (SSRF)
 
 ### AS-SSRF-001: SSRF via OIDC Discovery
 

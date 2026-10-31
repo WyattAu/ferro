@@ -1,4 +1,4 @@
-# Ferro Mesh Sync — LAN/WAN Peer Block Exchange
+# Ferro Mesh Sync: LAN/WAN Peer Block Exchange
 
 ## Architecture
 
@@ -15,7 +15,7 @@ WAN:  peer A ──→ Ferro server ←── peer B  (relay via block CAS)
    listener port, and block hashes it holds.
 2. On the next cycle, before uploading blocks to the server, the client
    queries `GET /api/sync/peers/blocks?hash=<hash>` to find LAN peers that
-   already hold a block — and fetches it directly instead of the WAN.
+   already hold a block; and fetches it directly instead of the WAN.
 3. A lightweight HTTP listener on port 7878 serves `GET /blocks/{hash}`
    from the in-memory block cache populated during upload.
 
@@ -41,7 +41,7 @@ tailscale up --login-server https://headscale.wyattau.com
 - Block exchange is hash-verified (SHA-256, matching the CAS store).
 - Peers only discover other users who share a space with them (Cedar-gated).
 - The block listener binds to `0.0.0.0` but only serves content for hashes
-  that were explicitly uploaded — no directory traversal, no auth bypass.
+  that were explicitly uploaded; no directory traversal, no auth bypass.
 
 ## Future (Phase 3)
 

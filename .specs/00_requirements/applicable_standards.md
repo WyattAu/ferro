@@ -1,4 +1,4 @@
-# Ferro Applicable Standards — Multi-Standard Compliance Matrix
+# Ferro Applicable Standards: Multi-Standard Compliance Matrix
 
 **Document ID:** FERRO-ST-001
 **Date:** 2026-04-18
@@ -28,7 +28,7 @@
 
 ## 2. Detailed Standard Mapping
 
-### 2.1 ISO/IEC 27001 — Information Security Management
+### 2.1 ISO/IEC 27001: Information Security Management
 
 **Applicability:** Whole system
 **Priority:** P0 (Mandatory)
@@ -57,7 +57,7 @@
 
 ---
 
-### 2.2 ISO/IEC 27034 — Application Security
+### 2.2 ISO/IEC 27034: Application Security
 
 **Applicability:** Web server, web frontend, API
 **Priority:** P1 (Mandatory)
@@ -72,7 +72,7 @@
 
 ---
 
-### 2.3 NIST SP 800-53 — Security and Privacy Controls
+### 2.3 NIST SP 800-53: Security and Privacy Controls
 
 **Applicability:** Authentication, authorization, audit logging
 **Priority:** P0 (Mandatory)
@@ -102,9 +102,9 @@
 
 ---
 
-### 2.4 RFC 4918 — WebDAV (HTTP Extensions for Distributed Authoring)
+### 2.4 RFC 4918: WebDAV (HTTP Extensions for Distributed Authoring)
 
-**Applicability:** Interface layer — core protocol
+**Applicability:** Interface layer; core protocol
 **Priority:** P0 (Mandatory)
 
 | Section | Requirement | Subsystem | Verification |
@@ -127,7 +127,7 @@
 
 ---
 
-### 2.5 RFC 3253 — WebDAV Versioning Extensions
+### 2.5 RFC 3253: WebDAV Versioning Extensions
 
 **Applicability:** Office integration, WOPI prerequisites
 **Priority:** P0 (Mandatory)
@@ -144,7 +144,7 @@
 
 ---
 
-### 2.6 RFC 3744 — WebDAV Access Control Protocol
+### 2.6 RFC 3744: WebDAV Access Control Protocol
 
 **Applicability:** Authorization layer
 **Priority:** P1 (Mandatory)
@@ -230,7 +230,7 @@
 
 ---
 
-### 2.11 GDPR / CCPA — Data Protection
+### 2.11 GDPR / CCPA: Data Protection
 
 **Applicability:** Data handling, audit logs, dedup metadata
 **Priority:** P0 (Mandatory)
@@ -273,7 +273,7 @@
 
 ---
 
-### 2.13 IEC 62443 — Industrial Automation Security
+### 2.13 IEC 62443: Industrial Automation Security
 
 **Applicability:** Specialized industrial/specialized deployments
 **Priority:** P2 (Recommended)
@@ -291,7 +291,7 @@
 
 ## 3. Standards Priority Summary
 
-### P0 — Mandatory (Must Comply)
+### P0: Mandatory (Must Comply)
 - ISO/IEC 27001 (Information Security)
 - NIST SP 800-53 (Security Controls)
 - RFC 4918 (WebDAV)
@@ -301,11 +301,11 @@
 - GDPR / CCPA
 - OWASP Top 10
 
-### P1 — Mandatory (Must Comply, Lower Priority)
+### P1: Mandatory (Must Comply, Lower Priority)
 - ISO/IEC 27034 (Application Security)
 - RFC 3744 (WebDAV ACL)
 - WOPI Specification
 - WASM/WASI Specification
 
-### P2 — Recommended
-- IEC 62443 (Industrial Security) — only for specialized deployments
+### P2: Recommended
+- IEC 62443 (Industrial Security); only for specialized deployments

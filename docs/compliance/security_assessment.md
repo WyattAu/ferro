@@ -146,26 +146,26 @@ See [nist_sp80053_mapping.md](./nist_sp80053_mapping.md) for the complete contro
 
 | Category | Status |
 |----------|--------|
-| V1: Architecture | Compliant — Defense-in-depth, separation of concerns |
-| V2: Authentication | Compliant — OIDC, TOTP, SAML, LDAP, bcrypt, rate limiting |
-| V3: Session Management | Compliant — Token expiry, PKCE session TTL, refresh rotation |
-| V4: Access Control | Compliant — Cedar RBAC, role hierarchy, path validation |
-| V5: Validation | Compliant — Path traversal prevention, XML entity defense, input limits |
-| V6: Crypto | Partial — No key rotation or HSM integration (H-002) |
-| V7: Error Handling | Compliant — Structured error responses, no stack traces |
-| V8: Data Protection | Partial — E2EE implemented, no secure deletion (M-001) |
-| V9: Logging | Compliant — Chain-verified audit log with comprehensive fields |
-| V10: HTTP Security | Compliant — HSTS, CSP, X-Frame-Options, nosniff |
+| V1: Architecture | Compliant; Defense-in-depth, separation of concerns |
+| V2: Authentication | Compliant; OIDC, TOTP, SAML, LDAP, bcrypt, rate limiting |
+| V3: Session Management | Compliant; Token expiry, PKCE session TTL, refresh rotation |
+| V4: Access Control | Compliant; Cedar RBAC, role hierarchy, path validation |
+| V5: Validation | Compliant; Path traversal prevention, XML entity defense, input limits |
+| V6: Crypto | Partial; No key rotation or HSM integration (H-002) |
+| V7: Error Handling | Compliant; Structured error responses, no stack traces |
+| V8: Data Protection | Partial; E2EE implemented, no secure deletion (M-001) |
+| V9: Logging | Compliant; Chain-verified audit log with comprehensive fields |
+| V10: HTTP Security | Compliant; HSTS, CSP, X-Frame-Options, nosniff |
 
 ### 5.3 SOC 2 Type II Alignment
 
 | Criterion | Status |
 |-----------|--------|
-| CC6.1 (Logical Access) | Aligned — OIDC, RBAC, role-based access |
-| CC6.6 (External Threats) | Aligned — TLS 1.3, rate limiting, WORM |
-| CC7.1 (Monitoring) | Aligned — Audit logging, chain verification |
-| CC7.2 (Anomaly Detection) | Partial — Rate limiting exists, no anomaly alerting |
-| CC8.1 (Change Management) | Partial — Config changes not audited (M-002) |
+| CC6.1 (Logical Access) | Aligned; OIDC, RBAC, role-based access |
+| CC6.6 (External Threats) | Aligned; TLS 1.3, rate limiting, WORM |
+| CC7.1 (Monitoring) | Aligned; Audit logging, chain verification |
+| CC7.2 (Anomaly Detection) | Partial; Rate limiting exists, no anomaly alerting |
+| CC8.1 (Change Management) | Partial; Config changes not audited (M-002) |
 
 ---
 

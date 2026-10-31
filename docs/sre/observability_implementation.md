@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-This guide provides step-by-step integration of OpenTelemetry-based observability into Ferro's Rust server. It covers metrics, traces, and logs with concrete code snippets, Prometheus configuration, Grafana dashboards, and alert rules. The current codebase has a custom `MetricsRegistry` with manual Prometheus formatting (`crates/server/src/prometheus_metrics.rs`) — this plan migrates to the `opentelemetry` crate ecosystem while preserving backward compatibility.
+This guide provides step-by-step integration of OpenTelemetry-based observability into Ferro's Rust server. It covers metrics, traces, and logs with concrete code snippets, Prometheus configuration, Grafana dashboards, and alert rules. The current codebase has a custom `MetricsRegistry` with manual Prometheus formatting (`crates/server/src/prometheus_metrics.rs`); this plan migrates to the `opentelemetry` crate ecosystem while preserving backward compatibility.
 
 ---
 
@@ -96,7 +96,7 @@ prometheus-exporter = ["dep:prometheus"]
 otlp = ["dep:opentelemetry-otlp"]
 ```
 
-**File:** `crates/server/Cargo.toml` — update otel feature:
+**File:** `crates/server/Cargo.toml`; update otel feature:
 
 ```toml
 [features]
@@ -205,7 +205,7 @@ pub fn init_metrics_provider(config: &ObservabilityConfig) -> SdkMeterProvider {
 
 ### 1.3 Wire into Server Startup
 
-**File:** `crates/server/src/startup.rs` — add at top of `main()`:
+**File:** `crates/server/src/startup.rs`; add at top of `main()`:
 
 ```rust
 #[cfg(feature = "otel")]
@@ -359,7 +359,7 @@ pub fn init_metrics() -> &'static FerroMetrics {
 
 ### 2.2 Instrument HTTP Handlers
 
-**File:** `crates/server/src/request_logging.rs` — enhance with OTel metrics:
+**File:** `crates/server/src/request_logging.rs`; enhance with OTel metrics:
 
 ```rust
 use axum::extract::{MatchedRequestParts, Request, State};
@@ -406,7 +406,7 @@ pub async fn otel_metrics_middleware(
 
 ### 2.3 Instrument Storage Operations
 
-**File:** `crates/server/src/storage.rs` — add timing to storage calls:
+**File:** `crates/server/src/storage.rs`; add timing to storage calls:
 
 ```rust
 use opentelemetry::global;
@@ -470,7 +470,7 @@ pub async fn instrumented_get(
 
 ### 2.4 Instrument Cache
 
-**File:** `crates/cache/src/cache.rs` — add metrics hooks:
+**File:** `crates/cache/src/cache.rs`; add metrics hooks:
 
 ```rust
 // In CacheStore impl for TimedCache
@@ -511,7 +511,7 @@ fn get(&self, key: &K) -> Option<V> {
 
 ### 2.5 Instrument WASM Runtime
 
-**File:** `crates/core/src/wasm.rs` — add dispatch metrics:
+**File:** `crates/core/src/wasm.rs`; add dispatch metrics:
 
 ```rust
 pub async fn dispatch_with_metrics(
@@ -544,7 +544,7 @@ pub async fn dispatch_with_metrics(
 
 ### 2.6 Instrument Database Queries
 
-**File:** `crates/server/src/db.rs` — add query timing:
+**File:** `crates/server/src/db.rs`; add query timing:
 
 ```rust
 pub async fn instrumented_query(
@@ -580,7 +580,7 @@ pub async fn instrumented_query(
 
 ### 3.1 Tracing Subscriber Setup
 
-**File:** `crates/server/src/startup.rs` — configure tracing subscriber:
+**File:** `crates/server/src/startup.rs`; configure tracing subscriber:
 
 ```rust
 pub fn init_tracing() {
@@ -607,7 +607,7 @@ pub fn init_tracing() {
 
 ### 3.2 Add Tracing Spans to Critical Paths
 
-**File:** `crates/server/src/handlers.rs` — add spans:
+**File:** `crates/server/src/handlers.rs`; add spans:
 
 ```rust
 #[tracing::instrument(
@@ -644,7 +644,7 @@ pub async fn handle_get(
 
 ### 3.3 Propagate Trace Context in Storage Operations
 
-**File:** `crates/core/src/storage.rs` — propagate context:
+**File:** `crates/core/src/storage.rs`; propagate context:
 
 ```rust
 pub async fn get_with_context(
@@ -668,7 +668,7 @@ pub async fn get_with_context(
 
 ### 3.4 Create Span for WebSocket Connections
 
-**File:** `crates/server/src/ws.rs` — instrument WebSocket:
+**File:** `crates/server/src/ws.rs`; instrument WebSocket:
 
 ```rust
 pub async fn ws_handler(
@@ -710,7 +710,7 @@ pub fn init_loki subscriber(endpoint: &str) -> impl SubscriberExt {
 
 ### 4.2 Structured Log Format
 
-**File:** `crates/server/src/json_logging.rs` — add OTel context:
+**File:** `crates/server/src/json_logging.rs`; add OTel context:
 
 ```rust
 pub fn format_with_otel_context(

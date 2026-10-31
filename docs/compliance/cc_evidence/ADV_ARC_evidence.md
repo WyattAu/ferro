@@ -24,12 +24,12 @@ The developer shall provide a security architecture description of the TOE, incl
 
 | Layer | Crates | Trust Level |
 |-------|--------|-------------|
-| Layer 0: Foundation | `common` | High — shared types, zero internal deps |
-| Layer 1: Core | `core`, `auth`, `crypto`, `circuit-breaker`, `crdt`, `rate-limiter`, `event-bus`, `cache`, `health` | High — security primitives |
-| Layer 2: Domain/Protocol | `dav`, `caldav`, `webdav-handler`, `sync-protocol`, `offline`, `distributed`, `graphql` | Medium — protocol handling |
-| Layer 3: Infrastructure | `server-security`, `server-security-middleware`, `server-compliance`, `server-content`, `server-storage-ops`, etc. (20+ crates) | Medium — middleware enforcement |
-| Layer 4: Application | `server` | Medium — HTTP/HTTPS entry point |
-| Layer 5: Clients | `web`, `cli`, `client`, `desktop`, `mobile`, `admin` | Low — external-facing |
+| Layer 0: Foundation | `common` | High; shared types, zero internal deps |
+| Layer 1: Core | `core`, `auth`, `crypto`, `circuit-breaker`, `crdt`, `rate-limiter`, `event-bus`, `cache`, `health` | High; security primitives |
+| Layer 2: Domain/Protocol | `dav`, `caldav`, `webdav-handler`, `sync-protocol`, `offline`, `distributed`, `graphql` | Medium; protocol handling |
+| Layer 3: Infrastructure | `server-security`, `server-security-middleware`, `server-compliance`, `server-content`, `server-storage-ops`, etc. (20+ crates) | Medium; middleware enforcement |
+| Layer 4: Application | `server` | Medium; HTTP/HTTPS entry point |
+| Layer 5: Clients | `web`, `cli`, `client`, `desktop`, `mobile`, `admin` | Low; external-facing |
 
 ### 3. Security-Relevant Components
 
@@ -55,17 +55,17 @@ The developer shall provide a security architecture description of the TOE, incl
 ### 5. Architectural Decisions
 
 No formal ADRs found in `.adrs/` directory. Architectural decisions are documented within:
-- `.specs/02_architecture/crate_dependency_graph.md` — layer separation rationale
-- `docs/compliance/common_criteria_preparation.md` — security function decisions
-- `docs/compliance/nist_sp80053_mapping.md` — control implementation decisions
+- `.specs/02_architecture/crate_dependency_graph.md`; layer separation rationale
+- `docs/compliance/common_criteria_preparation.md`; security function decisions
+- `docs/compliance/nist_sp80053_mapping.md`; control implementation decisions
 
 ## Gaps
 
 | Gap | Priority | Notes |
 |-----|----------|-------|
-| Data flow diagrams | High | Missing — need network-level data flow |
-| Trust boundary diagrams | High | Missing — need visual TOE boundary |
-| TOE boundary diagram | High | Missing — required for ST document |
+| Data flow diagrams | High | Missing; need network-level data flow |
+| Trust boundary diagrams | High | Missing; need visual TOE boundary |
+| TOE boundary diagram | High | Missing; required for ST document |
 
 ## Verification Instructions
 
@@ -84,7 +84,7 @@ cargo tree -p ferro-crypto -e normal --depth 0
 
 ## References
 
-- `docs/compliance/common_criteria_preparation.md` — Full CC preparation document
-- `docs/compliance/nist_sp80053_mapping.md` — NIST control mapping
-- `docs/security/security_controls_matrix.md` — Controls matrix
-- `docs/security/attack_scenarios.md` — STRIDE threat model
+- `docs/compliance/common_criteria_preparation.md`; Full CC preparation document
+- `docs/compliance/nist_sp80053_mapping.md`; NIST control mapping
+- `docs/security/security_controls_matrix.md`; Controls matrix
+- `docs/security/attack_scenarios.md`; STRIDE threat model

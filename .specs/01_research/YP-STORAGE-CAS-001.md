@@ -22,14 +22,14 @@ Ferro requires a multi-backend storage layer that provides content deduplication
 
 - **Content Integrity**: Every object is identified by its SHA-256 hash. Any mutation of content produces a different hash, making tampering immediately detectable.
 - **Deduplication**: If `hash(content_a) == hash(content_b)`, only one physical copy is stored. This reduces storage TCO by up to 40% in enterprise deployments.
-- **Instant Snapshots**: Because metadata (user path -> content hash mappings) is decoupled from physical storage, reverting to a prior state requires only metadata rollback — no data movement. This enables ransomware protection.
+- **Instant Snapshots**: Because metadata (user path -> content hash mappings) is decoupled from physical storage, reverting to a prior state requires only metadata rollback; no data movement. This enables ransomware protection.
 
 ### object_store Abstraction
 
 The `object_store` crate (Apache Arrow project, v0.13.2) provides a uniform async API over multiple backends via the `ObjectStore` trait. Key characteristics:
 
 - **Backends**: `InMemory`, `LocalFileSystem` (feature `fs`), `AmazonS3` (feature `aws`), `GoogleCloudStorage` (feature `gcp`), `MicrosoftAzure` (feature `azure`), `Http` (feature `http`).
-- **Atomic Operations**: All put operations are atomic — no partial writes are observable by readers.
+- **Atomic Operations**: All put operations are atomic; no partial writes are observable by readers.
 - **Conditional Puts**: `PutMode::Create` (fail if exists), `PutMode::Overwrite` (default), `PutMode::Update(version)` (optimistic concurrency via ETag/version).
 - **Multipart Upload**: For large files via `put_multipart_opts` + `MultipartUpload` trait.
 - **Pre-signed URLs**: Via the `Signer` trait, implemented by S3, GCS, and Azure (feature `cloud`).
@@ -49,7 +49,7 @@ The `object_store` crate (Apache Arrow project, v0.13.2) provides a uniform asyn
 | Multipart Upload      | A mechanism to upload large objects in fixed-size chunks, assembled atomically on completion.     |
 | Pre-signed URL        | A time-limited URL embedding cryptographic credentials, allowing access without exposing keys.    |
 | ETag                  | An opaque version identifier returned by object stores on put/get (used for conditional ops).     |
-| PutMode               | `object_store` enum: `Overwrite`, `Create`, `Update(UpdateVersion)` — controls put preconditions.|
+| PutMode               | `object_store` enum: `Overwrite`, `Create`, `Update(UpdateVersion)`; controls put preconditions.|
 | CAS Path              | The storage path derived from a content hash, e.g., `objects/ab/cd/ab12cd34...`.                 |
 | User Path             | The logical path presented to the user, e.g., `documents/report.pdf`.                            |
 | Metadata Mapping      | The record linking a user path to its content hash, stored in the metadata engine (Postgres/LibSQL). |
@@ -57,15 +57,15 @@ The `object_store` crate (Apache Arrow project, v0.13.2) provides a uniform asyn
 | Garbage Collection    | The process of deleting physical objects whose reference count has reached zero.                 |
 | Optimistic Concurrency| A concurrency control technique using version checks (ETag) to prevent lost updates.             |
 | WriteMultipart        | `object_store` synchronous write API for uploading data in parallel fixed-size chunks.            |
-| PutPayload            | A cheaply cloneable, ordered collection of `Bytes` — the input type for put operations.           |
-| DynObjectStore        | `Arc<dyn ObjectStore>` — type-erased object store handle.                                        |
+| PutPayload            | A cheaply cloneable, ordered collection of `Bytes`; the input type for put operations.           |
+| DynObjectStore        | `Arc<dyn ObjectStore>`; type-erased object store handle.                                        |
 | Signer                | `object_store` trait for generating pre-signed URLs (S3, GCS, Azure).                            |
 
 ---
 
 ## YP-4: Theoretical Foundation
 
-### DEF-CAS-001: Content-Addressable Storage — Formal Definition
+### DEF-CAS-001: Content-Addressable Storage: Formal Definition
 
 A Content-Addressable Storage is a triple `(H, S, M)` where:
 
@@ -131,13 +131,13 @@ For a CAS system storing N files, the probability of an undetected collision is 
 P(collision) <= N^2 / (2 * 2^256) = N^2 * 2^-257
 ```
 
-For N = 10^18 (one quintillion files — far exceeding any realistic deployment):
+For N = 10^18 (one quintillion files; far exceeding any realistic deployment):
 
 ```
 P(collision) <= 10^36 / 2^257 ≈ 2^-181.5 ≈ 1.3 x 10^-55
 ```
 
-This is negligibly small — less than the probability of a cosmic ray flipping bits in RAM during a computation.
+This is negligibly small; less than the probability of a cosmic ray flipping bits in RAM during a computation.
 
 **Note on SHAttered:** The SHAttered attack (2017) demonstrated a collision for SHA-1 (160-bit output). SHA-256 remains unbroken. No practical collision has ever been demonstrated for SHA-256.
 
@@ -158,7 +158,7 @@ This is negligibly small — less than the probability of a cosmic ray flipping 
 
 ---
 
-### DEF-PRESIGNED-001: Pre-signed URL — Formal Definition
+### DEF-PRESIGNED-001: Pre-signed URL: Formal Definition
 
 A pre-signed URL is a tuple `(base_url, token, expires_at)` where:
 
@@ -196,7 +196,7 @@ token = Sign(sk, method || path || expires_at || [content_hash])
 
 ### DEF-ATOMIC-001: Atomic Write Patterns for Cloud Storage
 
-**Definition:** An atomic write is an operation where the state transition from "old value" to "new value" is instantaneous — no observer can read a partially written state.
+**Definition:** An atomic write is an operation where the state transition from "old value" to "new value" is instantaneous; no observer can read a partially written state.
 
 **object_store Atomicity Guarantees:**
 
@@ -216,7 +216,7 @@ loop {
     new_content = compute_update(obj.bytes().await)
     match store.put_opts(path, new_content, PutMode::Update(version)).await {
         Ok(_) => break,
-        Err(Error::Precondition) => continue,  // retry — someone else modified it
+        Err(Error::Precondition) => continue,  // retry; someone else modified it
         Err(e) => return Err(e),
     }
 }
@@ -233,10 +233,10 @@ This pattern is used by Apache Iceberg and Delta Lake for metadata catalog trans
 **Purpose:** Store content in CAS with deduplication, recording the user path -> hash mapping.
 
 **Inputs:**
-- `user_path: UserPath` — the logical path the user sees
-- `content_stream: AsyncRead` — streaming content (not fully buffered in memory)
-- `store: Arc<dyn ObjectStore>` — the physical object store backend
-- `metadata_db: MetadataEngine` — the metadata database (Postgres/LibSQL)
+- `user_path: UserPath`; the logical path the user sees
+- `content_stream: AsyncRead`; streaming content (not fully buffered in memory)
+- `store: Arc<dyn ObjectStore>`; the physical object store backend
+- `metadata_db: MetadataEngine`; the metadata database (Postgres/LibSQL)
 
 **Algorithm:**
 
@@ -286,7 +286,7 @@ function cas_put(user_path, content_stream, store, metadata_db):
 |-----------------|--------------------------------------------------|
 | Time (new)      | O(n) where n = content size (single pass hash + upload) |
 | Time (dedup)    | O(n) hash + O(1) metadata check (still must hash to detect dedup) |
-| Space (new)     | O(n) — full content buffered for atomic put       |
+| Space (new)     | O(n); full content buffered for atomic put       |
 | Space (dedup)   | O(1) after hash computation (content not stored)  |
 | Network (new)   | 1 PUT request                                     |
 | Network (dedup) | 1 metadata query only                             |
@@ -365,15 +365,15 @@ function cas_get(user_path, store, metadata_db):
 | Metric     | Value                                           |
 |------------|-------------------------------------------------|
 | Time       | O(1) metadata + O(n) fetch + O(n) verification  |
-| Space      | O(n) — full content returned to caller           |
+| Space      | O(n); full content returned to caller           |
 | Network    | 1 GET request                                    |
-| Integrity  | O(n) — full content hashed for verification      |
+| Integrity  | O(n); full content hashed for verification      |
 
 **Correctness Argument:**
 
 1. **Integrity**: The computed hash of fetched bytes must match the stored hash. Any bit-flip in transit or storage is detected.
 2. **Path Resolution**: The metadata mapping is the authoritative source of truth for user path -> content hash.
-3. **Failure Modes**: If physical data is missing but metadata exists, this indicates either garbage collection race or data corruption — both are audit-logged.
+3. **Failure Modes**: If physical data is missing but metadata exists, this indicates either garbage collection race or data corruption; both are audit-logged.
 
 ---
 
@@ -499,7 +499,7 @@ See the test vector file for the complete set of 20 test vectors covering normal
 |-------------------------------|---------------------------------------------|
 | Algorithm                     | SHA-256 (FIPS 180-4)                        |
 | Output Size                   | 256 bits (32 bytes, 64 hex chars)           |
-| Computation Mode              | Streaming — no full content buffered in RAM |
+| Computation Mode              | Streaming; no full content buffered in RAM |
 | Minimum Throughput            | >= 500 MB/s single-threaded                 |
 | Implementation                | `sha2` crate (RustCrypto) or `ring`         |
 | Large File Strategy           | Multipart upload with concurrent hash+stream|
@@ -524,7 +524,7 @@ See the test vector file for the complete set of 20 test vectors covering normal
 | Maximum TTL                   | 3,600 seconds (1 hour)                      |
 | Minimum TTL                   | 1 second                                    |
 | Supported Methods             | GET, PUT                                    |
-| Authorization Required        | Yes — Cedar policy evaluation before signing|
+| Authorization Required        | Yes; Cedar policy evaluation before signing|
 | Audit Logging                 | Mandatory for all presign operations        |
 | Staging Path Namespace        | UUIDv4-isolated per upload                  |
 | Backend Support               | S3, GCS, Azure (via `Signer` trait)         |
@@ -558,43 +558,43 @@ See the test vector file for the complete set of 20 test vectors covering normal
 
 ## YP-8: Bibliography
 
-1. **object_store crate** — Apache Arrow project. https://docs.rs/object_store/latest/object_store/
+1. **object_store crate**; Apache Arrow project. https://docs.rs/object_store/latest/object_store/
    - Unified async API for S3, GCS, Azure, Local FS, HTTP, InMemory.
    - v0.13.2: `ObjectStore` trait with `put_opts`, `get_opts`, `put_multipart_opts`, `copy_opts`, `delete_stream`, `list`, `list_with_delimiter`.
    - `Signer` trait for pre-signed URL generation (S3, GCS, Azure).
    - `PutMode` enum: `Overwrite`, `Create`, `Update(UpdateVersion)`.
 
-2. **FIPS 180-4** — Secure Hash Standard (SHS). National Institute of Standards and Technology (NIST), 2015.
+2. **FIPS 180-4**; Secure Hash Standard (SHS). National Institute of Standards and Technology (NIST), 2015.
    - Formal specification of SHA-256.
 
-3. **Merkle-Damgard Construction** — Merkle, R.C., Damgard, I. "A generalization of Schnorr's signature scheme." CRYPTO, 1989.
+3. **Merkle-Damgard Construction**; Merkle, R.C., Damgard, I. "A generalization of Schnorr's signature scheme." CRYPTO, 1989.
    - Foundation for iterated hash function security proofs.
 
-4. **Git Internals** — Git uses SHA-1 (historically) for content-addressable storage of all objects (blobs, trees, commits).
+4. **Git Internals**; Git uses SHA-1 (historically) for content-addressable storage of all objects (blobs, trees, commits).
    - Ferro uses SHA-256 as a stronger alternative.
 
-5. **IPFS Content Addressing** — Benet, J. "IPFS - Content Addressed, Versioned, P2P File System." 2014.
+5. **IPFS Content Addressing**; Benet, J. "IPFS - Content Addressed, Versioned, P2P File System." 2014.
    - Demonstrates CAS at planetary scale with Merkle DAGs.
 
-6. **AWS S3 Pre-signed URLs** — AWS documentation. https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html
+6. **AWS S3 Pre-signed URLs**; AWS documentation. https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html
    - Signature V4 (HMAC-SHA256) signing process.
 
-7. **Google Cloud Storage Signed URLs** — GCP documentation.
+7. **Google Cloud Storage Signed URLs**; GCP documentation.
    - RSA + SHA-256 based signing.
 
-8. **Azure Shared Access Signatures** — Microsoft documentation.
+8. **Azure Shared Access Signatures**; Microsoft documentation.
    - HMAC-SHA256 based signing with configurable permissions.
 
-9. **Optimistic Concurrency Control** — Kung, H.T., Robinson, J.T. "On Optimistic Methods for Concurrency Control." ACM TODS, 1981.
+9. **Optimistic Concurrency Control**; Kung, H.T., Robinson, J.T. "On Optimistic Methods for Concurrency Control." ACM TODS, 1981.
    - Theoretical foundation for ETag-based conditional updates.
 
-10. **Apache Iceberg** — Table format using `object_store` for atomic metadata transactions via conditional puts.
+10. **Apache Iceberg**; Table format using `object_store` for atomic metadata transactions via conditional puts.
     - Demonstrates OCC pattern at scale.
 
-11. **Delta Lake** — Uses optimistic concurrency with `object_store` put conditions.
+11. **Delta Lake**; Uses optimistic concurrency with `object_store` put conditions.
     - Production proof of atomic metadata management.
 
-12. **SHAttered** — Stevens, M. et al. "The first collision for full SHA-1." CRYPTO, 2017.
+12. **SHAttered**; Stevens, M. et al. "The first collision for full SHA-1." CRYPTO, 2017.
     - Why SHA-256 (not SHA-1) is the correct choice for CAS.
 
 ---

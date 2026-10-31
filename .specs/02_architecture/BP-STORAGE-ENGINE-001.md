@@ -1,4 +1,4 @@
-# BP-STORAGE-ENGINE-001: Storage Engine — Architectural Specification (Blue Paper)
+# BP-STORAGE-ENGINE-001: Storage Engine: Architectural Specification (Blue Paper)
 
 | Field        | Value                                      |
 |--------------|--------------------------------------------|
@@ -23,7 +23,7 @@ The Storage Engine is Ferro's multi-backend content-addressable storage layer. I
 
 ```mermaid
 C4Context
-    title Ferro Storage Engine — System Context
+    title Ferro Storage Engine; System Context
 
     Person(server_team, "Server Team", "Integrates storage into WebDAV/WOPI/API layers")
     Person(desktop_team, "Desktop Team", "Consumes storage via rclone WebDAV mount")
@@ -66,7 +66,7 @@ C4Context
 
 ```mermaid
 C4Component
-    title Storage Engine — Component Decomposition
+    title Storage Engine; Component Decomposition
 
     Container(storage_engine, "Storage Engine", "ferro-storage crate", "")
 
@@ -259,10 +259,10 @@ pub trait StorageEngine: Send + Sync + Debug + 'static {
 |                | POST-STORAGE-003: If hash already existed, only metadata is updated (dedup)    |
 | Invariants     | INV-STORAGE-001: Every user path maps to exactly one content hash at any time  |
 |                | INV-STORAGE-002: Reference count >= 1 for all stored hashes                    |
-| Error Handling | ERR-STORAGE-001: `InvalidPath` — path contains traversal or invalid characters |
-|                | ERR-STORAGE-002: `ObjectTooLarge` — content exceeds max object size            |
-|                | ERR-STORAGE-003: `BackendError` — object_store returned an error               |
-|                | ERR-STORAGE-004: `MetadataError` — metadata DB operation failed                |
+| Error Handling | ERR-STORAGE-001: `InvalidPath`; path contains traversal or invalid characters |
+|                | ERR-STORAGE-002: `ObjectTooLarge`; content exceeds max object size            |
+|                | ERR-STORAGE-003: `BackendError`; object_store returned an error               |
+|                | ERR-STORAGE-004: `MetadataError`; metadata DB operation failed                |
 | Complexity     | Time: O(n) where n = content size; Space: O(n) buffered for atomic put        |
 | Thread Safety  | Safe: concurrent puts to different paths; serializable via PutMode::Create for same hash |
 
@@ -273,9 +273,9 @@ pub trait StorageEngine: Send + Sync + Debug + 'static {
 | Preconditions  | PRE-STORAGE-001: `path` must be a valid, normalized UserPath                   |
 | Postconditions | POST-STORAGE-004: Returned bytes satisfy `SHA-256(bytes) == stored_hash` (integrity) |
 | Invariants     | INV-STORAGE-001: Mapping unchanged by read                                    |
-| Error Handling | ERR-STORAGE-005: `NotFound` — no metadata mapping for `path`                  |
-|                | ERR-STORAGE-006: `IntegrityFailure` — SHA-256 mismatch on fetched content      |
-|                | ERR-STORAGE-007: `BackendError` — object_store returned an error              |
+| Error Handling | ERR-STORAGE-005: `NotFound`; no metadata mapping for `path`                  |
+|                | ERR-STORAGE-006: `IntegrityFailure`; SHA-256 mismatch on fetched content      |
+|                | ERR-STORAGE-007: `BackendError`; object_store returned an error              |
 | Complexity     | Time: O(1) metadata + O(n) fetch + O(n) verification; Space: O(n)            |
 | Thread Safety  | Safe: concurrent reads to any path                                           |
 
@@ -288,8 +288,8 @@ pub trait StorageEngine: Send + Sync + Debug + 'static {
 |                | POST-STORAGE-006: Reference count for content hash is decremented             |
 |                | POST-STORAGE-007: If ref count reaches 0, physical object marked for GC       |
 | Invariants     | INV-STORAGE-001: Deleted path no longer maps to any hash                      |
-| Error Handling | ERR-STORAGE-005: `NotFound` — no metadata mapping for `path`                  |
-|                | ERR-STORAGE-004: `MetadataError` — metadata DB operation failed               |
+| Error Handling | ERR-STORAGE-005: `NotFound`; no metadata mapping for `path`                  |
+|                | ERR-STORAGE-004: `MetadataError`; metadata DB operation failed               |
 | Complexity     | Time: O(1) metadata; Space: O(1)                                             |
 | Thread Safety  | Safe: concurrent deletes to different paths; last-delete triggers GC mark     |
 
@@ -300,7 +300,7 @@ pub trait StorageEngine: Send + Sync + Debug + 'static {
 | Preconditions  | PRE-STORAGE-003: `prefix` must be a valid path prefix (may be None for all)   |
 | Postconditions | POST-STORAGE-008: Returns all ObjectMeta entries matching the prefix         |
 | Invariants     | List is a snapshot; concurrent modifications may not be reflected             |
-| Error Handling | ERR-STORAGE-003: `BackendError` — object_store returned an error              |
+| Error Handling | ERR-STORAGE-003: `BackendError`; object_store returned an error              |
 | Complexity     | Time: O(k) where k = number of matching objects; Space: O(k)                  |
 | Thread Safety  | Safe: concurrent with other operations                                       |
 
@@ -313,8 +313,8 @@ pub trait StorageEngine: Send + Sync + Debug + 'static {
 | Postconditions | POST-STORAGE-009: `dst` maps to the same content hash as `src`              |
 |                | POST-STORAGE-010: Reference count for the shared hash is incremented         |
 | Invariants     | INV-STORAGE-001: Both paths now map to the same hash                          |
-| Error Handling | ERR-STORAGE-005: `NotFound` — `src` not found                                |
-|                | ERR-STORAGE-003: `BackendError` — backend copy failed                         |
+| Error Handling | ERR-STORAGE-005: `NotFound`; `src` not found                                |
+|                | ERR-STORAGE-003: `BackendError`; backend copy failed                         |
 | Complexity     | Time: O(1) metadata (no physical copy needed for CAS); Space: O(1)           |
 | Thread Safety  | Safe: concurrent with other operations                                       |
 
@@ -327,8 +327,8 @@ pub trait StorageEngine: Send + Sync + Debug + 'static {
 | Postconditions | POST-STORAGE-011: `src` mapping removed, `dst` mapping created with same hash |
 |                | POST-STORAGE-012: Reference count unchanged (path transfer, not content change)|
 | Invariants     | INV-STORAGE-001: `dst` now maps to the hash; `src` no longer maps             |
-| Error Handling | ERR-STORAGE-005: `NotFound` — `src` not found                                |
-|                | ERR-STORAGE-004: `MetadataError` — metadata DB operation failed               |
+| Error Handling | ERR-STORAGE-005: `NotFound`; `src` not found                                |
+|                | ERR-STORAGE-004: `MetadataError`; metadata DB operation failed               |
 | Complexity     | Time: O(1) metadata; Space: O(1)                                             |
 | Thread Safety  | Safe: serializable via metadata DB transaction                                |
 
@@ -339,7 +339,7 @@ pub trait StorageEngine: Send + Sync + Debug + 'static {
 | Preconditions  | PRE-STORAGE-001: `path` must be a valid, normalized UserPath                   |
 | Postconditions | POST-STORAGE-013: Returns ObjectMeta with size, last_modified, e_tag          |
 | Invariants     | INV-STORAGE-001: Metadata unchanged                                           |
-| Error Handling | ERR-STORAGE-005: `NotFound` — no metadata mapping for `path`                  |
+| Error Handling | ERR-STORAGE-005: `NotFound`; no metadata mapping for `path`                  |
 | Complexity     | Time: O(1); Space: O(1)                                                       |
 | Thread Safety  | Safe: concurrent reads                                                        |
 
@@ -367,9 +367,9 @@ pub trait CasStore: Send + Sync + Debug + 'static {
 |                | POST-CAS-003: If hash already existed, returns existing hash (no double store)|
 | Invariants     | INV-CAS-001: At most one physical copy exists per unique hash                |
 |                | INV-CAS-002: `SHA-256(physical_bytes) == hash` always holds                  |
-| Error Handling | ERR-CAS-001: `ObjectTooLarge` — content exceeds max object size              |
-|                | ERR-CAS-002: `HashComputeError` — hashing failed                              |
-|                | ERR-CAS-003: `BackendError` — object_store put failed                         |
+| Error Handling | ERR-CAS-001: `ObjectTooLarge`; content exceeds max object size              |
+|                | ERR-CAS-002: `HashComputeError`; hashing failed                              |
+|                | ERR-CAS-003: `BackendError`; object_store put failed                         |
 | Complexity     | Time: O(n) hash + O(n) upload; Space: O(n) buffered for atomic put           |
 | Thread Safety  | Safe: concurrent puts with same hash resolved via PutMode::Create + AlreadyExists fallback (DC-DEDUP-001) |
 
@@ -380,9 +380,9 @@ pub trait CasStore: Send + Sync + Debug + 'static {
 | Preconditions  | PRE-CAS-002: `hash` must be a valid 64-character hex string                   |
 | Postconditions | POST-CAS-004: Returned bytes satisfy `SHA-256(bytes) == hash` (DC-INTEGRITY-001)|
 | Invariants     | INV-CAS-002: Physical bytes unchanged by read                                |
-| Error Handling | ERR-CAS-004: `NotFound` — no physical object for hash                         |
-|                | ERR-CAS-005: `IntegrityFailure` — SHA-256 mismatch (audit logged)            |
-|                | ERR-CAS-003: `BackendError` — object_store get failed                         |
+| Error Handling | ERR-CAS-004: `NotFound`; no physical object for hash                         |
+|                | ERR-CAS-005: `IntegrityFailure`; SHA-256 mismatch (audit logged)            |
+|                | ERR-CAS-003: `BackendError`; object_store get failed                         |
 | Complexity     | Time: O(n) fetch + O(n) verification; Space: O(n)                             |
 | Thread Safety  | Safe: concurrent reads                                                        |
 
@@ -393,7 +393,7 @@ pub trait CasStore: Send + Sync + Debug + 'static {
 | Preconditions  | PRE-CAS-002: `hash` must be a valid 64-character hex string                   |
 | Postconditions | POST-CAS-005: Returns `true` iff physical object exists at CAS path           |
 | Invariants     | No state change                                                               |
-| Error Handling | ERR-CAS-003: `BackendError` — object_store head failed                        |
+| Error Handling | ERR-CAS-003: `BackendError`; object_store head failed                        |
 | Complexity     | Time: O(1); Space: O(1)                                                       |
 | Thread Safety  | Safe: concurrent reads                                                        |
 
@@ -404,8 +404,8 @@ pub trait CasStore: Send + Sync + Debug + 'static {
 | Preconditions  | PRE-CAS-002: `hash` must be a valid 64-character hex string                   |
 | Postconditions | POST-CAS-006: Returns `true` iff hash exists in both metadata DB and physical store |
 | Invariants     | No state change                                                               |
-| Error Handling | ERR-CAS-004: `NotFound` — hash not in metadata                                |
-|                | ERR-CAS-003: `BackendError` — backend check failed                            |
+| Error Handling | ERR-CAS-004: `NotFound`; hash not in metadata                                |
+|                | ERR-CAS-003: `BackendError`; backend check failed                            |
 | Complexity     | Time: O(1) metadata + O(1) head; Space: O(1)                                  |
 | Thread Safety  | Safe: concurrent reads                                                        |
 
@@ -433,9 +433,9 @@ pub trait PresignedUrlGenerator: Send + Sync + Debug + 'static {
 |                | POST-PRESIGN-003: Audit log entry created for URL generation                  |
 | Invariants     | INV-PRESIGN-001: URL is scoped to a single path and HTTP method               |
 |                | INV-PRESIGN-002: Staging path uses UUIDv4 prefix (DC-PRESIGN-001)             |
-| Error Handling | ERR-PRESIGN-001: `Unauthorized` — Cedar policy denied the action              |
-|                | ERR-PRESIGN-002: `BackendNotSupported` — backend lacks Signer trait            |
-|                | ERR-PRESIGN-003: `RateLimited` — presign rate limit exceeded                   |
+| Error Handling | ERR-PRESIGN-001: `Unauthorized`; Cedar policy denied the action              |
+|                | ERR-PRESIGN-002: `BackendNotSupported`; backend lacks Signer trait            |
+|                | ERR-PRESIGN-003: `RateLimited`; presign rate limit exceeded                   |
 | Complexity     | Time: O(1) auth + O(1) signing; Space: O(1)                                   |
 | Thread Safety  | Safe: concurrent presign generation                                           |
 
@@ -451,10 +451,10 @@ pub trait PresignedUrlGenerator: Send + Sync + Debug + 'static {
 |                | POST-PRESIGN-002: URL expires within `clamped(expires, 1s, 3600s)`            |
 |                | POST-PRESIGN-003: Audit log entry created                                     |
 | Invariants     | INV-PRESIGN-001: URL is scoped to a single path and HTTP method               |
-| Error Handling | ERR-PRESIGN-001: `Unauthorized` — Cedar policy denied the action              |
-|                | ERR-PRESIGN-002: `BackendNotSupported` — backend lacks Signer trait            |
-|                | ERR-PRESIGN-005: `NotFound` — path not in metadata                             |
-|                | ERR-PRESIGN-003: `RateLimited` — presign rate limit exceeded                   |
+| Error Handling | ERR-PRESIGN-001: `Unauthorized`; Cedar policy denied the action              |
+|                | ERR-PRESIGN-002: `BackendNotSupported`; backend lacks Signer trait            |
+|                | ERR-PRESIGN-005: `NotFound`; path not in metadata                             |
+|                | ERR-PRESIGN-003: `RateLimited`; presign rate limit exceeded                   |
 | Complexity     | Time: O(1) auth + O(1) metadata + O(1) signing; Space: O(1)                  |
 | Thread Safety  | Safe: concurrent presign generation                                           |
 
@@ -687,7 +687,7 @@ sequenceDiagram
 
 | Parameter              | Type     | Default | Range           | Constraint           |
 |------------------------|----------|---------|-----------------|----------------------|
-| `backend_url`          | String   | —       | valid URL       | Required             |
+| `backend_url`          | String   | - | valid URL       | Required             |
 | `multipart_chunk_size` | Bytes    | 64 MB   | 5 MB – 5 TB     | DC-STORAGE-001       |
 | `multipart_threshold`  | Bytes    | 128 MB  | 0 – 5 TB        | Files above this use multipart |
 | `presign_default_ttl`  | Seconds  | 60      | 1 – 3600        | DC-PRESIGN-001       |
@@ -739,7 +739,7 @@ sequenceDiagram
 1. `get_content` fetches bytes from object store at CAS path derived from `hash`.
 2. Computes `computed = SHA-256(fetched_bytes)` in a streaming pass.
 3. Compares `computed == hash`.
-4. If mismatch, returns `Err(IntegrityFailure)` — caller never receives bad bytes.
+4. If mismatch, returns `Err(IntegrityFailure)`; caller never receives bad bytes.
 5. If match, returns `Ok(content)`.
 6. By case analysis: the only `Ok` return path has verified the hash.
 7. QED.
@@ -766,7 +766,7 @@ sequenceDiagram
 **Proof Strategy:**
 1. `object_store` guarantees atomic `put_opts`: either the full payload is written or nothing (DEF-ATOMIC-001 in YP-STORAGE-CAS-001).
 2. For small objects: single `put_opts` call is atomic by `object_store` contract.
-3. For large objects: `put_multipart_opts` — parts are invisible until `finish()` commits them atomically.
+3. For large objects: `put_multipart_opts`; parts are invisible until `finish()` commits them atomically.
 4. Metadata is recorded only after successful `put_opts` / `finish()`.
 5. Therefore, no metadata entry exists for an in-progress upload.
 6. A `get_content` can only resolve a hash that has committed metadata.

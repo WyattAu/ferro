@@ -58,7 +58,7 @@
 
 | Count | Lint | Fix |
 |------:|------|-----|
-| 1,444 | `uninlined_format_args` | `{x}` -> `{x:?}` — auto-fixable |
+| 1,444 | `uninlined_format_args` | `{x}` -> `{x:?}`; auto-fixable |
 | 483 | `must_use_candidate` | Add `#[must_use]` to pure methods |
 | 458 | `missing_errors_doc` | Add `# Errors` doc sections |
 | 394 | `redundant_closure` | Replace `\|x\| foo(x)` with `foo` |
@@ -202,7 +202,7 @@
 | Pure stable crates | 15 |
 | Pure unstable crates | 15 |
 
-**Assessment:** Clean layered architecture. No circular deps. `ferro-server` as the composition root (Ce=39) is intentional — it wires all components together. `ferro-common` as the foundation (Ca=30) is correct. The 61 pub items in `common/src/` should be audited for leakage.
+**Assessment:** Clean layered architecture. No circular deps. `ferro-server` as the composition root (Ce=39) is intentional; it wires all components together. `ferro-common` as the foundation (Ca=30) is correct. The 61 pub items in `common/src/` should be audited for leakage.
 
 ### 11. Test Quality (Grade: A-)
 
@@ -230,30 +230,30 @@
 
 ## Remediation Results (Completed)
 
-### P0 (Security — immediate) [COMPLETED]
-1. ~~Upgrade `quick-xml` to >=0.41.0~~ — Server already uses 0.41.0; vulnerable versions only in desktop transitive deps (low risk)
-2. ~~Add SAFETY comment to `startup.rs:1069`~~ — Added comprehensive SAFETY documentation for setsockopt calls
+### P0 (Security: immediate) [COMPLETED]
+1. ~~Upgrade `quick-xml` to >=0.41.0~~; Server already uses 0.41.0; vulnerable versions only in desktop transitive deps (low risk)
+2. ~~Add SAFETY comment to `startup.rs:1069`~~; Added comprehensive SAFETY documentation for setsockopt calls
 
 ### P1 (This week) [PARTIALLY COMPLETED]
-3. `cargo clippy --fix` — Deferred (6,474 warnings are non-blocking)
-4. `#[non_exhaustive]` — Deferred (28% coverage noted)
-5. `Debug` derive — Deferred (28% missing noted)
-6. ~~Fix ferro-scim license field~~ — Added `license.workspace = true` and `rust-version.workspace = true`
+3. `cargo clippy --fix`; Deferred (6,474 warnings are non-blocking)
+4. `#[non_exhaustive]`; Deferred (28% coverage noted)
+5. `Debug` derive; Deferred (28% missing noted)
+6. ~~Fix ferro-scim license field~~; Added `license.workspace = true` and `rust-version.workspace = true`
 
 ### P2 (This sprint) [COMPLETED]
-7. ~~Replace critical-path `unwrap()`~~ — All target files already clean (unwraps in test code only)
-8. ~~Extract `file_browser.rs` into child components~~ — Split into 5 modules: types.rs, keyboard.rs, commands.rs, clipboard_ops.rs, selection_ops.rs (-405 lines from mod.rs)
-9. ~~Refactor `handler.rs` dispatch~~ — Extracted WebdavHandlerContext, reduced if-statements by 8 (91 → 83)
-10. ~~Add error logging to fire-and-forget spawns~~ — Added tracing::error! for thumbnail cache write spawn
-11. ~~Replace `String` params with `&str`~~ — Changed 3 functions: idle_save_loop, add_peer (2 crates)
+7. ~~Replace critical-path `unwrap()`~~; All target files already clean (unwraps in test code only)
+8. ~~Extract `file_browser.rs` into child components~~; Split into 5 modules: types.rs, keyboard.rs, commands.rs, clipboard_ops.rs, selection_ops.rs (-405 lines from mod.rs)
+9. ~~Refactor `handler.rs` dispatch~~; Extracted WebdavHandlerContext, reduced if-statements by 8 (91 → 83)
+10. ~~Add error logging to fire-and-forget spawns~~; Added tracing::error! for thumbnail cache write spawn
+11. ~~Replace `String` params with `&str`~~; Changed 3 functions: idle_save_loop, add_peer (2 crates)
 
 ### P3 (This month) [COMPLETED]
-12. ~~Split `webauthn.rs` into modules~~ — Split into 4 modules: error.rs, crypto.rs, credential.rs, protocol.rs (2555 → 2453 lines)
-13. ~~Add Acquire/Release atomic ordering~~ — Fixed 9 files: ~35 SeqCst→Relaxed (counters), ~6 SeqCst→Acquire/Release (control flags)
-14. ~~Audit and reduce clones in tcp_transport.rs~~ — Removed 1 unnecessary clone; 61 kept with documented reasons
-15. ~~Move allocations out of hot loops~~ — Optimized 3 files: audit-log CSV export, caldav report, event-bus dispatch
-16. ~~Add `.context()` to raw Err returns~~ — Added 7 context additions to redis_lock.rs
-17. Migrate desktop from GTK3 to GTK4 — Deferred (massive scope, separate initiative)
+12. ~~Split `webauthn.rs` into modules~~; Split into 4 modules: error.rs, crypto.rs, credential.rs, protocol.rs (2555 → 2453 lines)
+13. ~~Add Acquire/Release atomic ordering~~; Fixed 9 files: ~35 SeqCst→Relaxed (counters), ~6 SeqCst→Acquire/Release (control flags)
+14. ~~Audit and reduce clones in tcp_transport.rs~~; Removed 1 unnecessary clone; 61 kept with documented reasons
+15. ~~Move allocations out of hot loops~~; Optimized 3 files: audit-log CSV export, caldav report, event-bus dispatch
+16. ~~Add `.context()` to raw Err returns~~; Added 7 context additions to redis_lock.rs
+17. Migrate desktop from GTK3 to GTK4; Deferred (massive scope, separate initiative)
 
 ---
 

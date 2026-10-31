@@ -24,9 +24,9 @@
 | PERF-WEBDAV-002 | PROPFIND depth 1 (100 items) | 10ms | 50ms | 100ms | latency |
 | PERF-WEBDAV-003 | PROPFIND depth infinity (10K items) | 50ms | 200ms | 500ms | latency |
 | PERF-WEBDAV-004 | GET 1KB file | 2ms | 10ms | 50ms | latency |
-| PERF-WEBDAV-005 | GET 100MB file | — | — | 1GB/s | throughput |
+| PERF-WEBDAV-005 | GET 100MB file | - |; | 1GB/s | throughput |
 | PERF-WEBDAV-006 | PUT 1KB file | 5ms | 20ms | 50ms | latency |
-| PERF-WEBDAV-007 | PUT 100MB file | — | — | 500MB/s | throughput |
+| PERF-WEBDAV-007 | PUT 100MB file | - |; | 500MB/s | throughput |
 | PERF-WEBDAV-008 | MKCOL | 5ms | 20ms | 50ms | latency |
 | PERF-WEBDAV-009 | LOCK | 5ms | 10ms | 50ms | latency |
 | PERF-WEBDAV-010 | UNLOCK | 2ms | 5ms | 20ms | latency |
@@ -48,7 +48,7 @@
 
 | ID | Operation | Target | Max | Unit |
 |----|-----------|--------|-----|------|
-| PERF-STOR-001 | SHA-256 computation | 500MB/s | — | throughput |
+| PERF-STOR-001 | SHA-256 computation | 500MB/s | - | throughput |
 | PERF-STOR-002 | CAS dedup check (content-addressable lookup) | 1ms | 10ms | latency |
 | PERF-STOR-003 | Pre-signed URL generation | 1ms | 5ms | latency |
 | PERF-STOR-004 | Metadata lookup (path -> CAS hash) | 1ms | 5ms | latency |
@@ -73,7 +73,7 @@
 |----|-----------|-------------|-------------|-----|------|
 | PERF-AUTH-001 | OIDC token validation | 2ms | 5ms | 10ms | latency |
 | PERF-AUTH-002 | Cedar policy evaluation (100 policies) | 1ms | 5ms | 10ms | latency |
-| PERF-AUTH-003 | JWKS refresh (cold fetch) | — | — | 500ms | one-time |
+| PERF-AUTH-003 | JWKS refresh (cold fetch) | - |; | 500ms | one-time |
 
 ### Rationale
 

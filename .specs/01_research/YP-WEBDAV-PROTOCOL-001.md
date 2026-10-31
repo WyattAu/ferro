@@ -46,15 +46,15 @@ WebDAV (RFC 4918) is an HTTP extension for distributed authoring and versioning.
 - **Class 1 compliance**: PROPFIND, PROPPATCH, MKCOL, COPY, MOVE (mandatory methods per RFC 4918 Section 18.1)
 - **Class 2 compliance**: LOCK, UNLOCK with exclusive write locks (mandatory for locking, Section 18.2)
 - **Class 3 compliance**: Access control via ACL method (RFC 3744, Section 18.3)
-- **Versioning awareness**: VERSION-CONTROL, REPORT, CHECKOUT, CHECKIN (RFC 3253 — server-side pass-through)
+- **Versioning awareness**: VERSION-CONTROL, REPORT, CHECKOUT, CHECKIN (RFC 3253; server-side pass-through)
 - **rclone compatibility**: PROPFIND with Depth: 1 (default), vendor-specific quirks (Nextcloud chunking, SharePoint zero-depth fallback, ownCloud checksums)
 - **Microsoft Office compatibility**: Exclusive locking, If header evaluation, OPTIONS discovery, lock refresh
 
 ### Out of Scope
 
-- CalDAV (RFC 4791) — calendar access
-- CardDAV (RFC 6352) — contact management
-- WebDAV SEARCH (draft-reschke-webdav-search) — structured queries
+- CalDAV (RFC 4791); calendar access
+- CardDAV (RFC 6352); contact management
+- WebDAV SEARCH (draft-reschke-webdav-search); structured queries
 - WebDAV redirect reference resources (RFC 4437)
 
 ## YP-3: Nomenclature and Notation
@@ -123,9 +123,9 @@ PROPFIND(Request-URL) -> 207 Multi-Status
     - Request-URL: URI of target resource
     - Depth: "0" | "1" | "infinity" (default: "infinity" per RFC, but clients commonly send "1")
     - Body: propfind XML element containing one of:
-      (a) <prop> — named property request
-      (b) <allprop> — all properties (MAY include <include> for extra properties)
-      (c) <propname> — property names only (no values)
+      (a) <prop>; named property request
+      (b) <allprop>; all properties (MAY include <include> for extra properties)
+      (c) <propname>; property names only (no values)
   Output:
     - Status: 207 Multi-Status
     - Body: multistatus element containing N response elements (one per resource)
@@ -204,8 +204,8 @@ PROPPATCH(Request-URL) -> 207 Multi-Status
     - Request-URL: URI of target resource
     - Depth: "0" (implicit; PROPPATCH only applies to the Request-URL)
     - Body: propertyupdate element containing:
-      - <set>/<prop> — properties to set/replace
-      - <remove>/<prop> — properties to remove
+      - <set>/<prop>; properties to set/replace
+      - <remove>/<prop>; properties to remove
   Output:
     - Status: 207 Multi-Status
     - Body: multistatus with propstat elements showing per-property success/failure
@@ -304,7 +304,7 @@ MOVE(Request-URL, Destination, Overwrite) -> 201 | 204 | 207
     - 424: failed dependency (e.g., can't delete source after copy)
 ```
 
-**Key difference from COPY**: MOVE is atomic — if the DELETE of the source fails after a successful COPY, the server MUST undo the COPY (return 424). Depth header is not used for MOVE (always depth:infinity implicitly).
+**Key difference from COPY**: MOVE is atomic; if the DELETE of the source fails after a successful COPY, the server MUST undo the COPY (return 424). Depth header is not used for MOVE (always depth:infinity implicitly).
 
 ### 4.6 LOCK Method
 
@@ -828,32 +828,32 @@ Test vectors are defined in `test_vectors/test_vectors_webdav.toml`. The followi
 
 ## R3-5 Addendum (Revision 1.1): Write-Lock Safety & UNLOCK Authorization
 
-**Source verified:** RFC 4918 (rfc-editor.org, fetched 2026-10-14) — §6.2, §7.1, §9.10.3, §9.11, Appendix C.
+**Source verified:** RFC 4918 (rfc-editor.org, fetched 2026-10-14); §6.2, §7.1, §9.10.3, §9.11, Appendix C.
 
 ### Fixed implementation gaps (R3)
 
 | Gap (found by audit) | Fix | Test |
 |---|---|---|
 | Lock tokens were `urn:uuid:` | `opaquelocktoken:` (App C); parse both | TV-LOCK-token |
-| UNLOCK released any lock, ignoring the request path | §9.11 `lock-token-matches-request-uri` guard — path mismatch → 409, lock survives | THM-LOCK-RELEASE-NOOP |
+| UNLOCK released any lock, ignoring the request path | §9.11 `lock-token-matches-request-uri` guard; path mismatch → 409, lock survives | THM-LOCK-RELEASE-NOOP |
 | Shared locks did not block writes | §7.1: writes to ANY locked resource require token submission | THM-LOCK-WRITE-EXCLUSION |
 | PUT token match was ad-hoc (first-lock only) | `check_lock_for_write_with_token`: every covering lock's token must be submitted | TV-LOCK-token |
 | Depth-1 locks not inherited; depth-∞ only | depth-1 covers direct internal members; depth-∞ the subtree | TV-LOCK-depth1 |
 
 ### THM-LOCK-DEPTH-MONOTONE
-Widening depth never shrinks protection: zero ⊆ one ⊆ infinity coverage. [Proved — Lean `covers_depth_monotone`, `covers_one_infinity`, LockSafety.lean]
+Widening depth never shrinks protection: zero ⊆ one ⊆ infinity coverage. [Proved; Lean `covers_depth_monotone`, `covers_one_infinity`, LockSafety.lean]
 
 ### THM-LOCK-WRITE-EXCLUSION / THM-LOCK-TOKEN-MATCH / THM-LOCK-MISMATCH-BLOCKS
-A write is permitted iff every covering lock's exact token was submitted. [Proved — Lean `write_allowed_empty`, `write_allowed_token_match`, `write_blocked_on_mismatch`]
+A write is permitted iff every covering lock's exact token was submitted. [Proved; Lean `write_allowed_empty`, `write_allowed_token_match`, `write_blocked_on_mismatch`]
 
 ### THM-LOCK-RELEASE-NOOP / THM-LOCK-RELEASE-PRESERVES
-A release whose path does not match the lock's path leaves the lock in place (no-op), and never removes mismatched locks. [Proved — Lean `release_noop_on_path_mismatch`, `release_preserves_mismatched_locks`]
+A release whose path does not match the lock's path leaves the lock in place (no-op), and never removes mismatched locks. [Proved; Lean `release_noop_on_path_mismatch`, `release_preserves_mismatched_locks`]
 
 ### Known remaining gaps (stated honestly)
 Full RFC 4918 §10.4 If-header grammar (tagged lists, `Not`, ETag conditions) is still a subset parser; refresh-fallback-to-acquire remains; lock persistence failures stay best-effort warnings. Tracked for R4.
 
 ---
 
-## R4-4 Addendum: §10.4 If-Header Parser — IMPLEMENTED
+## R4-4 Addendum: §10.4 If-Header Parser: IMPLEMENTED
 
-`crates/server-webdav-core/src/ifheader.rs`: full grammar subset — untagged lists, tagged groups (OR of ANDs), `Not`, tolerant whitespace; malformed input rejected; entity-tag conditions parse but evaluate unsatisfied (documented). `evaluate(resource, current_tokens)` implements §10.4.3 semantics incl. vacuous pass for non-matching tagged groups; `submitted_tokens()` collects non-negated tokens for §7.1 lock enforcement. Wired into PUT (`check_lock_for_write_with_token` now takes the token list) and LOCK refresh. 9 tests. Remaining: ETag conditions (live) — R5.
+`crates/server-webdav-core/src/ifheader.rs`: full grammar subset; untagged lists, tagged groups (OR of ANDs), `Not`, tolerant whitespace; malformed input rejected; entity-tag conditions parse but evaluate unsatisfied (documented). `evaluate(resource, current_tokens)` implements §10.4.3 semantics incl. vacuous pass for non-matching tagged groups; `submitted_tokens()` collects non-negated tokens for §7.1 lock enforcement. Wired into PUT (`check_lock_for_write_with_token` now takes the token list) and LOCK refresh. 9 tests. Remaining: ETag conditions (live); R5.

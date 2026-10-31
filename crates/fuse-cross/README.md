@@ -57,11 +57,11 @@ ferro-fuse-cross --server-url https://ferro.wyattau.com --mount ~/ferro --token 
 ## Automount Scripts
 
 See `scripts/` directory:
-- `ferro-mount-linux.sh` — Linux bash script
-- `ferro-mount-macos.sh` — macOS bash script
-- `ferro-mount-windows.bat` — Windows batch script
-- `ferro-mount.service` — systemd service (Linux)
-- `ferro-mount.plist` — launchd agent (macOS)
+- `ferro-mount-linux.sh`; Linux bash script
+- `ferro-mount-macos.sh`; macOS bash script
+- `ferro-mount-windows.bat`; Windows batch script
+- `ferro-mount.service`; systemd service (Linux)
+- `ferro-mount.plist`; launchd agent (macOS)
 
 ## How It Works
 

@@ -18,12 +18,12 @@
 |---|---|---|
 | FIPS mode | `server-fips/src/lib.rs:39-51` | `FipsMode{Disabled, Enabled, Strict}`; 5 self-tests incl. SHA-256 KAT (FIPS 180-4 "abc"), HMAC-SHA-256 KAT (RFC 4231 TC2) |
 | Key hierarchy | `lib.rs:323-464` | MK→KEK→DK, zeroize on drop, 24 h auto-rotation |
-| **Key wrap** | `lib.rs:767-794` | `wrap_key()` = HKDF-SHA-256-derived **XOR pad + HMAC — not AES-KW (SP 800-38F), not an AEAD; not an approved confidentiality mode** |
-| **Data encryption** | `lib.rs:847-880` | `EncryptedDataHeader::encrypt()` = HKDF-expand XOR pad; HKDF-expand capped at 255×32 = **8160 B — anything larger cannot be encrypted** (own test comments "Must be <= 8192", `:1229-1235`) |
-| Provider | `crypto/src/traits.rs:8-29` | `CryptoProvider::is_fips_approved()`; only backend is `ring` — **ring is not FIPS-validated; the flag is decorative** |
+| **Key wrap** | `lib.rs:767-794` | `wrap_key()` = HKDF-SHA-256-derived **XOR pad + HMAC; not AES-KW (SP 800-38F), not an AEAD; not an approved confidentiality mode** |
+| **Data encryption** | `lib.rs:847-880` | `EncryptedDataHeader::encrypt()` = HKDF-expand XOR pad; HKDF-expand capped at 255×32 = **8160 B; anything larger cannot be encrypted** (own test comments "Must be <= 8192", `:1229-1235`) |
+| Provider | `crypto/src/traits.rs:8-29` | `CryptoProvider::is_fips_approved()`; only backend is `ring`; **ring is not FIPS-validated; the flag is decorative** |
 | RNG self-test | `lib.rs:249-265` | statistical uniqueness check, not an SP 800-90A continuous/power-up test |
 
-**Structural gaps:** (1) transport HNDL exposure — all handshakes are classical ECDHE today; (2) the "FIPS" crate is not FIPS — XOR-pad wrap is not approved, provider not validated; (3) no crypto agility — `EncryptedDataHeader` has `key_id`/`key_version` but **no algorithm identifier**, so any migration requires a header format change.
+**Structural gaps:** (1) transport HNDL exposure; all handshakes are classical ECDHE today; (2) the "FIPS" crate is not FIPS; XOR-pad wrap is not approved, provider not validated; (3) no crypto agility; `EncryptedDataHeader` has `key_id`/`key_version` but **no algorithm identifier**, so any migration requires a header format change.
 
 ---
 
@@ -36,10 +36,10 @@ Ferro advertises a FIPS posture and must be crypto-agile for the PQ transition, 
 ### Decisions
 
 - **Transport (do now):** terminate TLS with **X25519MLKEM768** + X25519 fallback; TLS 1.3 only; 0-RTT off. If Caddy fronts Ferro, upgrade Caddy (Go crypto has ML-KEM default since Go 1.24). In-process `rustls`/`quinn`: build with **aws-lc-rs**; implement `CryptoProvider` for aws-lc-rs alongside ring and set `is_fips_approved()` **truthfully per module**.
-- **At-rest (do next):** replace `wrap_key()` with **AES-256-GCM (SP 800-38D)** or **AES-KW-256 (SP 800-38F)** — both FIPS-approved; XOR-pad is neither. Add `alg: AlgorithmId` to `EncryptedDataHeader` (agility). Chunked data encryption: AES-256-GCM, 96-bit random nonce per chunk, 64–256 KiB chunks — also fixes the 8160-byte HKDF ceiling. Document `rotate_all_data_keys()` as *wrap-rotation* (re-wrap, not re-encrypt — correct and cheap).
-- **PQ readiness (plan, don't rush):** agility enums first — `KemId::{X25519, MlKem768, X25519MlKem768}`, `SigId::{Rsa256, EcdsaP256, Ed25519, MlDsa65}` in `crypto::traits`; federation keys become keypairs with this enum. JOSE: pre-register an `alg` allowlist including ML-DSA codes so PQ JWT is config, not code (Keycloak timeline unknown; ML-DSA JWS is still I-D stage).
+- **At-rest (do next):** replace `wrap_key()` with **AES-256-GCM (SP 800-38D)** or **AES-KW-256 (SP 800-38F)**; both FIPS-approved; XOR-pad is neither. Add `alg: AlgorithmId` to `EncryptedDataHeader` (agility). Chunked data encryption: AES-256-GCM, 96-bit random nonce per chunk, 64–256 KiB chunks; also fixes the 8160-byte HKDF ceiling. Document `rotate_all_data_keys()` as *wrap-rotation* (re-wrap, not re-encrypt; correct and cheap).
+- **PQ readiness (plan, don't rush):** agility enums first; `KemId::{X25519, MlKem768, X25519MlKem768}`, `SigId::{Rsa256, EcdsaP256, Ed25519, MlDsa65}` in `crypto::traits`; federation keys become keypairs with this enum. JOSE: pre-register an `alg` allowlist including ML-DSA codes so PQ JWT is config, not code (Keycloak timeline unknown; ML-DSA JWS is still I-D stage).
 - **Audit-head signing (synergy with YP-LIFECYCLE-COMPLIANCE-001):** sign daily audit heads with **ML-DSA-65 hybrid Ed25519** (dual signature). Long-lived signatures are the IR 8547 "signed today must survive Q-day" case; 3309 B sigs are trivial at this scale. RustCrypto `ml-dsa` acceptable initially; prefer aws-lc ML-DSA once its CMVP cert lands.
-- **FIPS positioning (be honest):** Ferro cannot *be* FIPS-validated (that requires its own module validation); it can be **FIPS-140-3-composed**: link a validated module (aws-lc-fips 3.x is in CMVP validation-in-progress per its README — re-check CMVP modules-in-process at deploy time) and state the boundary in SECURITY.md. Keep the power-on KATs; move RNG health testing to the provider's SP 800-90A tests. `FipsMode::Strict` MUST actually gate primitives (`THM-FIPS-APPROVED-ONLY`).
+- **FIPS positioning (be honest):** Ferro cannot *be* FIPS-validated (that requires its own module validation); it can be **FIPS-140-3-composed**: link a validated module (aws-lc-fips 3.x is in CMVP validation-in-progress per its README; re-check CMVP modules-in-process at deploy time) and state the boundary in SECURITY.md. Keep the power-on KATs; move RNG health testing to the provider's SP 800-90A tests. `FipsMode::Strict` MUST actually gate primitives (`THM-FIPS-APPROVED-ONLY`).
 
 ### Guarantees
 
@@ -73,7 +73,7 @@ Let `A` be a PPT (resp. quantum) adversary against channel security under key sc
 
 ### THM-FIPS-APPROVED-ONLY
 
-In `FipsMode::Strict`, for every operation `op` issued through `CryptoProvider`: `op ∈ ApprovedOps` (AES-256-GCM, SHA-256/384, HMAC-SHA-256, HKDF per SP 800-56C, ML-KEM as guidance matures) — else the call MUST abort before processing sensitive data; power-on KAT failure ⇒ `is_valid() = false` ⇒ all key operations refused. (Closes the gap that `FipsMode::Strict` today doesn't actually gate primitives.)
+In `FipsMode::Strict`, for every operation `op` issued through `CryptoProvider`: `op ∈ ApprovedOps` (AES-256-GCM, SHA-256/384, HMAC-SHA-256, HKDF per SP 800-56C, ML-KEM as guidance matures); else the call MUST abort before processing sensitive data; power-on KAT failure ⇒ `is_valid() = false` ⇒ all key operations refused. (Closes the gap that `FipsMode::Strict` today doesn't actually gate primitives.)
 
 ### THM-CRYPTO-AGILITY-COST
 
@@ -81,7 +81,7 @@ Given header fields `{alg_id, key_id, key_version}` on every ciphertext and cont
 
 ### THM-HNDL-BOUND
 
-Data transmitted over channels negotiated with X25519MLKEM768 after date `t` is confidential against adversaries whose quantum capability arrives after `t`, assuming both component hardnesses — classical-only traffic before `t` carries no such bound. **Motivation for enabling PQ now, before any content worth harvesting exists.**
+Data transmitted over channels negotiated with X25519MLKEM768 after date `t` is confidential against adversaries whose quantum capability arrives after `t`, assuming both component hardnesses; classical-only traffic before `t` carries no such bound. **Motivation for enabling PQ now, before any content worth harvesting exists.**
 
 ---
 
@@ -99,7 +99,7 @@ reverse proxy (Caddy): upgrade to a version with Go ≥ 1.24 (ML-KEM default)
 
 ```
 EncryptedDataHeader {
-  alg_id   : AeadId (Aes256Gcm | AesKw256 | ...)     # NEW field — agility
+  alg_id   : AeadId (Aes256Gcm | AesKw256 | ...)     # NEW field; agility
   key_id, key_version                          # existing
   nonce  : 96-bit random per chunk
 }
@@ -119,7 +119,7 @@ verify: BOTH must verify; classical survives PQ cryptanalysis of lattice, vice v
 
 ## YP-6: Test Vector Specification
 
-See `test_vectors/test_vectors_infra.toml` — sections `crypto_*`.
+See `test_vectors/test_vectors_infra.toml`; sections `crypto_*`.
 
 Critical vectors: strict-mode rejection of non-approved ops; KAT retention (SHA-256 "abc", HMAC RFC 4231 TC2); AES-KW wrap/unwrap round trip (RFC 3394 vectors); GCM chunk round trips incl. >8160 B; header alg-id unknown → reject (forward compat); hybrid signature verify (each leg missing → reject); TLS group negotiation matrix.
 
@@ -141,33 +141,33 @@ Summary: `FipsMode::Strict` MUST gate every primitive call (`DC-CRYPTO-001`); ev
 4. NIST. **IR 8547 (ipd)**: Transition to Post-Quantum Cryptography Standards. 2024-11-12. DOI `10.6028/NIST.IR.8547.ipd`. Moody, Perlner, Regenscheid, Robinson, Cooper. [VERIFIED]
 5. Cloudflare. "State of the post-quantum Internet in 2025" (`blog.cloudflare.com/pq-2025/`, Oct 2025): **>50% of human-initiated traffic uses PQ key agreement**; X25519MLKEM768 ready (RFC pending); regulator timelines (CNSA 2.0 2030–2033, federal 2035, NCSC 2035, EU 2030/2035); HQC backup KEM (Mar 2025); Gidney 2025: RSA-2048 < 1M noisy qubits (arXiv:`2505.15917`). [VERIFIED]
 6. OpenSSL **3.5.0 NEWS** (2025-04-08): ML-KEM/ML-DSA/SLH-DSA support; **default keyshares changed to X25519MLKEM768 + X25519**; server-side QUIC. [VERIFIED]
-7. IETF. **RFC 9881**: Internet X.509 PKI — Algorithm Identifiers for ML-DSA (Oct 2025, ex `draft-ietf-lamps-dilithium-certificates`). Seed-only private keys RECOMMENDED; HashML-DSA disallowed in PKIX. [VERIFIED]
+7. IETF. **RFC 9881**: Internet X.509 PKI; Algorithm Identifiers for ML-DSA (Oct 2025, ex `draft-ietf-lamps-dilithium-certificates`). Seed-only private keys RECOMMENDED; HashML-DSA disallowed in PKIX. [VERIFIED]
 8. Signal. "Quantum Resistance and the Signal Protocol" (PQXDH), 2023-09-19 + spec (`signal.org/docs/specifications/pqxdh`): X25519 + Kyber hybrid for initial key establishment only. [VERIFIED]
 9. Apple Security Research. "iMessage with PQ3." 2024-02-21: Kyber-1024 initial, Kyber-768 ratchet ≈ every 50 messages / ≥ every 7 days; HKDF-SHA384; independent analyses (Stebila game-based; Basin/Linker/Sasse Tamarin). [VERIFIED]
 10. IETF JOSE WG (fetched Oct 2026): **RFC 9864** Fully-Specified Algorithms (Oct 2025); `draft-ietf-jose-pq-composite-sigs-05` (2026-10-08); `draft-ietf-jose-hpke-pq-pqt-01`; `draft-ietf-jose-pqc-kem-06`. **No ML-DSA JWS/JWT RFC yet.** [VERIFIED]
-11. aws/aws-lc-rs README: `aws-lc-fips-sys` binds AWS-LC-FIPS 3.x — validation testing complete, **submitted to NIST, not yet certified**; re-check CMVP at deploy time. (Counter-example verified: NIST cert #5101 = Apple corecrypto 14.1, FIPS 140-3 L1, 2025-12-02 — software modules ARE getting 140-3 certs now.) [VERIFIED]
+11. aws/aws-lc-rs README: `aws-lc-fips-sys` binds AWS-LC-FIPS 3.x; validation testing complete, **submitted to NIST, not yet certified**; re-check CMVP at deploy time. (Counter-example verified: NIST cert #5101 = Apple corecrypto 14.1, FIPS 140-3 L1, 2025-12-02; software modules ARE getting 140-3 certs now.) [VERIFIED]
 12. RustCrypto `ml-kem` v0.3.2 (2026-09-25): pure-Rust FIPS 203; explicit "never independently audited" warning. [VERIFIED]
-13. **Negative result:** no public Dropbox statement on PQ deployment found — do not accept "Dropbox PQ" claims in parity matrices without a source. [VERIFIED ABSENCE]
-14. restic backup format — classical symmetric (AES-256-CTR + Poly1305), scrypt KDF; no PQ action needed at rest; backup *transfer* rides PQ TLS. [UNCERTAIN — re-verify restic docs]
-15. Sigstore Rekor / Google Trillian — referenced infrastructure for future audit-head anchoring; deployment option, not dependency. [VERIFIED existence]
+13. **Negative result:** no public Dropbox statement on PQ deployment found; do not accept "Dropbox PQ" claims in parity matrices without a source. [VERIFIED ABSENCE]
+14. restic backup format; classical symmetric (AES-256-CTR + Poly1305), scrypt KDF; no PQ action needed at rest; backup *transfer* rides PQ TLS. [UNCERTAIN; re-verify restic docs]
+15. Sigstore Rekor / Google Trillian; referenced infrastructure for future audit-head anchoring; deployment option, not dependency. [VERIFIED existence]
 
 ---
 
-## YP-9: Revision 1.1 — Hardening Pass (Iteration R2-3, 2026-10-14)
+## YP-9: Revision 1.1: Hardening Pass (Iteration R2-3, 2026-10-14)
 
-### R2-3.1: Frontier Finding — adopt the age/Tink STREAM construction verbatim
+### R2-3.1: Frontier Finding: adopt the age/Tink STREAM construction verbatim
 
 **Sources (fetched this session):**
 - C2SP. "age" file encryption format spec (`github.com/C2SP/C2SP/blob/main/age.md`, `age-encryption.org/v1`). [VERIFIED]
 - Google Tink. "Streaming Authenticated Encryption with Associated Data" (`developers.google.com/tink/streaming-aead`). [VERIFIED]
 - Both instantiate **STREAM** from Hoang, Yasunaga, Stefanov, "Online Authenticated-Encryption and its Nonce-Reuse Misuse-Resistance," ePrint **2015/189** (nOAE security).
 
-The XOR-pad scheme dies twice over: capped at 8 160 B and not an AEAD. The replacement is not novel — Tink and age converged independently on the same shape, so Ferro should ship it **verbatim**, not adapted:
+The XOR-pad scheme dies twice over: capped at 8 160 B and not an AEAD. The replacement is not novel; Tink and age converged independently on the same shape, so Ferro should ship it **verbatim**, not adapted:
 
 | Parameter | Value (age v1) | Why not Ferro-custom |
 |---|---|---|
 | Chunk size | 64 KiB fixed | CDC chunks (256 K–8 M) are a *dedup* unit; the AEAD container chunk is a *crypto* unit. Mixing them couples side channels (size leak) with seekability. Fixed 64 KiB → O(1) memory streaming, random seek = decrypt one chunk. |
-| Nonce | 11-byte big-endian counter ‖ final-flag byte (0x01 final / 0x00 rest) | Counter+flag nonce ⇒ position binding, truncation detection, splice rejection — all structural, no cipher-level tricks. |
+| Nonce | 11-byte big-endian counter ‖ final-flag byte (0x01 final / 0x00 rest) | Counter+flag nonce ⇒ position binding, truncation detection, splice rejection; all structural, no cipher-level tricks. |
 | Key derivation | payload key = HKDF-SHA-256(file key, salt = 16-byte fresh nonce) | 256-bit key margin (multi-target safe); fresh nonce per file ⇒ randomized encryption. |
 | Recipient wrap | HPKE (RFC 9180) SealBase; MLKEM768-X25519 (X-Wing) for PQ | Matches ALG-TLS-001's hybrid posture; age's editor's copy now ships it natively. |
 | Mandatory failure | EOF without a successfully authenticated final chunk ⇒ decrypt error | The single most important rule the XOR scheme cannot even express. |
@@ -176,35 +176,35 @@ The XOR-pad scheme dies twice over: capped at 8 160 B and not an AEAD. The repla
 
 | ID | Statement | Formal status |
 |----|-----------|---------------|
-| `THM-AEAD-NONCE-UNIQUE` | Distinct chunk counters never share a nonce within a stream (GCM/ChaCha20 nonce prohibition satisfied structurally) | **Proved** — Lean `chunk_nonce_counter_injective` |
-| `THM-AEAD-FINAL-SEPARATED` | Final vs non-final chunks at the same counter have distinct nonces — a chunk cannot be re-presented in the other role | **Proved** — Lean `chunk_nonce_final_separated` |
-| `THM-AEAD-TRUNCATION-DETECTED` | A stream ending without an authenticated final chunk is always rejected | **Proved** — Lean `truncation_detected` |
-| `THM-AEAD-NO-CAP` | For any plaintext length n there is a chunk decomposition covering it — retires the 8 160-byte cap formally (`∃ k, k·65 536 ≥ n`) | **Proved** — Lean `chunk_partition_covers_any_size` |
-| `THM-AEAD-POSITION-BOUND` | Chunk counters are injective — reordering or cross-file splicing decrypts under the wrong nonce and fails | **Proved** — Lean `position_binding` |
-| `THM-AEAD-AGILITY-FAIL-CLOSED` | Unknown `alg_id` ⇒ rejection, never silent fallback; no id is both supported and unsupported | **Proved** — Lean `agility_fail_closed`, `agility_known_accepted`, `alg_dispatch_consistent` |
-| `THM-AEAD-EMPTY-FINAL-REJECTED` | Empty final chunk on a nonempty payload rejected (age v1 rule) | **Proved** — Lean `empty_final_rejected` |
+| `THM-AEAD-NONCE-UNIQUE` | Distinct chunk counters never share a nonce within a stream (GCM/ChaCha20 nonce prohibition satisfied structurally) | **Proved**; Lean `chunk_nonce_counter_injective` |
+| `THM-AEAD-FINAL-SEPARATED` | Final vs non-final chunks at the same counter have distinct nonces; a chunk cannot be re-presented in the other role | **Proved**; Lean `chunk_nonce_final_separated` |
+| `THM-AEAD-TRUNCATION-DETECTED` | A stream ending without an authenticated final chunk is always rejected | **Proved**; Lean `truncation_detected` |
+| `THM-AEAD-NO-CAP` | For any plaintext length n there is a chunk decomposition covering it; retires the 8 160-byte cap formally (`∃ k, k·65 536 ≥ n`) | **Proved**; Lean `chunk_partition_covers_any_size` |
+| `THM-AEAD-POSITION-BOUND` | Chunk counters are injective; reordering or cross-file splicing decrypts under the wrong nonce and fails | **Proved**; Lean `position_binding` |
+| `THM-AEAD-AGILITY-FAIL-CLOSED` | Unknown `alg_id` ⇒ rejection, never silent fallback; no id is both supported and unsupported | **Proved**; Lean `agility_fail_closed`, `agility_known_accepted`, `alg_dispatch_consistent` |
+| `THM-AEAD-EMPTY-FINAL-REJECTED` | Empty final chunk on a nonempty payload rejected (age v1 rule) | **Proved**; Lean `empty_final_rejected` |
 
-### R2-3.2: Comparative — what incumbents actually do
+### R2-3.2: Comparative: what incumbents actually do
 
-restic: AES-256-CTR + Poly1305 per 32 KiB blob with a per-file random master key (verified in its design docs) — close cousin, but CTR+MAC by hand rather than an AEAD and no final-chunk semantics. Borg: AES-OMT (own construction). Syncthing BEP: TLS-only in transit, plaintext at rest. age/Tink are the reference implementations; Ferro adopting their exact wire behaviour (including the MUST-fail-on-truncation rule) makes it auditable against two independent public specs and the age test vectors (`age-encryption.org/testkit`).
+restic: AES-256-CTR + Poly1305 per 32 KiB blob with a per-file random master key (verified in its design docs); close cousin, but CTR+MAC by hand rather than an AEAD and no final-chunk semantics. Borg: AES-OMT (own construction). Syncthing BEP: TLS-only in transit, plaintext at rest. age/Tink are the reference implementations; Ferro adopting their exact wire behaviour (including the MUST-fail-on-truncation rule) makes it auditable against two independent public specs and the age test vectors (`age-encryption.org/testkit`).
 
 ### R2-3.3: Lean Proof Companion
 
-`formal/Ferro/ChunkedAEAD.lean` (new; imported by `Ferro.lean`). Nonce model `(counter, flag)`; cipher security (IND-CCA2 of GCM/ChaCha20, HKDF extraction) remains an external assumption — what is proven is the *structural* STREAM layer: uniqueness, binding, truncation, capacity, fail-closed dispatch.
+`formal/Ferro/ChunkedAEAD.lean` (new; imported by `Ferro.lean`). Nonce model `(counter, flag)`; cipher security (IND-CCA2 of GCM/ChaCha20, HKDF extraction) remains an external assumption; what is proven is the *structural* STREAM layer: uniqueness, binding, truncation, capacity, fail-closed dispatch.
 
 ### R2-3.4: Bibliography Additions
 
 16. C2SP. "age" file encryption format (`age-encryption.org/v1`). STREAM payload, 64 KiB chunks, HPKE/MLKEM768-X25519 recipients, test vectors. [VERIFIED]
-17. Hoang, V. T., Yasunaga, K., Stefanov, K. "Online Authenticated-Encryption and its Nonce-Reuse Misuse-Resistance." ePrint 2015/189. (STREAM construction source; cited by both age and Tink.) [VERIFIED — via both specs' citations]
+17. Hoang, V. T., Yasunaga, K., Stefanov, K. "Online Authenticated-Encryption and its Nonce-Reuse Misuse-Resistance." ePrint 2015/189. (STREAM construction source; cited by both age and Tink.) [VERIFIED; via both specs' citations]
 
 ---
 
-## R4-7 Addendum: STREAM Container — IMPLEMENTED
+## R4-7 Addendum: STREAM Container: IMPLEMENTED
 
-`crates/crypto/src/stream.rs`: the age/Tink-identical STREAM construction (`ALG-STREAMAEAD-001`, ePrint 2015/189) — 64 KiB chunks, 7-byte random nonce prefix + 4-byte BE counter + 1-byte final flag (12-byte AES-256-GCM nonce), position-bound AAD (`aad ‖ counter`). Fail-closed: EOF without final chunk (truncation), premature final flags, counter exhaustion, tag failures, AAD mismatch. Replaces the R2-retired 8160-byte XOR pad with a working container. 11 tests. Note: truncation of the final chunk surfaces as AuthFailed (the re-framed chunk's nonce no longer matches) — both variants are fail-closed.
+`crates/crypto/src/stream.rs`: the age/Tink-identical STREAM construction (`ALG-STREAMAEAD-001`, ePrint 2015/189); 64 KiB chunks, 7-byte random nonce prefix + 4-byte BE counter + 1-byte final flag (12-byte AES-256-GCM nonce), position-bound AAD (`aad ‖ counter`). Fail-closed: EOF without final chunk (truncation), premature final flags, counter exhaustion, tag failures, AAD mismatch. Replaces the R2-retired 8160-byte XOR pad with a working container. 11 tests. Note: truncation of the final chunk surfaces as AuthFailed (the re-framed chunk's nonce no longer matches); both variants are fail-closed.
 
 ---
 
-## R5 Addendum: STREAM Nonce Entropy — Fail-Closed Fix
+## R5 Addendum: STREAM Nonce Entropy: Fail-Closed Fix
 
-`rand_fill`'s time/address entropy mix was replaced: under the default `ring` feature the nonce prefix comes from `ring::rand::SystemRandom`; without it, `encrypt` fails closed with `NoEntropy` — callers inject a prefix via `encrypt_with_nonce_prefix` (all-zero prefixes rejected). New tests: nonce freshness is observable (two encryptions of the same plaintext differ), explicit-prefix roundtrip, all-zero rejection. 14 STREAM tests green.
+`rand_fill`'s time/address entropy mix was replaced: under the default `ring` feature the nonce prefix comes from `ring::rand::SystemRandom`; without it, `encrypt` fails closed with `NoEntropy`; callers inject a prefix via `encrypt_with_nonce_prefix` (all-zero prefixes rejected). New tests: nonce freshness is observable (two encryptions of the same plaintext differ), explicit-prefix roundtrip, all-zero rejection. 14 STREAM tests green.

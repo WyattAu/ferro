@@ -15,9 +15,9 @@ Standalone cryptographic primitives for the Ferro platform. Provides a `CryptoPr
 
 ## Key Types
 
-- **`CryptoProvider`** — async trait abstracting cryptographic operations
-- **`RingProvider`** — production implementation backed by the Ring cryptography library
-- **`CryptoError`** — error type for cryptographic operations
+- **`CryptoProvider`**; async trait abstracting cryptographic operations
+- **`RingProvider`**; production implementation backed by the Ring cryptography library
+- **`CryptoError`**; error type for cryptographic operations
 
 ### CryptoProvider trait methods
 

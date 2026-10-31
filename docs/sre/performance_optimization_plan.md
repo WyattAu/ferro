@@ -18,24 +18,24 @@ This plan addresses performance bottlenecks across Ferro's Rust-based storage se
 ## Current Architecture Analysis
 
 ### Metrics System (Current)
-- **File:** `crates/server/src/prometheus_metrics.rs` — manual `format!` string building
-- **File:** `crates/observability/src/registry.rs` — `Vec<(String, String, MetricEntry)>` with `RwLock`
-- **File:** `crates/observability/src/exporter.rs` — `String::write!` per metric on every scrape
+- **File:** `crates/server/src/prometheus_metrics.rs`; manual `format!` string building
+- **File:** `crates/observability/src/registry.rs`; `Vec<(String, String, MetricEntry)>` with `RwLock`
+- **File:** `crates/observability/src/exporter.rs`; `String::write!` per metric on every scrape
 - **Issue:** No label support, O(n) registry scan on scrape, string allocation per request
 
 ### Cache Layer (Current)
-- **File:** `crates/cache/src/cache.rs` — `DashMap<K, CacheEntry<V>>`
-- **File:** `crates/cache/src/lru.rs` — `Vec<K>` + `HashMap<K, usize>` with O(n) index rebuild on eviction
-- **Issue:** `record_access` does `order.remove(pos)` + iterates all indices to decrement — O(n)
+- **File:** `crates/cache/src/cache.rs`; `DashMap<K, CacheEntry<V>>`
+- **File:** `crates/cache/src/lru.rs`; `Vec<K>` + `HashMap<K, usize>` with O(n) index rebuild on eviction
+- **Issue:** `record_access` does `order.remove(pos)` + iterates all indices to decrement; O(n)
 
 ### Storage Layer (Current)
-- **File:** `crates/core/src/` — SQLite via `sqlx`, object_store for S3/GCS/Azure
-- **File:** `crates/server/src/state/mod.rs:34` — `Arc<dyn StorageEngine>` trait object
+- **File:** `crates/core/src/`; SQLite via `sqlx`, object_store for S3/GCS/Azure
+- **File:** `crates/server/src/state/mod.rs:34`; `Arc<dyn StorageEngine>` trait object
 - **Issue:** No connection pooling metrics, no query plan caching, no read-ahead
 
 ### HTTP Layer (Current)
-- **File:** `crates/server/src/routes.rs:100` — single `build_router` function
-- **File:** `crates/server/src/state/mod.rs:74-81` — atomic counters for request tracking
+- **File:** `crates/server/src/routes.rs:100`; single `build_router` function
+- **File:** `crates/server/src/state/mod.rs:74-81`; atomic counters for request tracking
 - **Issue:** No per-route latency breakdown, no request coalescing, no body streaming optimization
 
 ---
@@ -49,10 +49,10 @@ This plan addresses performance bottlenecks across Ferro's Rust-based storage se
 #### Changes
 
 **1.1 Create benchmark harness baseline**
-- **File:** `crates/server/benches/throughput.rs` (exists — extend)
-- **File:** `crates/server/benches/latency.rs` (exists — extend)
+- **File:** `crates/server/benches/throughput.rs` (exists; extend)
+- **File:** `crates/server/benches/latency.rs` (exists; extend)
 - **New File:** `crates/server/benches/critical_paths.rs`
-- **New File:** `crates/benchmarks/src/lib.rs` — shared benchmark utilities
+- **New File:** `crates/benchmarks/src/lib.rs`; shared benchmark utilities
 
 ```rust
 // crates/server/benches/critical_paths.rs
@@ -114,7 +114,7 @@ criterion_main!(benches);
 
 **1.2 Add performance regression CI gate**
 - **New File:** `.github/workflows/perf-regression.yml`
-- **New File:** `scripts/bench_compare.sh` — compares against baseline JSON
+- **New File:** `scripts/bench_compare.sh`; compares against baseline JSON
 
 ```yaml
 # .github/workflows/perf-regression.yml
@@ -142,9 +142,9 @@ jobs:
 ```
 
 **1.3 Instrument critical paths with tracing spans**
-- **File:** `crates/server/src/handlers.rs` — add `#[tracing::instrument]` to top handlers
-- **File:** `crates/server/src/storage.rs` — instrument storage operations
-- **File:** `crates/cache/src/cache.rs` — instrument get/set with span events
+- **File:** `crates/server/src/handlers.rs`; add `#[tracing::instrument]` to top handlers
+- **File:** `crates/server/src/storage.rs`; instrument storage operations
+- **File:** `crates/cache/src/cache.rs`; instrument get/set with span events
 
 #### Benchmark Targets (Week 1)
 | Metric | Current | Target |
@@ -173,9 +173,9 @@ jobs:
 #### Changes
 
 **2.1 Redesign MetricsRegistry with label support**
-- **File:** `crates/observability/src/registry.rs` — replace `Vec<(String, String, MetricEntry)>` with `DashMap<String, MetricEntry>`
-- **File:** `crates/observability/src/counter.rs` — add `labels: DashMap<String, AtomicU64>` for labeled counters
-- **File:** `crates/observability/src/histogram.rs` — add label dimension support
+- **File:** `crates/observability/src/registry.rs`; replace `Vec<(String, String, MetricEntry)>` with `DashMap<String, MetricEntry>`
+- **File:** `crates/observability/src/counter.rs`; add `labels: DashMap<String, AtomicU64>` for labeled counters
+- **File:** `crates/observability/src/histogram.rs`; add label dimension support
 
 ```rust
 // crates/observability/src/registry.rs (new design)
@@ -219,8 +219,8 @@ impl MetricsRegistry {
 ```
 
 **2.2 Add metric family aggregation**
-- **File:** `crates/observability/src/exporter.rs` — group metrics by name, aggregate labels
-- **New File:** `crates/observability/src/encoding.rs` — zero-allocation Prometheus text encoder
+- **File:** `crates/observability/src/exporter.rs`; group metrics by name, aggregate labels
+- **New File:** `crates/observability/src/encoding.rs`; zero-allocation Prometheus text encoder
 
 ```rust
 // crates/observability/src/encoding.rs
@@ -261,7 +261,7 @@ fn encode_labels(labels: &[(&str, &str)]) -> String {
 ```
 
 **2.3 Add metrics tests**
-- **File:** `crates/observability/src/tests/mod.rs` — add label correctness tests, encode/decode roundtrip
+- **File:** `crates/observability/src/tests/mod.rs`; add label correctness tests, encode/decode roundtrip
 
 #### Benchmark Targets (Week 2)
 | Metric | Before | After | Target |
@@ -289,8 +289,8 @@ fn encode_labels(labels: &[(&str, &str)]) -> String {
 #### Changes
 
 **3.1 Replace Vec-based LRU with linked-list LRU**
-- **File:** `crates/cache/src/lru.rs` — complete rewrite
-- **New File:** `crates/cache/src/lru_linked.rs` — O(1) LRU implementation
+- **File:** `crates/cache/src/lru.rs`; complete rewrite
+- **New File:** `crates/cache/src/lru_linked.rs`; O(1) LRU implementation
 
 ```rust
 // crates/cache/src/lru_linked.rs
@@ -406,8 +406,8 @@ impl<K: Eq + std::hash::Hash + Clone> LruCache<K> {
 ```
 
 **3.2 Add cache metrics**
-- **File:** `crates/cache/src/stats.rs` — add hit_rate, eviction_rate, memory_pressure gauges
-- **File:** `crates/cache/src/cache.rs` — wire metrics to observability registry
+- **File:** `crates/cache/src/stats.rs`; add hit_rate, eviction_rate, memory_pressure gauges
+- **File:** `crates/cache/src/cache.rs`; wire metrics to observability registry
 
 ```rust
 // crates/cache/src/stats.rs (enhanced)
@@ -457,8 +457,8 @@ impl CacheMetrics {
 #### Changes
 
 **4.1 Add connection pool metrics**
-- **File:** `crates/server/src/connection_pool.rs` — instrument pool stats
-- **New File:** `crates/server/src/db_metrics.rs` — DB-specific metrics
+- **File:** `crates/server/src/connection_pool.rs`; instrument pool stats
+- **New File:** `crates/server/src/db_metrics.rs`; DB-specific metrics
 
 ```rust
 // crates/server/src/db_metrics.rs
@@ -485,11 +485,11 @@ impl DbMetrics {
 ```
 
 **4.2 Add query plan caching for SQLite**
-- **File:** `crates/core/src/` — add prepared statement cache
+- **File:** `crates/core/src/`; add prepared statement cache
 
 **4.3 Optimize bulk operations**
-- **File:** `crates/server/src/batch.rs` — use transactions for batch ops
-- **File:** `crates/server/src/bulk.rs` — parallel bulk with bounded concurrency
+- **File:** `crates/server/src/batch.rs`; use transactions for batch ops
+- **File:** `crates/server/src/bulk.rs`; parallel bulk with bounded concurrency
 
 #### Benchmark Targets (Week 4)
 | Metric | Before | After | Target |
@@ -518,8 +518,8 @@ impl DbMetrics {
 #### Changes
 
 **5.1 Streaming upload with backpressure**
-- **File:** `crates/server/src/upload.rs` — replace `Bytes::from` with `Stream`-based body
-- **File:** `crates/server/src/streaming.rs` — add adaptive chunk sizing
+- **File:** `crates/server/src/upload.rs`; replace `Bytes::from` with `Stream`-based body
+- **File:** `crates/server/src/streaming.rs`; add adaptive chunk sizing
 
 ```rust
 // crates/server/src/streaming.rs
@@ -555,11 +555,11 @@ impl AdaptiveChunker {
 ```
 
 **5.2 Range request optimization**
-- **File:** `crates/server/src/storage.rs` — add `read_range` with minimal allocation
-- **File:** `crates/server-storage-ops/src/range_get.rs` — optimize partial reads
+- **File:** `crates/server/src/storage.rs`; add `read_range` with minimal allocation
+- **File:** `crates/server-storage-ops/src/range_get.rs`; optimize partial reads
 
 **5.3 Response body compression**
-- **File:** `crates/server/src/routes.rs` — add per-route compression config
+- **File:** `crates/server/src/routes.rs`; add per-route compression config
 
 #### Benchmark Targets (Weeks 5-6)
 | Metric | Before | After | Target |
@@ -588,7 +588,7 @@ impl AdaptiveChunker {
 #### Changes
 
 **7.1 Request coalescing**
-- **File:** `crates/core/src/` — add dedup layer for concurrent identical GETs
+- **File:** `crates/core/src/`; add dedup layer for concurrent identical GETs
 
 ```rust
 // crates/core/src/request_coalescer.rs
@@ -628,10 +628,10 @@ impl<V: Clone + Send + 'static> RequestCoalescer<V> {
 ```
 
 **7.2 Multipart upload optimization**
-- **File:** `crates/server/src/upload.rs` — parallel part uploads with `futures::join_all`
+- **File:** `crates/server/src/upload.rs`; parallel part uploads with `futures::join_all`
 
 **7.3 Presigned URL caching**
-- **File:** `crates/server/src/presigned.rs` — cache presigned URLs with TTL
+- **File:** `crates/server/src/presigned.rs`; cache presigned URLs with TTL
 
 #### Benchmark Targets (Weeks 7-8)
 | Metric | Before | After | Target |
@@ -659,7 +659,7 @@ impl<V: Clone + Send + 'static> RequestCoalescer<V> {
 #### Changes
 
 **9.1 WASM pre-instantiation pool**
-- **File:** `crates/core/src/wasm.rs` — pool pre-instantiated modules
+- **File:** `crates/core/src/wasm.rs`; pool pre-instantiated modules
 
 ```rust
 // crates/core/src/wasm/pool.rs
@@ -683,10 +683,10 @@ impl ModulePool {
 ```
 
 **9.2 Fuel-based execution limits**
-- **File:** `crates/core/src/wasm.rs` — adjust fuel per worker type
+- **File:** `crates/core/src/wasm.rs`; adjust fuel per worker type
 
 **9.3 Worker serialization optimization**
-- **File:** `crates/server/src/workers.rs` — use `rmp-serde` for binary serialization
+- **File:** `crates/server/src/workers.rs`; use `rmp-serde` for binary serialization
 
 #### Benchmark Targets (Weeks 9-10)
 | Metric | Before | After | Target |
@@ -714,10 +714,10 @@ impl ModulePool {
 #### Changes
 
 **11.1 Arena allocation for request processing**
-- **New File:** `crates/server/src/arena.rs` — bump allocator for request lifetime
+- **New File:** `crates/server/src/arena.rs`; bump allocator for request lifetime
 
 **11.2 String interning for paths**
-- **New File:** `crates/server/src/path_interner.rs` — intern frequently accessed paths
+- **New File:** `crates/server/src/path_interner.rs`; intern frequently accessed paths
 
 ```rust
 // crates/server/src/path_interner.rs
@@ -741,7 +741,7 @@ impl PathInterner {
 ```
 
 **11.3 Bytes buffer pool**
-- **New File:** `crates/server/src/buffer_pool.rs` — recycle `BytesMut` buffers
+- **New File:** `crates/server/src/buffer_pool.rs`; recycle `BytesMut` buffers
 
 #### Benchmark Targets (Weeks 11-12)
 | Metric | Before | After | Target |
@@ -765,11 +765,11 @@ impl PathInterner {
 #### Changes
 
 **13.1 HTTP/2 support**
-- **File:** `crates/server/src/main.rs` — add `hyper-util` HTTP/2 support
-- **File:** `crates/server/src/tls.rs` — configure ALPN
+- **File:** `crates/server/src/main.rs`; add `hyper-util` HTTP/2 support
+- **File:** `crates/server/src/tls.rs`; configure ALPN
 
 **13.2 Connection keepalive tuning**
-- **File:** `crates/server/src/routes.rs` — add connection pool middleware
+- **File:** `crates/server/src/routes.rs`; add connection pool middleware
 
 #### Benchmark Targets
 | Metric | Before | After | Target |
@@ -786,10 +786,10 @@ impl PathInterner {
 #### Changes
 
 **15.1 Tiered storage metadata**
-- **New File:** `crates/server/src/storage_tier.rs` — metadata for tier classification
+- **New File:** `crates/server/src/storage_tier.rs`; metadata for tier classification
 
 **15.2 Read-ahead cache**
-- **File:** `crates/server-integrations/src/read_cache.rs` — add sequential detection + prefetch
+- **File:** `crates/server-integrations/src/read_cache.rs`; add sequential detection + prefetch
 
 ```rust
 // crates/server-integrations/src/read_cache.rs (enhanced)
@@ -844,10 +844,10 @@ impl ReadAheadCache {
 #### Changes
 
 **17.1 CRDT merge optimization**
-- **File:** `crates/crdt/src/` — batch merge operations
+- **File:** `crates/crdt/src/`; batch merge operations
 
 **17.2 Federation sync batching**
-- **File:** `crates/server-infra/src/federation_sync.rs` — batch sync operations
+- **File:** `crates/server-infra/src/federation_sync.rs`; batch sync operations
 
 #### Benchmark Targets
 | Metric | Before | After | Target |
@@ -866,11 +866,11 @@ impl ReadAheadCache {
 #### Changes
 
 **19.1 k6 load test expansion**
-- **File:** `benchmarks/k6/webdav-load.js` — add realistic workloads
-- **File:** `benchmarks/k6/rest-load.js` — add mixed read/write patterns
+- **File:** `benchmarks/k6/webdav-load.js`; add realistic workloads
+- **File:** `benchmarks/k6/rest-load.js`; add mixed read/write patterns
 
 **19.2 Capacity planning model**
-- **New File:** `scripts/capacity_model.py` — predict resource needs
+- **New File:** `scripts/capacity_model.py`; predict resource needs
 
 #### Benchmark Targets
 | Metric | Target |
@@ -888,10 +888,10 @@ impl ReadAheadCache {
 #### Changes
 
 **21.1 Performance dashboards**
-- **File:** `monitoring/grafana/dashboards/performance.json` — new dashboard
+- **File:** `monitoring/grafana/dashboards/performance.json`; new dashboard
 
 **21.2 SLO-based alerts**
-- **File:** `monitoring/prometheus/alerts.yml` — add latency SLO alerts
+- **File:** `monitoring/prometheus/alerts.yml`; add latency SLO alerts
 
 ```yaml
 # Performance SLO alerts
@@ -924,10 +924,10 @@ impl ReadAheadCache {
 #### Changes
 
 **23.1 Performance guide**
-- **New File:** `docs/performance-tuning.md` — operator guide
+- **New File:** `docs/performance-tuning.md`; operator guide
 
 **23.2 Migration runbook**
-- **New File:** `docs/runbooks/performance-migration.md` — step-by-step
+- **New File:** `docs/runbooks/performance-migration.md`; step-by-step
 
 **23.3 Gradual rollout**
 - Canary deployment to 10% traffic

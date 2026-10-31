@@ -1,4 +1,4 @@
-# Module Extraction Decisions — Remaining Server Modules
+# Module Extraction Decisions: Remaining Server Modules
 
 Three modules remain in `crates/server/src/` after three phases of extraction. Each was evaluated against extraction criteria and decided to stay. This document records the reasoning and criteria for future decisions.
 
@@ -24,20 +24,20 @@ A module **must stay** when:
 
 ## Module Analysis
 
-### 1. `notification_prefs_api.rs` — 242 lines
+### 1. `notification_prefs_api.rs`: 242 lines
 
 **Decision:** Stay. Not worth extracting.
 
 **Dependencies:**
 | Type | Source |
 |------|--------|
-| `AppState` | `crate::AppState` — accessed via `state.notification_prefs_store` |
-| `ApiError` | `crate::api_error` — for error responses |
-| `DbHandle` | `crate::db` — `Arc<Mutex<Connection>>` for SQLite access |
+| `AppState` | `crate::AppState`; accessed via `state.notification_prefs_store` |
+| `ApiError` | `crate::api_error`; for error responses |
+| `DbHandle` | `crate::db`; `Arc<Mutex<Connection>>` for SQLite access |
 
 **Why it stays:**
-- `NotificationPrefsStore` is already a named field on `AppState` (`state.rs:116`). Extracting it would require defining the store in an external crate, then re-exporting the type back into the server crate to keep it on `AppState` — a circular dependency.
-- The two handler functions (`get_notification_prefs`, `update_notification_prefs`) take `State<AppState>` and access the store directly. These are thin axum handlers — extracting them means the external crate would need an axum dependency and the `AppState` trait bound.
+- `NotificationPrefsStore` is already a named field on `AppState` (`state.rs:116`). Extracting it would require defining the store in an external crate, then re-exporting the type back into the server crate to keep it on `AppState`; a circular dependency.
+- The two handler functions (`get_notification_prefs`, `update_notification_prefs`) take `State<AppState>` and access the store directly. These are thin axum handlers; extracting them means the external crate would need an axum dependency and the `AppState` trait bound.
 - The domain types (`NotificationPrefs`, `UpdateNotificationPrefsRequest`) are simple data structs that could live anywhere, but they're only 23 lines. Not enough to justify a crate boundary.
 
 **What it would take to extract:**
@@ -51,28 +51,28 @@ A module **must stay** when:
 
 ---
 
-### 2. `link_analytics_api.rs` — 305 lines
+### 2. `link_analytics_api.rs`: 305 lines
 
 **Decision:** Stay. Deep coupling to multiple server stores.
 
 **Dependencies:**
 | Type | Source |
 |------|--------|
-| `AppState` | `crate::AppState` — accessed via `state.share_store`, `state.db`, `state.used_bytes` |
-| `ApiError` | `crate::api_error` — for error responses |
-| `ShareStoreTrait` | `crate::shares` — `state.share_store.list()` |
-| `DbHandle` | `crate::db` — direct SQLite queries against `link_analytics` and `shares` tables |
+| `AppState` | `crate::AppState`; accessed via `state.share_store`, `state.db`, `state.used_bytes` |
+| `ApiError` | `crate::api_error`; for error responses |
+| `ShareStoreTrait` | `crate::shares`; `state.share_store.list()` |
+| `DbHandle` | `crate::db`; direct SQLite queries against `link_analytics` and `shares` tables |
 
 **Why it stays:**
 - The handlers (`list_link_analytics`, `analytics_link_stats`, `analytics_overview`) access **three** different `AppState` fields: `share_store`, `db`, and `used_bytes`. This is the deepest coupling of the three modules.
-- `track_link_access` is a middleware function called from share-serving code. It takes a raw `&rusqlite::Connection` — already decoupled from `AppState`, but the handlers are not.
+- `track_link_access` is a middleware function called from share-serving code. It takes a raw `&rusqlite::Connection`; already decoupled from `AppState`, but the handlers are not.
 - The `analytics_overview` handler joins the `link_analytics` table with the `shares` table (line 272). This cross-table query ties it to the share schema, which lives in the server crate.
-- `link_analytics_api.rs` defines 5 domain types (`LinkAnalyticsEntry`, `LinkStats`, `ReferrerCount`, `DailyCount`, `AnalyticsOverview`, `TopLink`) — all public structs. These would need to move to an external crate, but they're only used by these handlers. No other crate references them.
+- `link_analytics_api.rs` defines 5 domain types (`LinkAnalyticsEntry`, `LinkStats`, `ReferrerCount`, `DailyCount`, `AnalyticsOverview`, `TopLink`); all public structs. These would need to move to an external crate, but they're only used by these handlers. No other crate references them.
 
 **What it would take to extract:**
 - Move 6 domain structs to a `ferro-server-link-analytics` crate
 - Create a trait for `ShareStore` access (already exists as `ShareStoreTrait`)
-- Create a trait for DB access — but this module uses raw `rusqlite::Connection` directly, not through `DbHandle`. Would need to abstract over raw SQL queries, which is heavy.
+- Create a trait for DB access; but this module uses raw `rusqlite::Connection` directly, not through `DbHandle`. Would need to abstract over raw SQL queries, which is heavy.
 - The `shares` table join means the external crate would depend on the server's share schema. This creates a dependency inversion problem.
 - Total effort: ~300 lines of trait definitions + adapter code. Not justified.
 
@@ -80,14 +80,14 @@ A module **must stay** when:
 
 ---
 
-### 3. `prometheus_metrics.rs` — 248 lines
+### 3. `prometheus_metrics.rs`: 248 lines
 
 **Decision:** Stay. Impossible to extract without a massive trait abstraction.
 
 **Dependencies:**
 | Type | Source |
 |------|--------|
-| `AppState` | `crate::AppState` — reads **12+ fields** directly |
+| `AppState` | `crate::AppState`; reads **12+ fields** directly |
 | `started_at` | `std::time::Instant` |
 | `storage` | `Arc<dyn StorageEngine>` |
 | `request_count` | `Arc<AtomicU64>` |
@@ -103,10 +103,10 @@ A module **must stay** when:
 | `used_bytes` | `Arc<AtomicU64>` |
 
 **Why it stays:**
-- This handler reads from **12+ `AppState` fields** — more than any other module. It is essentially a snapshot of the entire server state rendered as Prometheus text.
-- The handler formats the output as a single string literal with all metrics. There's no intermediate data model — it's pure formatting logic over raw atomic reads.
+- This handler reads from **12+ `AppState` fields**; more than any other module. It is essentially a snapshot of the entire server state rendered as Prometheus text.
+- The handler formats the output as a single string literal with all metrics. There's no intermediate data model; it's pure formatting logic over raw atomic reads.
 - Extracting this would require a `MetricsProvider` trait with 12+ associated methods (one per metric family). The server would need to implement this trait, and the external crate would just call those methods and format the output.
-- The test suite (lines 156-248) calls `build_router(AppState::in_memory())` and makes HTTP requests. This integration test lives in the server crate. Moving the handler to an external crate would either duplicate the test setup or require the test to depend on the server crate — defeating the purpose.
+- The test suite (lines 156-248) calls `build_router(AppState::in_memory())` and makes HTTP requests. This integration test lives in the server crate. Moving the handler to an external crate would either duplicate the test setup or require the test to depend on the server crate; defeating the purpose.
 - The actual "business logic" is just reading atomic counters and formatting strings. There's no domain model, no database queries, no type definitions beyond the handler function itself.
 
 **What it would take to extract:**
@@ -133,7 +133,7 @@ These modules define the server's fundamental infrastructure and cannot be extra
 | `lib.rs` | Crate root, module declarations |
 | `main.rs` | Entry point |
 | `config.rs` | Server configuration types |
-| `state.rs` | `AppState` definition — the central hub |
+| `state.rs` | `AppState` definition; the central hub |
 | `routes.rs` | Axum route tree wiring |
 | `handlers.rs` | Core HTTP handlers (methods, WebDAV) |
 | `api.rs` | REST API endpoint definitions |
@@ -219,7 +219,7 @@ These modules could be moved with moderate refactoring:
 
 | Module | Lines | Why extractable |
 |--------|-------|-----------------|
-| `notification_prefs_api.rs` | 242 | Self-contained domain; store is a simple wrapper. See analysis above — moderate effort but low payoff. |
+| `notification_prefs_api.rs` | 242 | Self-contained domain; store is a simple wrapper. See analysis above; moderate effort but low payoff. |
 | `link_analytics_api.rs` | 305 | Self-contained domain types. Could be extracted if share_store access is abstracted via trait. See analysis above. |
 | `prometheus_metrics.rs` | 248 | Pure formatting over atomic reads. Could be extracted with a metrics provider trait, but the trait would be trivial and not reused. |
 

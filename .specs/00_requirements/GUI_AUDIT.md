@@ -1,7 +1,7 @@
 # Ferro GUI Current State Audit
 
 > **Date:** 2026-07-22
-> **Scope:** Frontend crate (`crates/web/`) — Leptos 0.8 CSR WASM application
+> **Scope:** Frontend crate (`crates/web/`); Leptos 0.8 CSR WASM application
 > **Purpose:** Establish a complete baseline of the current GUI state before refactor planning
 
 ---
@@ -17,7 +17,7 @@
 | **State management** | Leptos signals (`signal`, `create_signal`). No global store (e.g. `Store`). Each page instantiates its own ~15-30 signals. |
 | **Routing** | `leptos_router` 0.8 with 16 routes defined in `app.rs` |
 | **i18n** | Custom `t!()` macro over a static English-only translation table (`i18n/en.rs`). `Locale` enum with single variant `En`. |
-| **Mount target** | `mount_to_body` — Leptos mounts to `<body>`, not `#app` |
+| **Mount target** | `mount_to_body`; Leptos mounts to `<body>`, not `#app` |
 | **WASM binary** | ~3.8 MB release build |
 | **Dependency health** | Leptos 0.8 (current), Tauri 2.x (current), webkit2gtk 2.x (Linux) |
 
@@ -179,7 +179,7 @@
 | **Preferences** | View mode, sort, items per page, show hidden files |
 | **Notifications** | Browser notification permission request (local-only, not persisted to server) |
 | **Appearance** | Theme selector (14 themes), font size |
-| **Sync** | Placeholder — no offline implementation |
+| **Sync** | Placeholder; no offline implementation |
 
 #### State
 
@@ -522,7 +522,7 @@
 |---|---|
 | **Comprehensive file management** | Full CRUD via WebDAV + REST, multi-select, drag-drop upload, move/copy, bulk delete |
 | **Enterprise admin** | 7-tab admin panel with DLP policies, antivirus, watermarks, user management, device management, audit logs |
-| **14-theme design system** | Light, Dark, Midnight, System, Solarized Light/Dark, Nord, Tokyo Night, Dracula, High Contrast, Sepia, Forest, Ocean, Custom — all via CSS custom properties with smooth transitions |
+| **14-theme design system** | Light, Dark, Midnight, System, Solarized Light/Dark, Nord, Tokyo Night, Dracula, High Contrast, Sepia, Forest, Ocean, Custom; all via CSS custom properties with smooth transitions |
 | **Accessibility** | Skip navigation links, ARIA attributes, keyboard shortcuts throughout, FocusTrap component, `prefers-reduced-motion` support, high-contrast theme (WCAG AAA), touch target minimums (44px) |
 | **Responsive design** | Mobile detection, responsive grid/list layouts, mobile-optimized spacing overrides at 640px breakpoint |
 | **Version history** | Full version listing with visual diff (additions/deletions/unchanged), version restore |
@@ -571,7 +571,7 @@
 | Issue | Impact | Details |
 |---|---|---|
 | **Missing CSS utility classes** | Visual bugs | Classes referenced in components but not defined in `style.css`: `table-fixed`, `whitespace-nowrap` (defined), `shadow-lg` (defined in theme CSS but not in `style.css`), `outline-none`, `pointer-events-none`, `select-none`, `overflow-hidden`, `border-collapse`, `table-auto`, `sticky`, `inset-0`, `z-50`, `z-10`, `absolute`, `relative`, `fixed`, `rounded-full`, `rounded-lg`, `divide-y`, `line-clamp-1`, `line-clamp-2`, `opacity-0`, `opacity-50`, `opacity-100`, `scale-95`, `scale-100`, `translate-x-0`, `-translate-y-1/2` |
-| **No Tailwind — hand-written CSS with gaps** | Maintenance burden | `style.css` is 852 lines of manually maintained utility classes. Gaps between what components reference and what's defined. |
+| **No Tailwind; hand-written CSS with gaps** | Maintenance burden | `style.css` is 852 lines of manually maintained utility classes. Gaps between what components reference and what's defined. |
 | **`#app` selector removed but Leptos mounts outside it** | Mount mismatch | `lib.rs` uses `mount_to_body` but some CSS may still reference `#app` |
 | **Date column wrapping in table views** | Layout bug | Date/time columns wrap to multiple lines in narrow table viewports |
 | **Table layout breaks with block display on tbody** | Layout bug | `tbody` elements with `display: block` break table column alignment |
@@ -596,10 +596,10 @@
 | `uuid` | 1 (v4, js features) | Current |
 | `console_error_panic_hook` | 0.1 | Current |
 | `ferro-common` | path dependency | Internal |
-| `ferro-crdt` | path dependency (wasm feature) | Internal — imported but CRDT not used in frontend |
+| `ferro-crdt` | path dependency (wasm feature) | Internal; imported but CRDT not used in frontend |
 | Tauri | 2.x | Current |
 | webkit2gtk | 2.x | Linux only |
-| **TypeScript type safety** | None | No TS in the stack — all API contracts are Rust structs with serde |
+| **TypeScript type safety** | None | No TS in the stack; all API contracts are Rust structs with serde |
 | **WASM binary size** | ~3.8 MB | Acceptable for release, could be optimized |
 
 ---
@@ -612,7 +612,7 @@ The following backend features exist in the Ferro server crates but have **no co
 
 | Backend Feature | Backend Crate | Frontend Status |
 |---|---|---|
-| **GraphQL API** | `crates/graphql/` | Not used — frontend uses REST + WebDAV exclusively |
+| **GraphQL API** | `crates/graphql/` | Not used; frontend uses REST + WebDAV exclusively |
 | **WOPI Office editing** | `crates/server-wopi/` | No UI for launching collaborative editing sessions |
 | **WebRTC signaling** | `crates/server-webrtc/` | No peer-to-peer UI or signaling interface |
 
@@ -772,9 +772,9 @@ The following backend features exist in the Ferro server crates but have **no co
 
 The frontend has **two competing CSS systems**:
 
-1. **`style.css`** (852 lines) — Hand-written utility classes inspired by Tailwind, with a custom "Spatial Materialism" design language. Defines its own color tokens at `:root` that conflict with the theme system.
+1. **`style.css`** (852 lines); Hand-written utility classes inspired by Tailwind, with a custom "Spatial Materialism" design language. Defines its own color tokens at `:root` that conflict with the theme system.
 
-2. **`dark_mode.rs` THEME_CSS** (~1600 lines injected at runtime) — 14 complete theme definitions using `[data-theme="..."]` selectors with comprehensive CSS custom properties. Includes utility classes, scrollbar styling, skeleton animations, focus rings, reduced motion, and responsive overrides.
+2. **`dark_mode.rs` THEME_CSS** (~1600 lines injected at runtime); 14 complete theme definitions using `[data-theme="..."]` selectors with comprehensive CSS custom properties. Includes utility classes, scrollbar styling, skeleton animations, focus rings, reduced motion, and responsive overrides.
 
 **Conflict:** `style.css` line 8 sets `--accent: #E85D04` while `dark_mode.rs` sets `--accent: #3b82f6` for the light theme. Both inject into `:root`. The runtime injection order determines which wins.
 

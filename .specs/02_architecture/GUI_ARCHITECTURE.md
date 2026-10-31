@@ -250,7 +250,7 @@ pub struct FileBrowserState {
 
 ### 4.4 Server State (Cache Layer)
 
-Inspired by TanStack Query — every server resource is cached with stale-while-revalidate semantics:
+Inspired by TanStack Query; every server resource is cached with stale-while-revalidate semantics:
 
 ```rust
 pub struct ServerCache<T> {
@@ -285,7 +285,7 @@ Cache rules:
 
 ### 5.2 Schema Definition
 
-All API paths use the `/api/v1/` prefix for versioning. This is the canonical convention — all documents must reference these paths consistently.
+All API paths use the `/api/v1/` prefix for versioning. This is the canonical convention; all documents must reference these paths consistently.
 
 ```toml
 # api/schema/files.toml
@@ -312,7 +312,7 @@ type = "UnauthorizedError"
 ### 5.3 Generated Client Interface
 
 ```rust
-// Generated from TOML schema — DO NOT EDIT
+// Generated from TOML schema; DO NOT EDIT
 pub struct FileApi {
     client: HttpClient,
 }
@@ -436,9 +436,9 @@ pub trait NoteRepository {
 ```
 
 Implementations:
-- `ApiRepository` — calls generated API client
-- `CacheRepository` — wraps ApiRepository with IndexedDB cache
-- `OfflineRepository` — queue mutations when offline, sync when online
+- `ApiRepository`; calls generated API client
+- `CacheRepository`; wraps ApiRepository with IndexedDB cache
+- `OfflineRepository`; queue mutations when offline, sync when online
 
 This enables testing with mock repositories and offline mode without changing business logic.
 
@@ -768,7 +768,7 @@ The desktop app is a thin Tauri v2 wrapper around the same frontend:
 ### 10.3 Desktop-Specific Workarounds
 
 ```
-// GDK_BACKEND=x11 workaround — stays in Tauri layer, not frontend
+// GDK_BACKEND=x11 workaround; stays in Tauri layer, not frontend
 // Applied via environment variable before Tauri window creation
 // Frontend code is desktop-agnostic
 ```
@@ -782,11 +782,11 @@ The desktop app is a thin Tauri v2 wrapper around the same frontend:
 ```
          ╱╲
         ╱  ╲
-       ╱ E2E╲          5% — Critical user journeys
+       ╱ E2E╲          5%; Critical user journeys
       ╱──────╲
-     ╱ Integr.╲        25% — Component trees + mock API
+     ╱ Integr.╲        25%; Component trees + mock API
     ╱──────────╲
-   ╱    Unit    ╲      70% — Individual components + utilities
+   ╱    Unit    ╲      70%; Individual components + utilities
   ╱──────────────╲
 ```
 
@@ -1006,19 +1006,19 @@ pub trait EventStore {
 Snapshot every 100 events for performance. Rebuild state from events on connection.
 
 **Whiteboard Events:**
-- `whiteboard.element.added` — New drawing element
-- `whiteboard.element.updated` — Element modified (position, style)
-- `whiteboard.element.removed` — Element deleted
-- `whiteboard.cursor.moved` — User cursor position update
-- `whiteboard.viewport.changed` — User zoom/pan change
+- `whiteboard.element.added`; New drawing element
+- `whiteboard.element.updated`; Element modified (position, style)
+- `whiteboard.element.removed`; Element deleted
+- `whiteboard.cursor.moved`; User cursor position update
+- `whiteboard.viewport.changed`; User zoom/pan change
 
 **Chat Events:**
-- `chat.message.sent` — New message
-- `chat.message.edited` — Message edited
-- `chat.message.deleted` — Message deleted
-- `chat.user.typing` — Typing indicator
-- `chat.user.joined` — User joined room
-- `chat.user.left` — User left room
+- `chat.message.sent`; New message
+- `chat.message.edited`; Message edited
+- `chat.message.deleted`; Message deleted
+- `chat.user.typing`; Typing indicator
+- `chat.user.joined`; User joined room
+- `chat.user.left`; User left room
 
 Conflict resolution: Last-write-wins for concurrent edits to same element. Operation transforms for chat messages (insert/delete at position).
 

@@ -50,8 +50,8 @@ ferro-fuse --server-url https://ferro.example.com --mount /mnt/ferro --no-foregr
 | `--server-url` | `FERRO_URL` | `http://localhost:8080` | Ferro server URL |
 | `--mount` | `FERRO_MOUNT` | (required) | Local mount point path |
 | `--token` | `FERRO_TOKEN` | (none) | Bearer token for authentication |
-| `--allow-root` | — | `false` | Allow root user to access the mount |
-| `--no-foreground` | — | `true` (foreground) | Run in the background |
+| `--allow-root` | - | `false` | Allow root user to access the mount |
+| `--no-foreground` | - | `true` (foreground) | Run in the background |
 
 ### Unmounting
 

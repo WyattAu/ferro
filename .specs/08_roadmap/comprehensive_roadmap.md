@@ -88,7 +88,7 @@
 
 ## 3. Production Roadmap: v2.5.1 to v3.0
 
-### Phase 1: Production Hardening (Sprint AU) — 3 weeks
+### Phase 1: Production Hardening (Sprint AU): 3 weeks
 
 **Goal:** Deployable for real users with real data.
 
@@ -109,7 +109,7 @@
 | AU-13 | WOPI: handle empty `urlsrc` gracefully | P2 | None |
 | AU-14 | LDAP group mapping to Cedar roles | P2 | ldap feature |
 
-### Phase 2: Reliability and Observability (Sprint AV) — 2 weeks
+### Phase 2: Reliability and Observability (Sprint AV): 2 weeks
 
 **Goal:** Production-grade observability and error handling.
 
@@ -126,7 +126,7 @@
 | AV-09 | `docs/benchmarks.md`: replace placeholder values with real measurements | P1 | None |
 | AV-10 | `SECURITY.md`: create referenced ADR documents (ADR-001 through ADR-005) | P2 | None |
 
-### Phase 3: Test Coverage Expansion (Sprint AW) — 3 weeks
+### Phase 3: Test Coverage Expansion (Sprint AW): 3 weeks
 
 **Goal:** 80% overall branch coverage, 95% critical paths.
 
@@ -144,7 +144,7 @@
 | AW-10 | `CONTRIBUTING.md`: fix Node.js claim, update coverage targets | P2 | None |
 | AW-11 | Remove `.unwrap()` from test code where practical | P2 | None |
 
-### Phase 4: Security Certification (Sprint AX) — 2 weeks
+### Phase 4: Security Certification (Sprint AX): 2 weeks
 
 **Goal:** Zero critical/high CVEs, security review completed.
 
@@ -161,7 +161,7 @@
 | AX-09 | CORS: strict origin validation (not wildcard default) | P2 | None |
 | AX-10 | Dependency: monitor and migrate from `rsa` crate when upstream fix lands | P2 | None |
 
-### Phase 5: Production Release v3.0 (Sprint AY) — 1 week
+### Phase 5: Production Release v3.0 (Sprint AY): 1 week
 
 **Goal:** Release v3.0.0 with confidence.
 
@@ -185,7 +185,7 @@
 
 ## 4. Post-v3.0 Growth (v3.1 to v3.5)
 
-### 4.1 Desktop Client (v3.1) — Sprint AZ, 4 weeks
+### 4.1 Desktop Client (v3.1): Sprint AZ, 4 weeks
 
 - File sync daemon with background sync and conflict resolution
 - Selective sync (per-folder toggle)
@@ -195,7 +195,7 @@
 - Desktop crate CI build (currently missing)
 - Migrate from Tauri GTK3 to GTK4 when upstream lands
 
-### 4.2 Mobile (v3.2) — Sprint BA, 4 weeks
+### 4.2 Mobile (v3.2): Sprint BA, 4 weeks
 
 - iOS File Provider extension (Files app integration)
 - Android Storage Access Framework provider
@@ -203,14 +203,14 @@
 - Push notifications (share received, quota warning)
 - Leptos 0.7 migration (breaking changes expected)
 
-### 4.3 Collaboration (v3.3) — Sprint BB, 3 weeks
+### 4.3 Collaboration (v3.3): Sprint BB, 3 weeks
 
 - Real-time co-editing via CRDT + WebRTC data channels
 - Comments and annotations (per-file threads)
 - File locking visual indicator in web UI
 - Activity notifications (email/webhook on share, comment, mention)
 
-### 4.4 Admin and Compliance (v3.4) — Sprint BC, 2 weeks
+### 4.4 Admin and Compliance (v3.4): Sprint BC, 2 weeks
 
 - Admin dashboard (user management, storage stats, audit log viewer)
 - Two-factor authentication (TOTP)
@@ -218,7 +218,7 @@
 - Data retention policies (auto-deletion past retention period)
 - GDPR export compliance (all user data in machine-readable format)
 
-### 4.5 Performance (v3.5) — Sprint BD, 2 weeks
+### 4.5 Performance (v3.5): Sprint BD, 2 weeks
 
 - True streaming uploads (no full buffering before write)
 - Ranged GET with caching (HTTP Range header support)
@@ -345,4 +345,4 @@ Ferro v2.5.1 has strong fundamentals: correct WebDAV, multi-backend storage, Ced
 
 The path to v3.0 requires 11 weeks of production hardening, observability improvements, test coverage expansion, and security certification. Post-v3.0 growth targets desktop sync, mobile clients, real-time collaboration, and enterprise admin features. Platform evolution (v4.0+) will introduce a plugin system, multi-tenancy, distributed storage, and AI-powered features.
 
-The most critical immediate tasks (Sprint AU) are database backup/restore, file integrity verification, config validation on startup, and login rate limiting — all of which block production deployment for real users.
+The most critical immediate tasks (Sprint AU) are database backup/restore, file integrity verification, config validation on startup, and login rate limiting; all of which block production deployment for real users.

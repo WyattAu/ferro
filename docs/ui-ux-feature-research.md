@@ -1,4 +1,4 @@
-# UI/UX Feature Research — File Managers & Productivity Apps
+# UI/UX Feature Research: File Managers & Productivity Apps
 
 ## 1. Nautilus (GNOME Files)
 

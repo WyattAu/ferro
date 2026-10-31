@@ -20,7 +20,7 @@ This roadmap addresses all UI/UX gaps identified in `docs/ui_ux_comparative_anal
 
 **Priority:** P0
 **Dependencies:** None
-**Theme Impact:** Core — all new themes define the full 60+ CSS custom property set
+**Theme Impact:** Core; all new themes define the full 60+ CSS custom property set
 
 ### 1.1 Theme Architecture Refactor
 

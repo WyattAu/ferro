@@ -812,10 +812,10 @@ Ferro aims to dominate the Security Tier while achieving feature parity with the
 "Meet FIPS, HIPAA, SEC, and GDPR requirements with formally verified, WORM-compliant, self-hosted file management."
 
 **For Collaborative Teams:**
-"Complete collaboration suite with CRDT support, task management, file annotations, and E2E encrypted chat—all self-hosted."
+"Complete collaboration suite with CRDT support, task management, file annotations, and E2E encrypted chat-all self-hosted."
 
 **For Privacy Advocates:**
-"Open source, self-hosted, E2E encrypted by default—your data never leaves your control."
+"Open source, self-hosted, E2E encrypted by default-your data never leaves your control."
 
 ---
 

@@ -10,11 +10,11 @@
 
 **ADR Reference:** FERRO-ADR-001
 
-### Position A — GDPR Data Minimization (GDPR Art. 5)
+### Position A: GDPR Data Minimization (GDPR Art. 5)
 
 GDPR Article 5(1)(c) requires that personal data be "adequate, relevant and limited to what is necessary in relation to the purposes for which they are processed." The audit log records personal data (user IDs, IP addresses, accessed file paths, timestamps) for every request. Storing detailed audit trails may exceed what is strictly necessary, especially for routine read operations.
 
-### Position B — Audit Logging (ISO 27001 A.12.4, NIST AU-2/AU-3/AU-4)
+### Position B: Audit Logging (ISO 27001 A.12.4, NIST AU-2/AU-3/AU-4)
 
 ISO 27001 A.12.4 and NIST AU-2/3/4 mandate comprehensive logging of access events for security monitoring, incident investigation, and accountability. The immutable audit log (REQ-ENT-001) records all authenticated requests including principal, action, resource, result, and client IP. Reducing log granularity would undermine the ability to detect unauthorized access, investigate breaches (GDPR Art. 33), and demonstrate compliance.
 
@@ -35,7 +35,7 @@ ISO 27001 A.12.4 and NIST AU-2/3/4 mandate comprehensive logging of access event
 2. **Retention policy**: Implement configurable retention periods (default 90 days for routine logs, 1 year for security-relevant events). This satisfies GDPR data minimization over time.
 3. **Access logging scope**: Log principal ID (not display name), action, resource path, result, and client IP. Do not log request/response bodies unless explicitly configured for debug mode.
 4. **Data subject access**: Provide a data export endpoint (GDPR Art. 15) that allows users to retrieve their own audit trail entries.
-5. **Legal basis**: Document the legitimate interest basis for audit logging under GDPR Art. 6(1)(f) — security monitoring and breach detection constitute legitimate interests that override the data subject's privacy rights to a proportionate degree.
+5. **Legal basis**: Document the legitimate interest basis for audit logging under GDPR Art. 6(1)(f); security monitoring and breach detection constitute legitimate interests that override the data subject's privacy rights to a proportionate degree.
 
 **Decision:** Full audit logging with tiered retention and data subject access. The security and accountability benefits of comprehensive logging outweigh the marginal privacy impact when mitigated by retention limits.
 
@@ -45,11 +45,11 @@ ISO 27001 A.12.4 and NIST AU-2/3/4 mandate comprehensive logging of access event
 
 **ADR Reference:** FERRO-ADR-002
 
-### Position A — WebDAV Locking (RFC 4918 Class 2, RFC 3253)
+### Position A: WebDAV Locking (RFC 4918 Class 2, RFC 3253)
 
 WebDAV locking (REQ-WEBDAV-002) provides exclusive and shared locks that prevent concurrent modifications. RFC 4918 specifies that a lock grants the holder exclusive write access, and RFC 3253 extends this with versioning semantics. The lock model is file-centric: one lock per resource, lock holder gets exclusive write access.
 
-### Position B — WOPI Collaborative Editing (WOPI Specification)
+### Position B: WOPI Collaborative Editing (WOPI Specification)
 
 WOPI (REQ-WOPI-004, REQ-WOPI-005) enables real-time collaborative editing where multiple users edit the same document simultaneously. Collabora Online and OnlyOffice use operational transformation (OT) or CRDT-based conflict resolution to merge concurrent edits. The WOPI lock model is session-centric: a lock is acquired when editing starts and released when editing ends, but the lock purpose is to prevent non-WOPI clients from overwriting the file, not to prevent multiple WOPI clients from editing.
 
@@ -80,11 +80,11 @@ WOPI (REQ-WOPI-004, REQ-WOPI-005) enables real-time collaborative editing where 
 
 **ADR Reference:** FERRO-ADR-003
 
-### Position A — WASM Sandboxing (WASM/WASI Specification, OWASP A04, NIST SC-7)
+### Position A: WASM Sandboxing (WASM/WASI Specification, OWASP A04, NIST SC-7)
 
 REQ-WASM-003 requires strict WASI capability restrictions preventing plugins from accessing unauthorized filesystem paths, network endpoints, or environment variables. REQ-WASM-004 requires enforcing memory, CPU fuel, and wall-clock time limits. These constraints are security-critical: a malicious or buggy plugin must not be able to crash the server, exfiltrate data, or exhaust resources (OWASP A04, NIST SC-7).
 
-### Position B — Plugin Performance Needs
+### Position B: Plugin Performance Needs
 
 WASM plugins for file processing (OCR, virus scanning, image resizing, content extraction for search indexing) may need to:
 - Read the file being processed (requires filesystem access)
@@ -127,14 +127,14 @@ Overly restrictive sandboxing makes plugins impractical for their intended use c
 
 **ADR Reference:** FERRO-ADR-004
 
-### Position A — Pre-Signed URL Direct Access (REQ-STOR-004)
+### Position A: Pre-Signed URL Direct Access (REQ-STOR-004)
 
 Pre-signed URLs (REQ-STOR-004) allow clients to upload/download directly to the cloud backend (S3/GCS/Azure), bypassing the Ferro server entirely. This provides:
 - 10Gbps+ throughput (limited by client-to-cloud bandwidth, not server bandwidth)
 - Reduced server CPU and memory load
 - Better user experience for large file transfers
 
-### Position B — Access Control Enforcement (REQ-AUTH-002, NIST AC-3, ISO 27001 A.8.3)
+### Position B: Access Control Enforcement (REQ-AUTH-002, NIST AC-3, ISO 27001 A.8.3)
 
 Cedar policy engine (REQ-AUTH-002) must enforce authorization on every operation. NIST AC-3 and ISO 27001 A.8.3 require that access enforcement cannot be bypassed. When a client uses a pre-signed URL to access a file directly, the Ferro server is not in the request path and cannot:
 - Verify the client's current authorization status

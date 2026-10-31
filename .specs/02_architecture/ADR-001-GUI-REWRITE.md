@@ -20,7 +20,7 @@ The existing Leptos 0.8 frontend consists of **16 pages** and approximately **60
 | Broken CSS utility system      | Rendering bugs on multiple pages, inconsistent spacing, missing responsive behavior |
 | Missing WebSocket integration  | Real-time features (chat, live collaboration, notifications) are non-functional |
 | Incomplete feature utilization | ~40 of 150+ backend endpoints are consumed; >70% of server capability is untapped |
-| No global state management     | Each page independently manages state — duplicated fetch logic, inconsistent loading/error states |
+| No global state management     | Each page independently manages state; duplicated fetch logic, inconsistent loading/error states |
 | No type-safe API contract      | Backend changes break frontend silently; no compile-time guarantee on request/response shapes |
 | Incremental build patterns     | Inconsistent component interfaces, ad-hoc event handling, mixed imperative/reactive patterns |
 | Desktop workarounds            | Tauri v2 wrapper contains platform-specific hacks that leak into shared component code |
@@ -31,7 +31,7 @@ The backend exposes **150+ API endpoints** covering file management, collaborati
 
 ### Root Cause Analysis
 
-The current frontend was built incrementally over multiple months. Each page was added with its own conventions, its own CSS approach, and its own state management (or lack thereof). No design system was established upfront. No API client layer was generated — each component fetches data with ad-hoc `fetch` calls and manually parses responses. This created a system where:
+The current frontend was built incrementally over multiple months. Each page was added with its own conventions, its own CSS approach, and its own state management (or lack thereof). No design system was established upfront. No API client layer was generated; each component fetches data with ad-hoc `fetch` calls and manually parses responses. This created a system where:
 
 1. Fixing one page's CSS breaks another
 2. Adding a new page requires copy-pasting boilerplate from an existing page
@@ -59,7 +59,7 @@ The current frontend was built incrementally over multiple months. Each page was
 
 ### What Stays the Same
 
-- **Rendering Engine**: Leptos 0.8 CSR — still the best Rust WASM framework for this use case
+- **Rendering Engine**: Leptos 0.8 CSR; still the best Rust WASM framework for this use case
 - **Backend**: No backend changes required. All 150+ endpoints remain as-is.
 - **Desktop Wrapper**: Tauri v2 stays unchanged. New frontend compiles to the same `dist/` directory.
 - **Design Tokens**: Colors, spacing, typography from `dark_mode.rs` are preserved.
@@ -87,7 +87,7 @@ Leptos 0.8 is selected because:
 
 ### Alternative 1: Incremental Refactor
 
-**Description**: Fix the CSS system, add global state, generate API types — all within the existing codebase.
+**Description**: Fix the CSS system, add global state, generate API types; all within the existing codebase.
 
 **Rejected because**:
 - The component interfaces are fundamentally inconsistent. Fixing CSS requires changing every component's class usage.
@@ -112,7 +112,7 @@ Leptos 0.8 is selected because:
 **Rejected because**:
 - The CSS problems are symptoms of deeper architectural issues (no design tokens, no component contracts).
 - Without fixing state management and API layer, the rewrite only addresses one-third of the problems.
-- The component structure itself is coupled to the broken patterns — you end up rewriting anyway.
+- The component structure itself is coupled to the broken patterns; you end up rewriting anyway.
 
 ---
 
@@ -128,14 +128,14 @@ Leptos 0.8 is selected because:
 | Testable components                      | Isolated components with mock API can be unit tested           |
 | Real-time features ship                  | WebSocket integration built into the architecture, not bolted on |
 | Offline mode becomes possible            | IndexedDB cache layer is part of the state architecture       |
-| Desktop app "just works"                 | New frontend compiles to same dist/ — Tauri wrapper unchanged  |
+| Desktop app "just works"                 | New frontend compiles to same dist/; Tauri wrapper unchanged  |
 
 ### Negative
 
 | Consequence                              | Mitigation                                                    |
 | ---------------------------------------- | ------------------------------------------------------------- |
-| 3-4 month development timeline           | Phased rollout (see GUI_REWRITE_ROADMAP.md) — ship value incrementally |
-| Existing frontend code is abandoned      | Reuse design tokens, test vectors, API knowledge — no total loss |
+| 3-4 month development timeline           | Phased rollout (see GUI_REWRITE_ROADMAP.md); ship value incrementally |
+| Existing frontend code is abandoned      | Reuse design tokens, test vectors, API knowledge; no total loss |
 | Temporary feature parity gap             | Phase 0-2 cover core features; advanced features follow       |
 | Single developer risk                    | Document every architectural decision; maintain comprehensive tests |
 | Leptos framework quirks remain           | Abstract framework-specific code behind trait boundaries where possible |
@@ -192,10 +192,10 @@ ferro-frontend/
 
 ### Migration Strategy
 
-1. **No big-bang switch** — new frontend runs alongside old until feature parity
-2. **Backend serves both** — route `/v2/*` to new frontend, `/` to old
-3. **Progressive cutover** — once each phase completes, migrate its routes
-4. **Rollback capability** — old frontend stays deployable until Phase 7 completion
+1. **No big-bang switch**; new frontend runs alongside old until feature parity
+2. **Backend serves both**; route `/v2/*` to new frontend, `/` to old
+3. **Progressive cutover**; once each phase completes, migrate its routes
+4. **Rollback capability**; old frontend stays deployable until Phase 7 completion
 
 ---
 

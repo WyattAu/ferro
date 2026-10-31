@@ -1,4 +1,4 @@
-# Security Test Plan — Ferro System
+# Security Test Plan: Ferro System
 
 **Document ID:** FERRO-SEC-TP-001
 **Date:** 2026-04-18
@@ -91,7 +91,7 @@
 | SEC-STOR-007 | Concurrent dedup race condition | 10 concurrent PUTs of identical content | Exactly one physical copy stored; all paths resolve to same hash | High | TH-TAMPER-002 |
 | SEC-STOR-008 | Unauthorized pre-signed URL generation | Request pre-signed URL without FileRead/FileWrite permission | 401/403 Unauthorized; no URL generated | Critical | TH-SPOOF-003, TH-DISCLOSE-001 |
 | SEC-STOR-009 | Atomic write under failure | PUT content → simulate network failure mid-upload | No partial file exists; previous state unchanged | Critical | TH-TAMPER-002 |
-| SEC-STOR-010 | Path traversal in storage API | `put("/../../../etc/passwd", content)` | `Err(InvalidPath)` — PRE-STORAGE-001 | Critical | TH-DISCLOSE-001 |
+| SEC-STOR-010 | Path traversal in storage API | `put("/../../../etc/passwd", content)` | `Err(InvalidPath)`; PRE-STORAGE-001 | Critical | TH-DISCLOSE-001 |
 
 ---
 
@@ -126,7 +126,7 @@
 
 ## Critical Test Cases Summary
 
-The following tests are classified as **Critical** — they must pass before any release:
+The following tests are classified as **Critical**; they must pass before any release:
 
 | Test ID | Category | Threat Addressed |
 |---------|----------|-----------------|

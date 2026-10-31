@@ -23,25 +23,25 @@ This plan implements zero-copy parsing across Ferro's XML, iCal, and vCard parse
 ## Current Architecture Analysis
 
 ### XML Parser (quick-xml)
-- **File:** `crates/dav/src/xml_ext.rs:156-189` — `parse_calendar_query_time_range`
+- **File:** `crates/dav/src/xml_ext.rs:156-189`; `parse_calendar_query_time_range`
 - **Issue:** Uses `String::from_utf8_lossy(...).to_string()` for every element name and attribute value
 - **Impact:** 3-5 allocations per XML element parsed
 
 ### iCal Parser
-- **File:** `crates/dav/src/ical.rs:25-49` — `unfold_lines` returns owned `String`
-- **File:** `crates/dav/src/ical.rs:51-73` — `parse_property` allocates `HashMap<String, String>` and `String` for every property
-- **File:** `crates/dav/src/ical.rs:75-129` — `parse_component_lines` clones strings for component names
+- **File:** `crates/dav/src/ical.rs:25-49`; `unfold_lines` returns owned `String`
+- **File:** `crates/dav/src/ical.rs:51-73`; `parse_property` allocates `HashMap<String, String>` and `String` for every property
+- **File:** `crates/dav/src/ical.rs:75-129`; `parse_component_lines` clones strings for component names
 - **Impact:** ~20 allocations per iCal event parsed
 
 ### vCard Parser
-- **File:** `crates/dav/src/vcard.rs:85-109` — `unfold_lines` identical to iCal
-- **File:** `crates/dav/src/vcard.rs:111-133` — `parse_property_line` allocates strings for every property
-- **File:** `crates/dav/src/vcard.rs:135-157` — `parse_structured_name` and `parse_address` allocate Vec and Strings
+- **File:** `crates/dav/src/vcard.rs:85-109`; `unfold_lines` identical to iCal
+- **File:** `crates/dav/src/vcard.rs:111-133`; `parse_property_line` allocates strings for every property
+- **File:** `crates/dav/src/vcard.rs:135-157`; `parse_structured_name` and `parse_address` allocate Vec and Strings
 - **Impact:** ~25 allocations per vCard parsed
 
 ### Path Normalization
-- **File:** `crates/common/src/path.rs:6-27` — `normalize_path` always returns owned `String`
-- **File:** `crates/common/src/path.rs:31-38` — `parent_path` calls `normalize_path` twice
+- **File:** `crates/common/src/path.rs:6-27`; `normalize_path` always returns owned `String`
+- **File:** `crates/common/src/path.rs:31-38`; `parent_path` calls `normalize_path` twice
 - **Impact:** 2 allocations per path normalization, called on every WebDAV request
 
 ---

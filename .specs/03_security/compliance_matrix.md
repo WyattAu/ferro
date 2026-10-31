@@ -1,4 +1,4 @@
-# Compliance Matrix — Ferro Security Controls
+# Compliance Matrix: Ferro Security Controls
 
 **Document ID:** FERRO-SEC-CM-001
 **Date:** 2026-04-18
@@ -74,8 +74,8 @@
 | Rate Limiting (per-IP) | A04:2021 | SC-5, SC-6 | A.12.4 | Art. 32 | DC-SEC-002 | Planned |
 | Upload Size Limits (5 TB) | A04:2021 | SC-5 | A.12.4 | Art. 32 | DC-STORAGE-001 | Planned |
 | PROPFIND Depth Limit (100) | A04:2021 | SC-5 | A.12.4 | Art. 32 | DC-PATH-005 | Planned |
-| Lock Timeout Enforcement | A04:2021 | SC-5 | A.12.4 | — | DC-LOCK-001..003 | Planned |
-| Max Locks Per Principal (1000) | A04:2021 | SC-5 | A.12.4 | — | DC-LOCK-005 | Planned |
+| Lock Timeout Enforcement | A04:2021 | SC-5 | A.12.4 | - | DC-LOCK-001..003 | Planned |
+| Max Locks Per Principal (1000) | A04:2021 | SC-5 | A.12.4 | - | DC-LOCK-005 | Planned |
 | WASM Fuel Metering | A04:2021 | SC-7 | A.15.1 | Art. 32 | REQ-WASM-004 | Planned |
 | WASM Memory Limits | A04:2021 | SC-7 | A.15.1 | Art. 32 | REQ-WASM-004 | Planned |
 | WASM Time Limits | A04:2021 | SC-7 | A.15.1 | Art. 32 | REQ-WASM-004 | Planned |
@@ -103,21 +103,21 @@
 
 | Control | GDPR Article | OWASP | NIST 800-53 | ISO 27001 | Requirement | Status |
 |---------|-------------|-------|-------------|-----------|-------------|--------|
-| Data Minimization (metadata) | Art. 5(1)(c) | — | — | A.5.10 | REQ-STOR-002, TH-DISCLOSE-003 | Planned |
-| Right to Erasure (CAS ref counting) | Art. 17 | — | — | A.5.33 | REQ-STOR-003, REQ-ENT-004 | Planned |
-| Right to Data Portability | Art. 20 | — | — | A.5.34 | REQ-ENT-004 | Planned |
+| Data Minimization (metadata) | Art. 5(1)(c) | - |; | A.5.10 | REQ-STOR-002, TH-DISCLOSE-003 | Planned |
+| Right to Erasure (CAS ref counting) | Art. 17 | - |; | A.5.33 | REQ-STOR-003, REQ-ENT-004 | Planned |
+| Right to Data Portability | Art. 20 | - |; | A.5.34 | REQ-ENT-004 | Planned |
 | Processing Records (audit log) | Art. 30 | A09:2021 | AU-2, AU-3 | A.12.4 | REQ-ENT-001 | Planned |
 | Security of Processing | Art. 32 | A02, A05 | SC-8, SC-13 | A.8.3, A.10 | Multiple | Planned |
 | Privacy by Design | Art. 25 | A01:2021 | AC-3 | A.8.3 | REQ-AUTH-003, TH-DISCLOSE-003 | Planned |
 | Breach Notification | Art. 33 | A09:2021 | AU-6, SI-4 | A.12.4 | REQ-ENT-002 | Planned |
-| Cookie/Tracking Consent | CCPA 1798.120 | A05:2021 | — | A.5.10 | REQ-WEB-003 | Planned |
+| Cookie/Tracking Consent | CCPA 1798.120 | A05:2021 | - | A.5.10 | REQ-WEB-003 | Planned |
 
 ### Dependency & Configuration Security
 
 | Control | OWASP | NIST 800-53 | ISO 27001 | GDPR | Requirement | Status |
 |---------|-------|-------------|-----------|------|-------------|--------|
 | Dependency Scanning (cargo-audit) | A06:2021 | RA-5, SI-2 | A.8.8 | Art. 32 | applicable_standards §2.12 | Planned |
-| Dependency Pinning | A06:2021 | SA-10, SI-2 | A.8.8 | — | applicable_standards §2.12 | Planned |
+| Dependency Pinning | A06:2021 | SA-10, SI-2 | A.8.8 | - | applicable_standards §2.12 | Planned |
 | No Default Credentials | A05:2021 | AC-2, IA-5 | A.8.5 | Art. 32 | applicable_standards §2.12 | Planned |
 | Minimal CORS Configuration | A05:2021 | AC-3, SC-7 | A.8.25 | Art. 32 | applicable_standards §2.12 | Planned |
 | Secure HTTP Headers (CSP, HSTS, X-Frame-Options) | A05:2021 | SC-8, SC-23 | A.10 | Art. 32 | applicable_standards §2.12 | Planned |
@@ -146,30 +146,30 @@
 
 | Control Family | Controls Covered | Notable Gaps |
 |----------------|-----------------|--------------|
-| AC (Access Control) | AC-2, AC-3, AC-4, AC-6, AC-7, AC-12, AC-17 | AC-10 (concurrent session control — partial via session store) |
-| AU (Audit) | AU-1, AU-2, AU-3, AU-4, AU-5, AU-6, AU-9 | — |
-| IA (Identification) | IA-2, IA-3, IA-5 | IA-8 (non-organizational users — delegated to OIDC provider) |
-| SC (System & Communications) | SC-5, SC-6, SC-7, SC-8, SC-12, SC-13, SC-23, SC-28 | SC-39 (process isolation — WASM sandbox partial) |
-| SI (System Integrity) | SI-2, SI-4, SI-7, SI-10, SI-11, SI-16 | — |
-| RA (Risk Assessment) | RA-5 | — |
-| SA (System & Services Acquisition) | SA-10 | — |
+| AC (Access Control) | AC-2, AC-3, AC-4, AC-6, AC-7, AC-12, AC-17 | AC-10 (concurrent session control; partial via session store) |
+| AU (Audit) | AU-1, AU-2, AU-3, AU-4, AU-5, AU-6, AU-9 | - |
+| IA (Identification) | IA-2, IA-3, IA-5 | IA-8 (non-organizational users; delegated to OIDC provider) |
+| SC (System & Communications) | SC-5, SC-6, SC-7, SC-8, SC-12, SC-13, SC-23, SC-28 | SC-39 (process isolation; WASM sandbox partial) |
+| SI (System Integrity) | SI-2, SI-4, SI-7, SI-10, SI-11, SI-16 | - |
+| RA (Risk Assessment) | RA-5 | - |
+| SA (System & Services Acquisition) | SA-10 | - |
 
 ### ISO 27001:2022 Coverage
 
 | Clause | Controls Addressed | Notable Gaps |
 |--------|-------------------|--------------|
-| A.5 (Organizational) | A.5.10, A.5.12, A.5.14, A.5.33 | A.5.1 (policy document — operational) |
-| A.8 (People) | A.8.1, A.8.2, A.8.3, A.8.5, A.8.8, A.8.12, A.8.24, A.8.25 | A.8.15 (incident response — procedural) |
-| A.9 (Technical) | A.9.1, A.9.2, A.9.4 | — |
-| A.10 (Communications) | A.10 | — |
-| A.12 (Operations) | A.12.2, A.12.4 | A.12.6 (capacity management — partial via rate limiting) |
-| A.15 (Supplier) | A.15.1 | — |
+| A.5 (Organizational) | A.5.10, A.5.12, A.5.14, A.5.33 | A.5.1 (policy document; operational) |
+| A.8 (People) | A.8.1, A.8.2, A.8.3, A.8.5, A.8.8, A.8.12, A.8.24, A.8.25 | A.8.15 (incident response; procedural) |
+| A.9 (Technical) | A.9.1, A.9.2, A.9.4 | - |
+| A.10 (Communications) | A.10 | - |
+| A.12 (Operations) | A.12.2, A.12.4 | A.12.6 (capacity management; partial via rate limiting) |
+| A.15 (Supplier) | A.15.1 | - |
 
 ### GDPR Coverage
 
 | Article | Controls Addressed | Notable Gaps |
 |---------|-------------------|--------------|
-| Art. 5 (Principles) | Data minimization, integrity, confidentiality | Art. 5(1)(b) (purpose limitation — procedural) |
+| Art. 5 (Principles) | Data minimization, integrity, confidentiality | Art. 5(1)(b) (purpose limitation; procedural) |
 | Art. 15 (Right of access) | User data export API | Planned (Phase 5) |
 | Art. 17 (Right to erasure) | CAS ref counting + GC | Planned |
 | Art. 20 (Data portability) | Standard export format | Planned (Phase 5) |

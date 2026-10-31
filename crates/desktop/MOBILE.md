@@ -20,7 +20,7 @@ Build instructions for the Ferro mobile apps using Tauri v2.
 - Android Studio or standalone Android SDK
 - Android SDK Platform 34 (or matching `compileSdkVersion`)
 - Android Build Tools
-- NDK (side-by-side) — Tauri v2 auto-detects the NDK path
+- NDK (side-by-side); Tauri v2 auto-detects the NDK path
 - Set `ANDROID_HOME` environment variable (e.g. `~/Android/Sdk`)
 - Java JDK 17+
 
@@ -29,14 +29,14 @@ Build instructions for the Ferro mobile apps using Tauri v2.
 These commands generate the native Xcode / Android Studio projects under `gen/mobile/`.
 
 ```bash
-# iOS — run once
+# iOS: run once
 cargo tauri ios init
 
-# Android — run once
+# Android: run once
 cargo tauri android init
 ```
 
-`init` is idempotent — re-running it won't overwrite existing changes unless you pass `--ci`.
+`init` is idempotent; re-running it won't overwrite existing changes unless you pass `--ci`.
 
 ## Development
 
@@ -70,8 +70,8 @@ cargo tauri ios build --release
 Set `developmentTeam` in `tauri.conf.json` → `bundle.iOS.developmentTeam` to your Apple Team ID (e.g. `ABC123DEF4`).
 
 For CI, set environment variables:
-- `APPLE_SIGNING_IDENTITY` — certificate name
-- `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` — for notarisation
+- `APPLE_SIGNING_IDENTITY`; certificate name
+- `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`; for notarisation
 
 ### Android
 
@@ -81,9 +81,9 @@ keytool -genkey -v -keystore release.keystore -alias ferro -keyalg RSA -keysize 
 ```
 
 Set in `tauri.conf.json` or environment variables:
-- `TAURI_ANDROID_KEYSTORE_PATH` — path to `.keystore` file
-- `TAURI_ANDROID_KEYSTORE_PASSWORD` — keystore password
-- `TAURI_ANDROID_KEY_ALIAS` — key alias
+- `TAURI_ANDROID_KEYSTORE_PATH`; path to `.keystore` file
+- `TAURI_ANDROID_KEYSTORE_PASSWORD`; keystore password
+- `TAURI_ANDROID_KEY_ALIAS`; key alias
 
 ## Platform-Specific Configuration
 

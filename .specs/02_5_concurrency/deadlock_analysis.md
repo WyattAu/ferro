@@ -59,7 +59,7 @@ Task A ──waits──→ Task B ──waits──→ Task A
 /docs/ < /docs/file.txt  (lexicographic: "/" < "f")
 ```
 
-If Client A holds `/docs/` and needs `/docs/file.txt`, it acquires them in order `/docs/` then `/docs/file.txt`. If Client B holds `/docs/file.txt` and needs `/docs/`, it must acquire `/docs/` first — but Client A holds it, so Client B waits. No cycle.
+If Client A holds `/docs/` and needs `/docs/file.txt`, it acquires them in order `/docs/` then `/docs/file.txt`. If Client B holds `/docs/file.txt` and needs `/docs/`, it must acquire `/docs/` first; but Client A holds it, so Client B waits. No cycle.
 
 **Implementation rule**: Before acquiring multiple locks, sort the target paths lexicographically and acquire in that order.
 
@@ -252,7 +252,7 @@ All handlers MUST acquire locks in this order. The Axum middleware chain natural
 All lockable resources in Ferro are ordered as follows:
 
 ```
-Level 0: Cedar PolicySet (highest — rarely locked, never held long)
+Level 0: Cedar PolicySet (highest; rarely locked, never held long)
 Level 1: JWKS cache (write lock on refresh)
 Level 2: LockManager entries (WebDAV locks)
 Level 3: MetadataStore rows (database-level locks)

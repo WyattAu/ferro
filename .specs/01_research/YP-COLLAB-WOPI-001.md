@@ -19,12 +19,12 @@
 | Edit protocol | WebSocket + CRDT integration | `collab_ws.rs`, `crdt_integration.rs` |
 | Office editing | WOPI host for Collabora (collabora.wyattau.com verified 200) | `server-wopi/src/lib.rs` |
 | Token auth | HMAC-SHA256 scoped access tokens | `server-wopi/src/lib.rs` |
-| **Request proof** | **NONE — no `X-WOPI-Proof`, no proof-key handling anywhere in the repo** | repo-wide grep |
+| **Request proof** | **NONE; no `X-WOPI-Proof`, no proof-key handling anywhere in the repo** | repo-wide grep |
 | Sandbox posture | Delegated entirely to Collabora (`WSD → ForKit → per-doc jailed Kit`) | Collabora docs |
 
 **CRITICAL SECURITY DEFECT (P0):** Ferro implements WOPI *access tokens* (authorization) but not the WOPI *request proof* (host authentication). A valid token is sufficient for any source that can reach the endpoint and knows the URL to make Collabora serve or accept writes. Same defect class as Cloudreve advisory `GHSA-c3jm-gv5r-9wcp` (WOPI token suffix comparison → view session performed writes).
 
-**Secondary:** WebSocket "authenticate step" is not authorization — document-open must evaluate Cedar and re-evaluate on revocation; awareness messages are untrusted input; CRDT full-history resync is O(document) per client.
+**Secondary:** WebSocket "authenticate step" is not authorization; document-open must evaluate Cedar and re-evaluate on revocation; awareness messages are untrusted input; CRDT full-history resync is O(document) per client.
 
 ---
 
@@ -36,12 +36,12 @@ Ferro embeds Collabora over WOPI and runs a WebSocket CRDT channel. Both must be
 
 ### Decisions
 
-- **P0 — Implement WOPI request proof** (proof-key pair with rotation, `X-WOPI-Proof` old‖current HMAC verification, ±20 min timestamp freshness, scope check before any file lookup; never fall through to token-only).
-- **P1 — Bind sessions to authorization:** on every document-open, evaluate Cedar `Read`/`Write` for the document's space; record the decision in the session; re-evaluate on membership change and token expiry; reject updates from revoked sessions.
-- **P2 — Never transmit full history:** per-document compacted update log; on connect `SyncStep1` (state vector) → server emits only the missing delta.
-- **P3 — Treat awareness as hostile input:** cap frame size, rate-limit per session, never render unsanitized payloads, never derive authorization from awareness (y-protocols explicitly does not authenticate awareness).
-- **P4 — Document the delegation boundary:** Ferro's isolation is Collabora's `ForKit → jailed Kit` boundary, not its own sandboxing; tune `WSD` concurrency against fork-bomb bursts.
-- **P5 — Consider server-ordered relay for Office formats:** binary OOXML has no good CRDT; Google reached the same conclusion (Wave-era server sequencing).
+- **P0; Implement WOPI request proof** (proof-key pair with rotation, `X-WOPI-Proof` old‖current HMAC verification, ±20 min timestamp freshness, scope check before any file lookup; never fall through to token-only).
+- **P1; Bind sessions to authorization:** on every document-open, evaluate Cedar `Read`/`Write` for the document's space; record the decision in the session; re-evaluate on membership change and token expiry; reject updates from revoked sessions.
+- **P2; Never transmit full history:** per-document compacted update log; on connect `SyncStep1` (state vector) → server emits only the missing delta.
+- **P3; Treat awareness as hostile input:** cap frame size, rate-limit per session, never render unsanitized payloads, never derive authorization from awareness (y-protocols explicitly does not authenticate awareness).
+- **P4; Document the delegation boundary:** Ferro's isolation is Collabora's `ForKit → jailed Kit` boundary, not its own sandboxing; tune `WSD` concurrency against fork-bomb bursts.
+- **P5; Consider server-ordered relay for Office formats:** binary OOXML has no good CRDT; Google reached the same conclusion (Wave-era server sequencing).
 
 ### Guarantees
 
@@ -83,7 +83,7 @@ Ferro embeds Collabora over WOPI and runs a WebSocket CRDT channel. Both must be
 
 ### THM-COLLAB-CONVERGENCE
 
-`∀` replicas `n`, update log `u`: (reliable delivery ∧ merge associative/commutative/idempotent) `⟹ n.map(state) = merge(u)` — all replicas reach the same state.
+`∀` replicas `n`, update log `u`: (reliable delivery ∧ merge associative/commutative/idempotent) `⟹ n.map(state) = merge(u)`; all replicas reach the same state.
 
 ### THM-COLLAB-AUTHZ
 
@@ -91,11 +91,11 @@ Ferro embeds Collabora over WOPI and runs a WebSocket CRDT channel. Both must be
 
 ### THM-COLLAB-SYNC-SOUND
 
-State-vector sync delivers a *sufficient* delta: `∀ sv, s₁, s₂`: `sv subsumes s₁ → ApplyDelta(s₁, Diff(s₁, s₂)) = s₂` — and the delta is minimal (no full-history transmission).
+State-vector sync delivers a *sufficient* delta: `∀ sv, s₁, s₂`: `sv subsumes s₁ → ApplyDelta(s₁, Diff(s₁, s₂)) = s₂`; and the delta is minimal (no full-history transmission).
 
 ### Quantitative note (why P2 is a requirement, not an optimization)
 
-Kleppmann (*CRDTs: The Hard Parts*, Hydra 2020) measured a document at **146,406,415 bytes** of full-history JSON vs **6,132,895 bytes** compact binary vs **104,852 bytes** plain text — a ~1,400× spread. The frequently-quoted "1 MB document → 1 TB of metadata" figure was **not found** in that talk and must not be cited. [VERIFIED figures; VERIFIED ABSENCE of the 1TB quote]
+Kleppmann (*CRDTs: The Hard Parts*, Hydra 2020) measured a document at **146,406,415 bytes** of full-history JSON vs **6,132,895 bytes** compact binary vs **104,852 bytes** plain text; a ~1,400× spread. The frequently-quoted "1 MB document → 1 TB of metadata" figure was **not found** in that talk and must not be cited. [VERIFIED figures; VERIFIED ABSENCE of the 1TB quote]
 
 ---
 
@@ -136,7 +136,7 @@ awareness: frame ≤ 4 KiB, 10 msg/s per session, sanitize-escape on render, nev
 
 ## YP-6: Test Vector Specification
 
-See `test_vectors/test_vectors_platform.toml` — sections `wopi_*` and `collab_*`.
+See `test_vectors/test_vectors_platform.toml`; sections `wopi_*` and `collab_*`.
 
 Critical vectors: missing proof → reject; stale timestamp (±20 min boundary) → reject; wrong URL in HMAC → reject; tampered token → reject; token-prefix collision pair (Cloudreve regression); view-scope write attempt → reject; delta-sync minimality; awareness overflow/flood; revoked-membership mid-session update → reject.
 
@@ -152,13 +152,13 @@ Summary: no WOPI request is served without proof + freshness + scope (`DC-WOPI-0
 
 ## YP-8: Bibliography
 
-1. `[MS-WOPI]` Microsoft Open Specifications — WOPI proof scheme (`X-WOPI-Proof` old‖current, `X-WOPI-TimeStamp`, HMAC-SHA256 over url‖token‖timestamp, freshness; mandatory in restricted scenarios). 2015-09-10 revision verified; current revision number unconfirmed. [VERIFIED scheme / UNCERTAIN current rev]
-2. Cloudreve advisory `GHSA-c3jm-gv5r-9wcp` — WOPI token suffixes not compared; view session performed writes. Direct precedent for Ferro's defect class. [VERIFIED]
+1. `[MS-WOPI]` Microsoft Open Specifications; WOPI proof scheme (`X-WOPI-Proof` old‖current, `X-WOPI-TimeStamp`, HMAC-SHA256 over url‖token‖timestamp, freshness; mandatory in restricted scenarios). 2015-09-10 revision verified; current revision number unconfirmed. [VERIFIED scheme / UNCERTAIN current rev]
+2. Cloudreve advisory `GHSA-c3jm-gv5r-9wcp`; WOPI token suffixes not compared; view session performed writes. Direct precedent for Ferro's defect class. [VERIFIED]
 3. Kleppmann, M. "CRDTs: The Hard Parts." Hydra 2020. Measured metadata spread 146,406,415 / 6,132,895 / 104,852 bytes. [VERIFIED]
 4. Yjs `y-protocols` `PROTOCOL.md`: `SyncStep1=0, SyncStep2=1, Update=2; SyncProtocol=0, AwarenessProtocol=1`; awareness ephemeral and unauthenticated. [VERIFIED]
-5. Weiss, S., Urso, P., Molli, P. — YATA / Logoot line (Nicolaescu et al., *Web Engineering 2015*, DOI `10.1145/2957276.2957310`). Note: **`lean-yjs`** (Lean 4 formalisation in the yjs repo) states "the pseudocode in the original YATA paper contains errors"; preservation + commutativity proven so far. [VERIFIED]
+5. Weiss, S., Urso, P., Molli, P.; YATA / Logoot line (Nicolaescu et al., *Web Engineering 2015*, DOI `10.1145/2957276.2957310`). Note: **`lean-yjs`** (Lean 4 formalisation in the yjs repo) states "the pseudocode in the original YATA paper contains errors"; preservation + commutativity proven so far. [VERIFIED]
 6. Collabora architecture docs: `WSD → ForKit → per-document Kit`; jails with read-only mounts and `chroot`. [VERIFIED]
-7. Google Wave / Google Docs OT (Jupiter): server-sequenced transforms; the canonical production OT system. Wave quota paper ("USENIX ATC 2014") — **not found in the ATC'14 program; do not cite.** [VERIFIED ABSENCE]
-8. RFC `9297` (HTTP datagrams / capsule protocol) — relevant only if collaboration moves off WebSockets. [VERIFIED]
+7. Google Wave / Google Docs OT (Jupiter): server-sequenced transforms; the canonical production OT system. Wave quota paper ("USENIX ATC 2014"); **not found in the ATC'14 program; do not cite.** [VERIFIED ABSENCE]
+8. RFC `9297` (HTTP datagrams / capsule protocol); relevant only if collaboration moves off WebSockets. [VERIFIED]
 9. W3C Solid Web Access Control v1.0.0. [VERIFIED]
-10. **Negative results:** "Just-Right Collaboration" arXiv:`2212.02618` resolves to *LIGS* (unrelated) — do not cite; Automerge MobiSys 2018 identifier unverified this session. [VERIFIED ABSENCE / UNCERTAIN]
+10. **Negative results:** "Just-Right Collaboration" arXiv:`2212.02618` resolves to *LIGS* (unrelated); do not cite; Automerge MobiSys 2018 identifier unverified this session. [VERIFIED ABSENCE / UNCERTAIN]

@@ -28,10 +28,10 @@ The developer shall provide preparative procedures describing how to install and
 8. Add OCI labels for EvergreenImageRegistry compliance
 
 **Security Features:**
-- `CGO_ENABLED=0` — Static linking, no C dependencies
-- `scratch` base — No shell, no OS, minimal attack surface
+- `CGO_ENABLED=0`; Static linking, no C dependencies
+- `scratch` base; No shell, no OS, minimal attack surface
 - Pinned toolchain (`rust:1.95-bookworm`)
-- `--locked` flag — Reproducible builds from Cargo.lock
+- `--locked` flag; Reproducible builds from Cargo.lock
 
 ### 2. Docker Compose
 
@@ -46,11 +46,11 @@ The developer shall provide preparative procedures describing how to install and
 | Restart policy | `unless-stopped` |
 
 Additional compose files:
-- `docker-compose.pg.yml` — PostgreSQL integration
-- `docker-compose.redis.yml` — Redis caching
-- `docker-compose.chaos.yml` — Chaos engineering
-- `deploy/docker-compose.production.yml` — Production config
-- `deploy/docker-compose.ecosystem.yml` — Full ecosystem
+- `docker-compose.pg.yml`; PostgreSQL integration
+- `docker-compose.redis.yml`; Redis caching
+- `docker-compose.chaos.yml`; Chaos engineering
+- `deploy/docker-compose.production.yml`; Production config
+- `deploy/docker-compose.ecosystem.yml`; Full ecosystem
 
 ### 3. Nix Build (flake.nix)
 
@@ -140,9 +140,9 @@ rustup run 1.92 cargo check --all
 
 ## References
 
-- `Dockerfile` — Multi-stage Docker build
-- `docker-compose.yml` — Container orchestration
-- `flake.nix` — Nix reproducible builds
-- `.github/workflows/ci.yml` — CI/CD pipeline
-- `rust-toolchain.toml` — Pinned Rust version
-- `Cargo.lock` — Locked dependencies
+- `Dockerfile`; Multi-stage Docker build
+- `docker-compose.yml`; Container orchestration
+- `flake.nix`; Nix reproducible builds
+- `.github/workflows/ci.yml`; CI/CD pipeline
+- `rust-toolchain.toml`; Pinned Rust version
+- `Cargo.lock`; Locked dependencies

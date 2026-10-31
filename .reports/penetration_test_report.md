@@ -21,7 +21,7 @@ The Ferro codebase demonstrates solid security fundamentals: parameterized SQL q
 
 ## Findings
 
-### F001 — Path Traversal in REST API via `normalize_api_path` (CRITICAL)
+### F001: Path Traversal in REST API via `normalize_api_path` (CRITICAL)
 
 **Category:** Path Traversal  
 **Severity:** Critical  
@@ -46,7 +46,7 @@ Content-Type: text/plain
 
 ---
 
-### F002 — SQL Injection in Database Test Code (CRITICAL)
+### F002: SQL Injection in Database Test Code (CRITICAL)
 
 **Category:** SQL Injection  
 **Severity:** Critical  
@@ -59,13 +59,13 @@ Content-Type: text/plain
 
 The `table` variable comes from a hardcoded array of trusted table names, so this is not exploitable in the current test context. However, if this pattern were copied into production code with user-controlled input, it would be a direct SQL injection vector.
 
-**Impact:** Currently test-only — no exploitable production path. But the pattern itself is dangerous.
+**Impact:** Currently test-only; no exploitable production path. But the pattern itself is dangerous.
 
 **Recommended Fix:** Since the table names are from a trusted constant array, this is acceptable in test code. No immediate action needed, but enforce via CI that `format!` is never used in SQL outside tests.
 
 ---
 
-### F003 — Default Cedar Policy is Permissive (HIGH)
+### F003: Default Cedar Policy is Permissive (HIGH)
 
 **Category:** Authorization Bypass  
 **Severity:** High  
@@ -79,7 +79,7 @@ The `table` variable comes from a hardcoded array of trusted table names, so thi
 
 ---
 
-### F004 — API Key Hash Comparison is Not Timing-Safe (HIGH)
+### F004: API Key Hash Comparison is Not Timing-Safe (HIGH)
 
 **Category:** Timing Attack  
 **Severity:** High  
@@ -100,7 +100,7 @@ let id = self
 
 ---
 
-### F005 — Share Passwords Stored in Plaintext (HIGH)
+### F005: Share Passwords Stored in Plaintext (HIGH)
 
 **Category:** Insecure Data Storage  
 **Severity:** High  
@@ -119,7 +119,7 @@ pub struct ShareLink {
 
 ---
 
-### F006 — CORS Default is Wildcard `*` (MEDIUM)
+### F006: CORS Default is Wildcard `*` (MEDIUM)
 
 **Category:** Security Misconfiguration  
 **Severity:** Medium  
@@ -133,7 +133,7 @@ pub struct ShareLink {
 
 ---
 
-### F007 — Unbounded Body Read with `usize::MAX` (MEDIUM)
+### F007: Unbounded Body Read with `usize::MAX` (MEDIUM)
 
 **Category:** Denial of Service  
 **Severity:** Medium  
@@ -151,7 +151,7 @@ let body_bytes = match axum::body::to_bytes(body, usize::MAX).await {
 
 ---
 
-### F008 — OIDC Token Validation Accepts Algorithm from JWT Header (MEDIUM)
+### F008: OIDC Token Validation Accepts Algorithm from JWT Header (MEDIUM)
 
 **Category:** Authentication Bypass  
 **Severity:** Medium  
@@ -167,7 +167,7 @@ The code does validate issuer and audience, which provides some defense. The JWK
 
 ---
 
-### F009 — Constant-Time Equality Returns `false` for Different-Length Inputs (LOW)
+### F009: Constant-Time Equality Returns `false` for Different-Length Inputs (LOW)
 
 **Category:** Cryptography  
 **Severity:** Low  
@@ -190,7 +190,7 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 
 ---
 
-### F010 — E2EE Envelope Key Derivation Uses Only Public Key (LOW)
+### F010: E2EE Envelope Key Derivation Uses Only Public Key (LOW)
 
 **Category:** Cryptographic Weakness  
 **Severity:** Low  
@@ -209,7 +209,7 @@ HKDF with `None` salt and only a public key as IKM does not provide the security
 
 ---
 
-### F011 — WebAuthn Prototype Mode Without Full Verification (LOW)
+### F011: WebAuthn Prototype Mode Without Full Verification (LOW)
 
 **Category:** Authentication  
 **Severity:** Low  
@@ -223,7 +223,7 @@ HKDF with `None` salt and only a public key as IKM does not provide the security
 
 ---
 
-### F012 — Share Upload Path Not Sanitized for Traversal (MEDIUM)
+### F012: Share Upload Path Not Sanitized for Traversal (MEDIUM)
 
 **Category:** Path Traversal  
 **Severity:** Medium  
@@ -253,13 +253,13 @@ While `file_name` is sanitized via `crate::shares_ext::sanitize_filename`, the `
 | Medium | 4 | Address within quarter |
 | Low | 4 | Address opportunistically |
 
-**Overall risk level:** HIGH — primarily due to the REST API path traversal (F001) which affects all file operations through the REST interface.
+**Overall risk level:** HIGH; primarily due to the REST API path traversal (F001) which affects all file operations through the REST interface.
 
 ---
 
 ## Remediation Priority
 
-1. **Immediate:** Fix F001 (REST API path traversal) — replace `normalize_api_path` with path sanitization that rejects `..` and `.` components
+1. **Immediate:** Fix F001 (REST API path traversal); replace `normalize_api_path` with path sanitization that rejects `..` and `.` components
 2. **Short-term:** Fix F005 (plaintext share passwords), F004 (API key timing), F007 (unbounded body read)
 3. **Medium-term:** F003 (default Cedar policy), F006 (CORS default), F008 (OIDC algorithm validation), F012 (share path traversal)
 4. **Long-term:** F009 (constant-time length), F010 (E2EE key derivation), F011 (WebAuthn prototype warning)

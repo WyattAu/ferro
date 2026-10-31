@@ -153,9 +153,9 @@ cargo test --workspace | grep proptest
 
 ## References
 
-- `rust-toolchain.toml` — Pinned Rust version
-- `formal/` — Lean4 formal verification proofs
-- `fuzz/` — Fuzz testing targets
-- `.github/workflows/formal_verification.yml` — Formal verification CI
-- `.github/workflows/sanitizers.yml` — Sanitizer CI
-- `deny.toml` — cargo-deny configuration
+- `rust-toolchain.toml`; Pinned Rust version
+- `formal/`; Lean4 formal verification proofs
+- `fuzz/`; Fuzz testing targets
+- `.github/workflows/formal_verification.yml`; Formal verification CI
+- `.github/workflows/sanitizers.yml`; Sanitizer CI
+- `deny.toml`; cargo-deny configuration

@@ -5,7 +5,7 @@
 
 ---
 
-## Phase 1: Foundation (Weeks 1-4) — Fix Critical Gaps
+## Phase 1: Foundation (Weeks 1-4): Fix Critical Gaps
 
 **Target:** Eliminate blocking risks and establish automated quality gates.
 
@@ -82,9 +82,9 @@
 | Priority | P0 |
 | Effort | 1 day |
 | Dependencies | None |
-| Reference | HFT (all firms — mandatory for cryptographic material) |
+| Reference | HFT (all firms; mandatory for cryptographic material) |
 
-**Description:** Implement `zeroize::Zeroize` on all types holding sensitive data (tokens, keys, passwords). Already using `zeroize` crate — extend to all secret-bearing types.
+**Description:** Implement `zeroize::Zeroize` on all types holding sensitive data (tokens, keys, passwords). Already using `zeroize` crate; extend to all secret-bearing types.
 
 **Acceptance Criteria:**
 - All `Token`, `Secret`, `ApiKey`, `Password` types implement `Zeroize` + `Drop`
@@ -146,7 +146,7 @@
 
 ---
 
-## Phase 2: Rigor (Weeks 5-12) — Reach FAANG Baseline
+## Phase 2: Rigor (Weeks 5-12): Reach FAANG Baseline
 
 **Target:** Testing, formal verification, performance benchmarks, and operational foundations.
 
@@ -360,7 +360,7 @@
 
 ---
 
-## Phase 3: Excellence (Weeks 13-24) — Reach HFT Baseline
+## Phase 3: Excellence (Weeks 13-24): Reach HFT Baseline
 
 **Target:** Supply chain, operational maturity, compliance, and performance optimization.
 
@@ -394,7 +394,7 @@
 | Priority | P1 |
 | Effort | 5 days |
 | Dependencies | None |
-| Reference | HFT (all firms — cache-line aligned structures) |
+| Reference | HFT (all firms; cache-line aligned structures) |
 
 **Description:** Replace standard HashMap with cache-friendly alternatives for hot paths. Reduce 2,714 `.clone()` calls, especially 62 in `tcp_transport.rs`.
 
@@ -604,7 +604,7 @@
 
 ---
 
-## Phase 4: Leadership (Weeks 25-52) — Industry Best-in-Class
+## Phase 4: Leadership (Weeks 25-52): Industry Best-in-Class
 
 **Target:** Novel contributions, open-source leadership, and select HFT-grade capabilities.
 
@@ -620,9 +620,9 @@
 **Description:** Implement custom Clippy lints for Ferro-specific invariants: every `unsafe` block must have SAFETY comment in hot paths, no unwrap on critical paths, all public types must have Debug.
 
 **Acceptance Criteria:**
-- Custom Clippy lint: `FERRO_SAFETY_COMMENT` — warn if unsafe block in hot path lacks SAFETY comment
-- Custom Clippy lint: `FERRO_NO_UNWRAP_CRITICAL` — warn if unwrap/expect in critical path function
-- Custom Clippy lint: `FERRO_PUBLIC_DEBUG` — warn if public type lacks Debug derive
+- Custom Clippy lint: `FERRO_SAFETY_COMMENT`; warn if unsafe block in hot path lacks SAFETY comment
+- Custom Clippy lint: `FERRO_NO_UNWRAP_CRITICAL`; warn if unwrap/expect in critical path function
+- Custom Clippy lint: `FERRO_PUBLIC_DEBUG`; warn if public type lacks Debug derive
 - Lints integrated into CI as advisory warnings (not blocking initially)
 - Lints documented in `clippy.toml` with rationale
 
@@ -729,7 +729,7 @@
 | Priority | P2 |
 | Effort | 10 days |
 | Dependencies | Zero-copy (3.1), cache-friendly (3.2), SIMD (3.3), lock-free (3.4) |
-| Reference | HFT (all firms — continuous performance optimization) |
+| Reference | HFT (all firms; continuous performance optimization) |
 
 **Description:** Holistic performance optimization of the entire request path. Target: p99 < 200ms (from 1,550ms), throughput > 200 req/s (from 48).
 
@@ -857,7 +857,7 @@
 
 | Phase | Weeks | Focus | FAANG Parity | HFT Parity | Key Deliverables |
 |---|---|---|:---:|:---:|---|
-| Current | — | — | 52% | 37% | Baseline |
+| Current | - |; | 52% | 37% | Baseline |
 | Phase 1 | 1-4 | Critical Gaps | 58% | 42% | Coverage CI, SBOM, signed images, SLOs, secret zeroing |
 | Phase 2 | 5-12 | FAANG Baseline | 72% | 58% | Property testing, continuous fuzzing, benchmarks, formal proofs, runbooks |
 | Phase 3 | 13-24 | HFT Baseline | 85% | 72% | Zero-copy, cache-friendly, SIMD, lock-free, SOC 2, GDPR, canary |

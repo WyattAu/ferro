@@ -1,4 +1,4 @@
-# Ferro Capability Requirements — Tools & Dependencies
+# Ferro Capability Requirements: Tools & Dependencies
 
 **Document ID:** FERRO-CR-001
 **Date:** 2026-04-18
@@ -139,7 +139,7 @@
 - pkg-config
 - GUI libraries: webkitgtk_4_1, gtk3, cairo, gdk-pixbuf, glib, dbus, librsvg, libsoup_3
 
-### Not in Nix Flake — Should Be Added (7 tools)
+### Not in Nix Flake: Should Be Added (7 tools)
 | Tool | Priority | Reason |
 |------|----------|--------|
 | `cargo-audit` | P0 | Security scanning required by ISO 27001 / NIST |
@@ -161,7 +161,7 @@
 
 | Phase | Required Tools Available? | Blockers |
 |-------|--------------------------|----------|
-| Phase 1 (Core + WebDAV) | Yes | None — `object_store` crate needs to be added to Cargo.toml |
+| Phase 1 (Core + WebDAV) | Yes | None; `object_store` crate needs to be added to Cargo.toml |
 | Phase 2 (PostgreSQL + Cedar) | Partial | PostgreSQL not in flake; `sqlx` + `cedar-policy` crates not yet added |
 | Phase 3 (Leptos Frontend) | Yes | `trunk` available; `leptos` declared in workspace |
 | Phase 4 (Tauri Desktop) | Yes | `cargo-tauri` + `rclone` + GUI libs in flake |

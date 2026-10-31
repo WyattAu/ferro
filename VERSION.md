@@ -38,7 +38,7 @@
 
 ## Recently Completed
 
-### 2026-07-16: Feature Expansion — Batch 1
+### 2026-07-16: Feature Expansion: Batch 1
 
 **New Features:**
 - ZIP download (`POST /api/v1/zip-download`): Download multiple files as a single ZIP archive in one request

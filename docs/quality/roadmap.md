@@ -5,7 +5,7 @@
 
 ---
 
-## Phase 1: Foundation (Weeks 1-2) — CI Pipeline + Measurement
+## Phase 1: Foundation (Weeks 1-2): CI Pipeline + Measurement
 
 **Target:** Establish automated quality gates so every commit is measured.
 
@@ -35,7 +35,7 @@
 
 ---
 
-## Phase 2: Hardening (Weeks 3-5) — Security + Correctness
+## Phase 2: Hardening (Weeks 3-5): Security + Correctness
 
 **Target:** Automated security scanning and formal correctness tools.
 
@@ -75,7 +75,7 @@
 
 ---
 
-## Phase 3: Architecture (Weeks 6-8) — Decompose God Objects
+## Phase 3: Architecture (Weeks 6-8): Decompose God Objects
 
 **Target:** Break the 3 worst offenders into testable, maintainable modules.
 
@@ -83,29 +83,29 @@
 
 | Task | Effort | Impact | Parity Lift |
 |------|--------|--------|-------------|
-| Extract `cli.rs` — CLI argument parsing (~150 lines) | 2h | Testable CLI |
-| Extract `config.rs` already exists — verify clean separation | 1h | Config isolation |
-| Extract `startup.rs` — state construction, daemon spawning (~300 lines) | 4h | Startup testability |
-| Extract `tls.rs` — TLS certificate loading (~100 lines) | 2h | TLS testability |
+| Extract `cli.rs`; CLI argument parsing (~150 lines) | 2h | Testable CLI |
+| Extract `config.rs` already exists; verify clean separation | 1h | Config isolation |
+| Extract `startup.rs`; state construction, daemon spawning (~300 lines) | 4h | Startup testability |
+| Extract `tls.rs`; TLS certificate loading (~100 lines) | 2h | TLS testability |
 | Reduce `main()` to <100 lines (delegation only) | 2h | Entry point clarity |
 
 ### Week 7: Decompose `state.rs` (1,822 lines)
 
 | Task | Effort | Impact | Parity Lift |
 |------|--------|--------|-------------|
-| Extract `state/database.rs` — DB handle, migrations, with_db (~400 lines) | 3h | DB state isolation |
-| Extract `state/storage.rs` — storage backend config (~200 lines) | 2h | Storage config |
-| Extract `state/security.rs` — auth, rate limiting, CSRF (~300 lines) | 3h | Security config |
-| Extract `state/collaboration.rs` — collab, chat, comments (~200 lines) | 2h | Collaboration config |
+| Extract `state/database.rs`; DB handle, migrations, with_db (~400 lines) | 3h | DB state isolation |
+| Extract `state/storage.rs`; storage backend config (~200 lines) | 2h | Storage config |
+| Extract `state/security.rs`; auth, rate limiting, CSRF (~300 lines) | 3h | Security config |
+| Extract `state/collaboration.rs`; collab, chat, comments (~200 lines) | 2h | Collaboration config |
 | Reduce `state.rs` to <500 lines (struct definition + constructors) | 2h | Module clarity |
 
 ### Week 8: Decompose `webdav.rs` (1,767 lines)
 
 | Task | Effort | Impact | Parity Lift |
 |------|--------|--------|-------------|
-| Extract `webdav/put.rs` — handle_put + handle_put_streaming (~600 lines) | 4h | PUT handler isolation |
-| Extract `webdav/proppatch.rs` — PROPPATCH handler (~300 lines) | 2h | PROPPATCH isolation |
-| Extract `webdav/props.rs` — property parsing/formatting (~400 lines) | 3h | Property isolation |
+| Extract `webdav/put.rs`; handle_put + handle_put_streaming (~600 lines) | 4h | PUT handler isolation |
+| Extract `webdav/proppatch.rs`; PROPPATCH handler (~300 lines) | 2h | PROPPATCH isolation |
+| Extract `webdav/props.rs`; property parsing/formatting (~400 lines) | 3h | Property isolation |
 | Reduce `webdav.rs` to <500 lines (dispatch + shared utils) | 2h | Core handler clarity |
 
 **Phase 3 Exit Criteria:**
@@ -117,7 +117,7 @@
 
 ---
 
-## Phase 4: Test Quality (Weeks 9-10) — Coverage + Mutation
+## Phase 4: Test Quality (Weeks 9-10): Coverage + Mutation
 
 **Target:** Enforce coverage thresholds and validate test quality with mutation testing.
 
@@ -147,7 +147,7 @@
 
 ---
 
-## Phase 5: Performance & Operations (Weeks 11-12) — Observability + Performance
+## Phase 5: Performance & Operations (Weeks 11-12): Observability + Performance
 
 **Target:** Automated performance regression detection and operational readiness.
 
@@ -165,7 +165,7 @@
 
 | Task | Effort | Impact | Parity Lift |
 |------|--------|--------|-------------|
-| Add structured metrics endpoint (Prometheus) — verify existing works | 2h | Observability |
+| Add structured metrics endpoint (Prometheus); verify existing works | 2h | Observability |
 | Add distributed tracing (OpenTelemetry) | 6h | Request tracing |
 | Write runbooks for top 5 failure modes | 4h | Incident response |
 | Add health check deeper probes (DB, storage, Redis) | 3h | Health granularity |
@@ -184,7 +184,7 @@
 
 | Phase | Weeks | Focus | Parity After |
 |-------|-------|-------|-------------|
-| Current | — | — | **51%** |
+| Current | - |; | **51%** |
 | Phase 1 | 1-2 | CI + Measurement | **60%** |
 | Phase 2 | 3-5 | Security + Correctness | **68%** |
 | Phase 3 | 6-8 | Architecture Decomposition | **74%** |

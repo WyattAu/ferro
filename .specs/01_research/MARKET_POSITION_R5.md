@@ -1,15 +1,15 @@
-# Market Position — honest gap analysis vs. incumbent tools (2026-10-25)
+# Market Position: honest gap analysis vs. incumbent tools (2026-10-25)
 
 Scored after R3–R5. Dimensions: [+] ahead, [=] at parity, [–] behind (R6 candidate).
 
 ## vs. Nextcloud / ownCloud (groupware DAV suites)
-- [=] WebDAV Class 1/2/3, CalDAV/CardDAV, WOPI — parity on protocol surface; Ferro adds formal lock-safety proofs (Nextcloud: none).
-- [+] Search security (ACL-filtered Tantivy + proved RRF), multi-tenant isolation (proved prefix containment) — Nextcloud relies on app-level checks without formal models.
+- [=] WebDAV Class 1/2/3, CalDAV/CardDAV, WOPI; parity on protocol surface; Ferro adds formal lock-safety proofs (Nextcloud: none).
+- [+] Search security (ACL-filtered Tantivy + proved RRF), multi-tenant isolation (proved prefix containment); Nextcloud relies on app-level checks without formal models.
 - [–] Apps ecosystem (Talk, Office suites, mail), plugin marketplace maturity, LDAP group sync depth, mobile clients at parity with NC apps.
 
 ## vs. Syncthing (P2P sync)
 - [=] VV-based conflict handling semantics; Ferro's deterministic winner + loser preservation matches Syncthing's `.sync-conflict` outcome with a proved rule.
-- [+] Tamper-evident sync log roots (Merkle op-log) and replay-gated federation inbox — Syncthing has neither.
+- [+] Tamper-evident sync log roots (Merkle op-log) and replay-gated federation inbox; Syncthing has neither.
 - [–] NAT traversal maturity (Syncthing: relay + discovery network, years of hardening), BEP protocol battle-testing, global discovery.
 
 ## vs. Immich (photo vault)
@@ -28,7 +28,7 @@ Scored after R3–R5. Dimensions: [+] ahead, [=] at parity, [–] behind (R6 can
 ## Cross-cutting
 - [+] Only tool in class with formal verification (Lean 4: 110+ theorems, 0 sorry, covering sync, locks, cache, rate limits, audit, crypto containers, placement, EC).
 - [–] Mobile/desktop client maturity (Tauri early), e2ee per-file sharing links, multi-server clustering at Nextcloud scale, i18n/accessibility depth.
-- [–] Known open items: litmus suite run, axum-stack middleware consolidation. CLOSED in R6: MMR ML-DSA-65 dual signing (FIPS 204 live), If-header ETag conditions (RFC 4918 §10.4.4), sync-protocol first-contact deadlock (root-caused: conn-mutex re-entry in `get_or_create`; production sync with a new peer deadlocked — fixed + concurrent regression test).
+- [–] Known open items: litmus suite run, axum-stack middleware consolidation. CLOSED in R6: MMR ML-DSA-65 dual signing (FIPS 204 live), If-header ETag conditions (RFC 4918 §10.4.4), sync-protocol first-contact deadlock (root-caused: conn-mutex re-entry in `get_or_create`; production sync with a new peer deadlocked; fixed + concurrent regression test).
 
 ## Verdict
-Ferro surpasses incumbents on **verifiable correctness, auditability, and extension safety** — dimensions none of them address. It trails on **ecosystem breadth, client polish, and scale hardening**. R6 priorities: mobile/desktop depth, NAT traversal, clustering, litmus + ETag conditions.
+Ferro surpasses incumbents on **verifiable correctness, auditability, and extension safety**; dimensions none of them address. It trails on **ecosystem breadth, client polish, and scale hardening**. R6 priorities: mobile/desktop depth, NAT traversal, clustering, litmus + ETag conditions.

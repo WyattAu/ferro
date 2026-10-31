@@ -1,4 +1,4 @@
-# Ferro Tool Requirements — Consolidated
+# Ferro Tool Requirements: Consolidated
 
 **Document ID:** FERRO-TR-001
 **Date:** 2026-04-18

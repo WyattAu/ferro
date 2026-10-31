@@ -10,8 +10,8 @@
 ## Overview
 
 This document maps Ferro's security controls to industry standards:
-- **OWASP ASVS v4.0** — Application Security Verification Standard
-- **NIST SP 800-53 Rev. 5** — Security and Privacy Controls
+- **OWASP ASVS v4.0**; Application Security Verification Standard
+- **NIST SP 800-53 Rev. 5**; Security and Privacy Controls
 
 ### Coverage Summary
 
@@ -32,7 +32,7 @@ This document maps Ferro's security controls to industry standards:
 
 ## 1. Authentication (ASVS 2.x, NIST IA)
 
-### ASVS 2.1 — Password Security
+### ASVS 2.1: Password Security
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -42,9 +42,9 @@ This document maps Ferro's security controls to industry standards:
 | Default password | 2.1.4 | IA-5(1) | `default_password_layer` forces change | Implemented |
 | Password change | 2.1.5 | IA-5(1) | `/api/auth/change-password` endpoint | Implemented |
 
-**Evidence:** `SECURITY.md` — "Bcrypt cost factor 12, ~250ms, resists GPU brute-force"; `penetration_test_scope.md` — AUTH-19.
+**Evidence:** `SECURITY.md`; "Bcrypt cost factor 12, ~250ms, resists GPU brute-force"; `penetration_test_scope.md`; AUTH-19.
 
-### ASVS 2.2 — General Authentication
+### ASVS 2.2: General Authentication
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -54,9 +54,9 @@ This document maps Ferro's security controls to industry standards:
 | Brute force protection | 2.2.4 | IA-5(1) | Token bucket rate limiter per IP | Implemented |
 | Lockout mechanism | 2.2.5 | IA-5(1) | Per-IP rate limiting (not per-account) | Partial |
 
-**Evidence:** `SECURITY.md` — "Constant-time string comparison for secrets"; `penetration_test_scope.md` — AUTH-06.
+**Evidence:** `SECURITY.md`; "Constant-time string comparison for secrets"; `penetration_test_scope.md`; AUTH-06.
 
-### ASVS 2.3 — OTP / MFA
+### ASVS 2.3: OTP / MFA
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -65,16 +65,16 @@ This document maps Ferro's security controls to industry standards:
 | TOTP secret storage | 2.3.3 | IA-2(1) | Encrypted storage (age-based encryption) | Implemented |
 | TOTP revocation | 2.3.4 | IA-2(1) | `/api/auth/totp/disable` endpoint | Implemented |
 
-**Evidence:** `penetration_test_scope.md` — AUTH-12, AS-SC-002.
+**Evidence:** `penetration_test_scope.md`; AUTH-12, AS-SC-002.
 
-### ASVS 2.5 — Credential Storage
+### ASVS 2.5: Credential Storage
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
 | Credential uniqueness | 2.5.1 | IA-5(1) | Unique username constraint | Implemented |
 | Credential lifecycle | 2.5.2 | IA-5(1) | Admin-managed user lifecycle | Implemented |
 
-### ASVS 2.6 — Password Quality
+### ASVS 2.6: Password Quality
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -86,7 +86,7 @@ This document maps Ferro's security controls to industry standards:
 
 ## 2. Authorization (ASVS 4.x, NIST AC)
 
-### ASVS 4.1 — Authorization
+### ASVS 4.1: Authorization
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -97,9 +97,9 @@ This document maps Ferro's security controls to industry standards:
 | Administrative access | 4.1.5 | AC-6(1) | Admin middleware on `/api/admin/*` | Implemented |
 | Access control review | 4.1.6 | AC-2(7) | Admin user management endpoints | Implemented |
 
-**Evidence:** `SECURITY.md` — "Cedar policy engine"; `penetration_test_scope.md` — AUTH-07, AUTH-08, AUTH-15.
+**Evidence:** `SECURITY.md`; "Cedar policy engine"; `penetration_test_scope.md`; AUTH-07, AUTH-08, AUTH-15.
 
-### ASVS 4.2 — Operation Level Access Control
+### ASVS 4.2: Operation Level Access Control
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -110,9 +110,9 @@ This document maps Ferro's security controls to industry standards:
 | Guest access control | 4.2.5 | AC-6 | Guest middleware (limited scope) | Implemented |
 | Federation access control | 4.2.6 | AC-3 | HTTP Signature validation | Implemented |
 
-**Evidence:** `penetration_test_scope.md` — AUTH-08, AUTH-16, AUTH-18.
+**Evidence:** `penetration_test_scope.md`; AUTH-08, AUTH-16, AUTH-18.
 
-### ASVS 4.3 — User Interface Access Control
+### ASVS 4.3: User Interface Access Control
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -123,14 +123,14 @@ This document maps Ferro's security controls to industry standards:
 
 ## 3. Cryptography (ASVS 6.x, NIST SC)
 
-### ASVS 6.1 — Data Classification
+### ASVS 6.1: Data Classification
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
 | Data classification | 6.1.1 | SC-16 | File-level encryption, user-scoped access | Implemented |
 | Sensitive data identification | 6.1.2 | SC-16 | E2EE for sensitive files | Implemented |
 
-### ASVS 6.2 — Algorithms
+### ASVS 6.2: Algorithms
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -140,9 +140,9 @@ This document maps Ferro's security controls to industry standards:
 | Key length | 6.2.4 | SC-13 | AES-256, X25519 (256-bit) | Implemented |
 | Algorithm agility | 6.2.5 | SC-13 | age-based encryption (algorithm negotiation) | Implemented |
 
-**Evidence:** `SECURITY.md` — "age-based E2E file encryption (X25519, ChaCha20-Poly1305)"; `penetration_test_scope.md` — CRYPTO-02.
+**Evidence:** `SECURITY.md`; "age-based E2E file encryption (X25519, ChaCha20-Poly1305)"; `penetration_test_scope.md`; CRYPTO-02.
 
-### ASVS 6.3 — Key Management
+### ASVS 6.3: Key Management
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -153,9 +153,9 @@ This document maps Ferro's security controls to industry standards:
 | Key backup | 6.3.5 | SC-12 | Admin backup/restore functionality | Implemented |
 | Key destruction | 6.3.6 | SC-28 | Secure deletion via trash purge | Partial |
 
-**Evidence:** `SECURITY.md` — "age for E2E encryption, modern, audited, passphrase-based"; `penetration_test_scope.md` — CRYPTO-05, CRYPTO-08.
+**Evidence:** `SECURITY.md`; "age for E2E encryption, modern, audited, passphrase-based"; `penetration_test_scope.md`; CRYPTO-05, CRYPTO-08.
 
-### ASVS 6.4 — Random Number Generation
+### ASVS 6.4: Random Number Generation
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -163,9 +163,9 @@ This document maps Ferro's security controls to industry standards:
 | Entropy estimation | 6.4.2 | SC-13 | UUID v4 for share tokens (122-bit entropy) | Implemented |
 | Entropy source | 6.4.3 | SC-13 | OS CSPRNG (`/dev/urandom`, `getrandom`) | Implemented |
 
-**Evidence:** `SECURITY.md` — "UUID v4 tokens (122-bit entropy), per-token lockout"; `penetration_test_scope.md` — CRYPTO-09.
+**Evidence:** `SECURITY.md`; "UUID v4 tokens (122-bit entropy), per-token lockout"; `penetration_test_scope.md`; CRYPTO-09.
 
-### ASVS 6.5 — Secrets Management
+### ASVS 6.5: Secrets Management
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -174,7 +174,7 @@ This document maps Ferro's security controls to industry standards:
 | Secret access control | 6.5.3 | AC-6 | File permissions on config | Implemented |
 | Secret in transit | 6.5.4 | SC-8 | TLS for all secret transmission | Implemented |
 
-### ASVS 6.6 — TLS
+### ASVS 6.6: TLS
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -183,13 +183,13 @@ This document maps Ferro's security controls to industry standards:
 | HSTS | 6.6.3 | SC-8 | HSTS header (HTTPS only) | Implemented |
 | Certificate pinning | 6.6.4 | SC-17 | Not implemented (optional) | Not Implemented |
 
-**Evidence:** `SECURITY.md` — "TLS 1.3 for all transport (rustls)"; `penetration_test_scope.md` — CRYPTO-01.
+**Evidence:** `SECURITY.md`; "TLS 1.3 for all transport (rustls)"; `penetration_test_scope.md`; CRYPTO-01.
 
 ---
 
 ## 4. Data Protection (ASVS 7.x, NIST MP)
 
-### ASVS 7.1 — Data Classification and Protection
+### ASVS 7.1: Data Classification and Protection
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -199,9 +199,9 @@ This document maps Ferro's security controls to industry standards:
 | Data disposal | 7.1.4 | MP-6 | Trash purge, secure deletion | Implemented |
 | Data backup | 7.1.5 | CP-9 | Admin backup/restore functionality | Implemented |
 
-**Evidence:** `penetration_test_scope.md` — CRYPTO-10, API endpoints for backup/restore.
+**Evidence:** `penetration_test_scope.md`; CRYPTO-10, API endpoints for backup/restore.
 
-### ASVS 7.2 — Privacy
+### ASVS 7.2: Privacy
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -210,9 +210,9 @@ This document maps Ferro's security controls to industry standards:
 | GDPR compliance | 7.2.3 | SC-16 | GDPR export/erase endpoints | Implemented |
 | Consent management | 7.2.4 | SC-16 | User-managed sharing controls | Implemented |
 
-**Evidence:** `penetration_test_scope.md` — GDPR endpoints (`/api/admin/gdpr`, export, erase).
+**Evidence:** `penetration_test_scope.md`; GDPR endpoints (`/api/admin/gdpr`, export, erase).
 
-### ASVS 7.3 — Data Protection
+### ASVS 7.3: Data Protection
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -221,7 +221,7 @@ This document maps Ferro's security controls to industry standards:
 | Data integrity | 7.3.3 | SC-16 | File integrity verification | Implemented |
 | Data availability | 7.3.4 | CP-9 | Backup, disaster recovery | Implemented |
 
-### ASVS 7.4 — Files and Resources
+### ASVS 7.4: Files and Resources
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -234,7 +234,7 @@ This document maps Ferro's security controls to industry standards:
 
 ## 5. Error Handling (ASVS 7.x, NIST SI)
 
-### ASVS 7.2 — Error Handling
+### ASVS 7.2: Error Handling
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -243,9 +243,9 @@ This document maps Ferro's security controls to industry standards:
 | Error information | 7.2.3 | SI-10 | No stack traces in production responses | Implemented |
 | Error recovery | 7.2.4 | SI-10 | Graceful degradation; timeout handling | Implemented |
 
-**Evidence:** `penetration_test_scope.md` — API-06, API-07; `SECURITY.md` — "Panic Handler: Logs request context on 500 errors."
+**Evidence:** `penetration_test_scope.md`; API-06, API-07; `SECURITY.md`; "Panic Handler: Logs request context on 500 errors."
 
-### ASVS 7.3 — Logging
+### ASVS 7.3: Logging
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -255,13 +255,13 @@ This document maps Ferro's security controls to industry standards:
 | Log retention | 7.3.4 | AU-11 | Configurable log retention | Implemented |
 | Log review | 7.3.5 | AU-6 | Admin audit chain endpoint | Implemented |
 
-**Evidence:** `SECURITY.md` — "Chain hash verification (GET /api/admin/audit-chain), append-only design"; `penetration_test_scope.md` — API-11, INFRA-07.
+**Evidence:** `SECURITY.md`; "Chain hash verification (GET /api/admin/audit-chain), append-only design"; `penetration_test_scope.md`; API-11, INFRA-07.
 
 ---
 
 ## 6. Input Validation (ASVS 5.x, NIST SI)
 
-### ASVS 5.1 — Input Validation
+### ASVS 5.1: Input Validation
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -271,9 +271,9 @@ This document maps Ferro's security controls to industry standards:
 | Input type validation | 5.1.4 | SI-10 | Rust type system enforcement | Implemented |
 | Input sanitization | 5.1.5 | SI-10 | Filename sanitization, XML entity prevention | Implemented |
 
-**Evidence:** `penetration_test_scope.md` — INPUT-01 through INPUT-21; `SECURITY.md` — "Path traversal prevention (normalized paths, `..` rejection)."
+**Evidence:** `penetration_test_scope.md`; INPUT-01 through INPUT-21; `SECURITY.md`; "Path traversal prevention (normalized paths, `..` rejection)."
 
-### ASVS 5.2 — Sanitization and Encoding
+### ASVS 5.2: Sanitization and Encoding
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -282,7 +282,7 @@ This document maps Ferro's security controls to industry standards:
 | Safe APIs | 5.2.3 | SI-10 | Parameterized SQL queries; Rust type safety | Implemented |
 | Context-aware encoding | 5.2.4 | SI-10 | Content-Type specific handling | Implemented |
 
-### ASVS 5.3 — Error Handling and Logging
+### ASVS 5.3: Error Handling and Logging
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -290,7 +290,7 @@ This document maps Ferro's security controls to industry standards:
 | Error logging | 5.3.2 | AU-3 | Structured error logging | Implemented |
 | Attack detection | 5.3.3 | SI-4 | Rate limiting, audit logging | Implemented |
 
-### ASVS 5.4 — XML and JSON
+### ASVS 5.4: XML and JSON
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -299,9 +299,9 @@ This document maps Ferro's security controls to industry standards:
 | JSON parsing | 5.4.3 | SI-10 | serde-based JSON parsing | Implemented |
 | Schema validation | 5.4.4 | SI-10 | Request body schema validation | Implemented |
 
-**Evidence:** `SECURITY.md` — "XML entity expansion prevention in WebDAV"; `penetration_test_scope.md` — INPUT-04, INPUT-05.
+**Evidence:** `SECURITY.md`; "XML entity expansion prevention in WebDAV"; `penetration_test_scope.md`; INPUT-04, INPUT-05.
 
-### ASVS 5.5 — Deserialization
+### ASVS 5.5: Deserialization
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -312,7 +312,7 @@ This document maps Ferro's security controls to industry standards:
 
 ## 7. Configuration (ASVS 12.x, NIST CM)
 
-### ASVS 12.1 — Secure Configuration
+### ASVS 12.1: Secure Configuration
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -322,9 +322,9 @@ This document maps Ferro's security controls to industry standards:
 | Configuration access control | 12.1.4 | AC-3 | Admin-only configuration endpoints | Implemented |
 | Configuration documentation | 12.1.5 | CM-6 | Configuration documentation | Implemented |
 
-**Evidence:** `penetration_test_scope.md` — AUTH-19, SC-004.
+**Evidence:** `penetration_test_scope.md`; AUTH-19, SC-004.
 
-### ASVS 12.2 — Dependency Management
+### ASVS 12.2: Dependency Management
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -333,9 +333,9 @@ This document maps Ferro's security controls to industry standards:
 | Dependency policy | 12.2.3 | SA-12 | No critical CVEs, maintained dependencies | Implemented |
 | Supply chain verification | 12.2.4 | SA-12 | Prefer pure-Rust implementations | Implemented |
 
-**Evidence:** `SECURITY.md` — "Dependency Security" section; `penetration_test_scope.md` — INFRA-03, INFRA-04.
+**Evidence:** `SECURITY.md`; "Dependency Security" section; `penetration_test_scope.md`; INFRA-03, INFRA-04.
 
-### ASVS 12.3 — Automated Build and Deployment
+### ASVS 12.3: Automated Build and Deployment
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -347,7 +347,7 @@ This document maps Ferro's security controls to industry standards:
 
 ## 8. Communication Security (ASVS 6.x, NIST SC)
 
-### ASVS 6.2 — Communications Security
+### ASVS 6.2: Communications Security
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -357,9 +357,9 @@ This document maps Ferro's security controls to industry standards:
 | CORS configuration | 6.2.4 | SC-8 | Configurable allowed origins | Implemented |
 | HSTS | 6.2.5 | SC-8 | HSTS header (HTTPS only) | Implemented |
 
-**Evidence:** `SECURITY.md` — "Strict-Transport-Security (HSTS)"; `penetration_test_scope.md` — CRYPTO-01.
+**Evidence:** `SECURITY.md`; "Strict-Transport-Security (HSTS)"; `penetration_test_scope.md`; CRYPTO-01.
 
-### ASVS 6.3 — Session Management
+### ASVS 6.3: Session Management
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -373,7 +373,7 @@ This document maps Ferro's security controls to industry standards:
 
 ## 9. File Operations Security
 
-### ASVS 5.2 — File Operations
+### ASVS 5.2: File Operations
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -385,13 +385,13 @@ This document maps Ferro's security controls to industry standards:
 | File overwrite protection | 5.2.6 | SC-4 | Atomic file operations | Implemented |
 | Symlink protection | 5.2.7 | SC-4 | Canonical path resolution | Implemented |
 
-**Evidence:** `penetration_test_scope.md` — INPUT-02, INPUT-13, INPUT-18.
+**Evidence:** `penetration_test_scope.md`; INPUT-02, INPUT-13, INPUT-18.
 
 ---
 
 ## 10. WASM Sandbox Security
 
-### ASVS 6.1 — WASM Isolation
+### ASVS 6.1: WASM Isolation
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -401,13 +401,13 @@ This document maps Ferro's security controls to industry standards:
 | Memory isolation | 6.1.4 | SC-39 | Linear memory isolation, no shared memory | Implemented |
 | Execution monitoring | 6.1.5 | SC-39 | Resource limit enforcement; timeout handling | Implemented |
 
-**Evidence:** `SECURITY.md` — "WASM Worker Security Model" section; `penetration_test_scope.md` — INFRA-05.
+**Evidence:** `SECURITY.md`; "WASM Worker Security Model" section; `penetration_test_scope.md`; INFRA-05.
 
 ---
 
 ## 11. Federation Security
 
-### ASVS 6.2 — Federation
+### ASVS 6.2: Federation
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -417,13 +417,13 @@ This document maps Ferro's security controls to industry standards:
 | Key rotation | 6.2.4 | SC-12 | Federation key rotation | Implemented |
 | Discovery security | 6.2.5 | SC-8 | WebFinger/NodeInfo read-only | Implemented |
 
-**Evidence:** `SECURITY.md` — "Federation Security Model" section; `penetration_test_scope.md` — AUTH-18.
+**Evidence:** `SECURITY.md`; "Federation Security Model" section; `penetration_test_scope.md`; AUTH-18.
 
 ---
 
 ## 12. Monitoring and Incident Response
 
-### ASVS 7.1 — Monitoring
+### ASVS 7.1: Monitoring
 
 | Control | ASVS Requirement | NIST Control | Ferro Implementation | Status |
 |---------|------------------|--------------|---------------------|--------|
@@ -432,7 +432,7 @@ This document maps Ferro's security controls to industry standards:
 | Alerting | 7.1.3 | AU-6 | Webhook-based alerting (admin API) | Implemented |
 | Incident response | 7.1.4 | IR-1 | Incident response documentation | Implemented |
 
-**Evidence:** `docs/incident_response/` directory; `penetration_test_scope.md` — API-11.
+**Evidence:** `docs/incident_response/` directory; `penetration_test_scope.md`; API-11.
 
 ---
 

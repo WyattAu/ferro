@@ -10,7 +10,7 @@ a5cfa2e fix: CalDAV/CardDAV robustness hardening
 e4d12d9 fix: desktop client compilation (Tauri v2 API changes)
 baec75f refactor: extract photos_api to productivity crate, fix WASM frontend errors
 9ea957b refactor(server): extract thumbnail_cache, api_error, offline_wiring to existing crates
-23d1565 refactor(server): Phase 3 complete — slim lib.rs 2340→227 lines
+23d1565 refactor(server): Phase 3 complete; slim lib.rs 2340→227 lines
 995df2b refactor(server): extract 12 crates, reduce lib.rs 43%
 2790ba2 docs: update ROADMAP v6.0 - Phase 1 COMPLETE
 5d7ebbf feat: TrashStore + Phase 1 completion (batch 6)

@@ -1,4 +1,4 @@
-# Ferro System Requirements — EARS Specification
+# Ferro System Requirements: EARS Specification
 
 **Document ID:** FERRO-REQ-001
 **Date:** 2026-04-18
@@ -21,7 +21,7 @@
 
 ## Storage (REQ-STOR)
 
-### REQ-STOR-001 — Multi-Backend Storage Abstraction
+### REQ-STOR-001: Multi-Backend Storage Abstraction
 
 | Field | Value |
 |-------|-------|
@@ -34,7 +34,7 @@
 | **Applicable Standards** | ISO 27001 A.5.14, NIST SC-8, OWASP A02 |
 | **Verification Method** | Integration test: configure each backend; PUT/GET/DELETE/HEAD operations succeed against all four backends using identical API calls. |
 
-### REQ-STOR-002 — Content-Addressable Storage
+### REQ-STOR-002: Content-Addressable Storage
 
 | Field | Value |
 |-------|-------|
@@ -47,7 +47,7 @@
 | **Applicable Standards** | NIST SC-13, GDPR Art. 17 |
 | **Verification Method** | Integration test: upload identical file from two paths; verify single physical copy exists; verify both paths resolve to same content on GET. |
 
-### REQ-STOR-003 — Cross-Account Deduplication
+### REQ-STOR-003: Cross-Account Deduplication
 
 | Field | Value |
 |-------|-------|
@@ -60,7 +60,7 @@
 | **Applicable Standards** | GDPR Art. 17 (erasure requires reference counting), GDPR Art. 5 (data minimization) |
 | **Verification Method** | Integration test: upload identical file from two different user accounts; verify single physical copy; delete one user's copy; verify physical copy retained for other user; delete last reference; verify physical copy removed. |
 
-### REQ-STOR-004 — Pre-Signed URL Generation
+### REQ-STOR-004: Pre-Signed URL Generation
 
 | Field | Value |
 |-------|-------|
@@ -73,7 +73,7 @@
 | **Applicable Standards** | ISO 27001 A.5.14, NIST SC-12, OWASP A10 (SSRF prevention) |
 | **Verification Method** | Integration test: request pre-signed URL; verify URL is scoped to single object and method; verify URL expires within configured window; verify direct upload via URL succeeds; verify expired URL is rejected. |
 
-### REQ-STOR-005 — Atomic Write Operations
+### REQ-STOR-005: Atomic Write Operations
 
 | Field | Value |
 |-------|-------|
@@ -86,7 +86,7 @@
 | **Applicable Standards** | NIST SC-13, ISO 27001 A.8.8 |
 | **Verification Method** | Property-based test: generate random file writes; inject failures at various stages (network, process kill); verify no partial or corrupt files exist after recovery; verify existing files are unmodified. |
 
-### REQ-STOR-006 — Concurrent Upload Handling
+### REQ-STOR-006: Concurrent Upload Handling
 
 | Field | Value |
 |-------|-------|
@@ -103,7 +103,7 @@
 
 ## WebDAV (REQ-WEBDAV)
 
-### REQ-WEBDAV-001 — RFC 4918 Class 1 Compliance
+### REQ-WEBDAV-001: RFC 4918 Class 1 Compliance
 
 | Field | Value |
 |-------|-------|
@@ -116,7 +116,7 @@
 | **Applicable Standards** | RFC 4918 |
 | **Verification Method** | Integration test: execute every Class 1 method against the WebDAV endpoint; validate request/response bodies against RFC 4918 XML schemas; verify all required DAV: namespace properties are present. |
 
-### REQ-WEBDAV-002 — RFC 4918 Class 2 Compliance (Locking)
+### REQ-WEBDAV-002: RFC 4918 Class 2 Compliance (Locking)
 
 | Field | Value |
 |-------|-------|
@@ -129,7 +129,7 @@
 | **Applicable Standards** | RFC 4918, RFC 3253 |
 | **Verification Method** | Integration test: acquire exclusive lock; verify second writer receives 423; release lock; verify second writer succeeds; verify lock timeout expiry releases lock automatically. |
 
-### REQ-WEBDAV-003 — RFC 4918 Class 3 Compliance (ACL Discovery)
+### REQ-WEBDAV-003: RFC 4918 Class 3 Compliance (ACL Discovery)
 
 | Field | Value |
 |-------|-------|
@@ -142,7 +142,7 @@
 | **Applicable Standards** | RFC 3744, Cedar Specification |
 | **Verification Method** | Integration test: configure Cedar policies; call ACL method; verify response reflects policy grants/denials; verify principal resources are correctly mapped from OIDC identities. |
 
-### REQ-WEBDAV-004 — rclone Compatibility
+### REQ-WEBDAV-004: rclone Compatibility
 
 | Field | Value |
 |-------|-------|
@@ -155,7 +155,7 @@
 | **Applicable Standards** | RFC 4918 |
 | **Verification Method** | End-to-end test: mount Ferro via `rclone mount webdav:`; execute full rclone operation suite (ls, copy, move, sync, check); verify no errors in rclone output; verify data integrity via checksum comparison. |
 
-### REQ-WEBDAV-005 — Microsoft Office WebDAV Compatibility
+### REQ-WEBDAV-005: Microsoft Office WebDAV Compatibility
 
 | Field | Value |
 |-------|-------|
@@ -168,7 +168,7 @@
 | **Applicable Standards** | RFC 4918, RFC 3253, WOPI Specification |
 | **Verification Method** | Integration test: open a .docx file from Ferro via Microsoft Word; edit and save; verify file is updated correctly; verify lock acquisition and release sequence. |
 
-### REQ-WEBDAV-006 — XML Overhead Minimization
+### REQ-WEBDAV-006: XML Overhead Minimization
 
 | Field | Value |
 |-------|-------|
@@ -185,7 +185,7 @@
 
 ## WOPI (REQ-WOPI)
 
-### REQ-WOPI-001 — WOPI Protocol Implementation
+### REQ-WOPI-001: WOPI Protocol Implementation
 
 | Field | Value |
 |-------|-------|
@@ -198,7 +198,7 @@
 | **Applicable Standards** | WOPI Specification |
 | **Verification Method** | Integration test: call each WOPI endpoint with valid access token; verify response schemas match WOPI specification; verify WOPI discovery XML is valid and points to correct endpoints. |
 
-### REQ-WOPI-002 — Collabora Online Integration
+### REQ-WOPI-002: Collabora Online Integration
 
 | Field | Value |
 |-------|-------|
@@ -211,7 +211,7 @@
 | **Applicable Standards** | WOPI Specification |
 | **Verification Method** | End-to-end test: open a .ods file via Collabora Online through Ferro; edit concurrently from two sessions; verify changes are saved correctly via PutFile. |
 
-### REQ-WOPI-003 — OnlyOffice Integration
+### REQ-WOPI-003: OnlyOffice Integration
 
 | Field | Value |
 |-------|-------|
@@ -224,7 +224,7 @@
 | **Applicable Standards** | WOPI Specification |
 | **Verification Method** | End-to-end test: open a .xlsx file via OnlyOffice through Ferro; edit and save; verify file content is correctly persisted. |
 
-### REQ-WOPI-004 — Session State Management
+### REQ-WOPI-004: Session State Management
 
 | Field | Value |
 |-------|-------|
@@ -237,7 +237,7 @@
 | **Applicable Standards** | WOPI Specification |
 | **Verification Method** | Integration test: initiate two concurrent editing sessions on the same file; query session state; verify both sessions are tracked; terminate one session; verify session state is updated. |
 
-### REQ-WOPI-005 — File Locking for Concurrent Editing
+### REQ-WOPI-005: File Locking for Concurrent Editing
 
 | Field | Value |
 |-------|-------|
@@ -254,7 +254,7 @@
 
 ## Identity & Authorization (REQ-AUTH)
 
-### REQ-AUTH-001 — OIDC Authentication
+### REQ-AUTH-001: OIDC Authentication
 
 | Field | Value |
 |-------|-------|
@@ -267,7 +267,7 @@
 | **Applicable Standards** | OpenID Connect Core 1.0, OWASP A07, NIST IA-2, NIST IA-5 |
 | **Verification Method** | Integration test: complete full OIDC flow (authorize → callback → token exchange → UserInfo); verify PKCE S256 challenge is enforced; verify token validation including signature verification and nonce validation; verify RP-Initiated Logout clears session. |
 
-### REQ-AUTH-002 — Cedar Policy Engine Integration
+### REQ-AUTH-002: Cedar Policy Engine Integration
 
 | Field | Value |
 |-------|-------|
@@ -280,7 +280,7 @@
 | **Applicable Standards** | Cedar Specification, NIST AC-3, ISO 27001 A.9.1 |
 | **Verification Method** | Integration test: configure Cedar policies with allow/deny rules; make API requests as various principals; verify all decisions match expected policy outcomes; verify deny-by-default for unconfigured actions. |
 
-### REQ-AUTH-003 — Fine-Grained Authorization Policies
+### REQ-AUTH-003: Fine-Grained Authorization Policies
 
 | Field | Value |
 |-------|-------|
@@ -293,7 +293,7 @@
 | **Applicable Standards** | Cedar Specification, NIST AC-4, NIST AC-6 |
 | **Verification Method** | Integration test: define policies with attribute conditions (e.g., resource.tag == "public"); verify access is granted/denied based on attribute matching; verify OIDC claim attributes are correctly mapped to Cedar principal attributes. |
 
-### REQ-AUTH-004 — Session Management
+### REQ-AUTH-004: Session Management
 
 | Field | Value |
 |-------|-------|
@@ -310,7 +310,7 @@
 
 ## WASM Plugin System (REQ-WASM)
 
-### REQ-WASM-001 — Wasmtime Runtime Integration
+### REQ-WASM-001: Wasmtime Runtime Integration
 
 | Field | Value |
 |-------|-------|
@@ -323,7 +323,7 @@
 | **Applicable Standards** | WASM/WASI Specification |
 | **Verification Method** | Integration test: compile a simple WASM plugin in Rust; load and execute it via Wasmtime; verify correct output; verify WASI capability restrictions are enforced. |
 
-### REQ-WASM-002 — Event-Driven Worker Execution
+### REQ-WASM-002: Event-Driven Worker Execution
 
 | Field | Value |
 |-------|-------|
@@ -336,7 +336,7 @@
 | **Applicable Standards** | WASM/WASI Specification |
 | **Verification Method** | Integration test: configure a trigger for `*.pdf`; upload a PDF file; verify the configured WASM worker is invoked with correct file context; verify trigger patterns that do not match do not invoke the worker. |
 
-### REQ-WASM-003 — Plugin Sandboxing
+### REQ-WASM-003: Plugin Sandboxing
 
 | Field | Value |
 |-------|-------|
@@ -349,7 +349,7 @@
 | **Applicable Standards** | WASM/WASI Specification, OWASP A04, NIST SC-7 |
 | **Verification Method** | Security test: load a WASM plugin that attempts filesystem access, network connections, and environment variable reads without granted capabilities; verify all attempts are denied; verify Ferro server remains responsive; verify plugin cannot read files outside its authorized scope. |
 
-### REQ-WASM-004 — Resource Limits for Plugins
+### REQ-WASM-004: Resource Limits for Plugins
 
 | Field | Value |
 |-------|-------|
@@ -366,7 +366,7 @@
 
 ## Search (REQ-SEARCH)
 
-### REQ-SEARCH-001 — Tantivy Full-Text Search
+### REQ-SEARCH-001: Tantivy Full-Text Search
 
 | Field | Value |
 |-------|-------|
@@ -379,7 +379,7 @@
 | **Applicable Standards** | N/A |
 | **Verification Method** | Integration test: index a corpus of documents with known content; execute search queries; verify results are ranked by relevance; verify recall (all matching documents are found); verify precision (non-matching documents are excluded). |
 
-### REQ-SEARCH-002 — Background Content Indexing
+### REQ-SEARCH-002: Background Content Indexing
 
 | Field | Value |
 |-------|-------|
@@ -392,7 +392,7 @@
 | **Applicable Standards** | N/A |
 | **Verification Method** | Integration test: upload a file; verify upload response is returned before indexing completes; verify file becomes searchable within a configurable time window; verify modified files are re-indexed with updated content. |
 
-### REQ-SEARCH-003 — Metadata Search
+### REQ-SEARCH-003: Metadata Search
 
 | Field | Value |
 |-------|-------|
@@ -409,7 +409,7 @@
 
 ## Web Frontend (REQ-WEB)
 
-### REQ-WEB-001 — Leptos SSR + WASM Hydration
+### REQ-WEB-001: Leptos SSR + WASM Hydration
 
 | Field | Value |
 |-------|-------|
@@ -422,7 +422,7 @@
 | **Applicable Standards** | ISO 27034, OWASP A05 |
 | **Verification Method** | End-to-end test: load the web frontend; verify initial HTML contains rendered content (not a blank SPA shell); verify hydration completes without errors; verify client-side navigation works without full page reload. |
 
-### REQ-WEB-002 — Virtualized Scrolling
+### REQ-WEB-002: Virtualized Scrolling
 
 | Field | Value |
 |-------|-------|
@@ -435,7 +435,7 @@
 | **Applicable Standards** | N/A |
 | **Verification Method** | Performance test: populate a directory with 10,000 files; load the directory view; measure initial render time and scrolling frame rate; verify memory usage remains bounded (no DOM node growth proportional to item count). |
 
-### REQ-WEB-003 — Share-Link Management
+### REQ-WEB-003: Share-Link Management
 
 | Field | Value |
 |-------|-------|
@@ -448,7 +448,7 @@
 | **Applicable Standards** | ISO 27001 A.8.3, GDPR Art. 32 |
 | **Verification Method** | Integration test: create a share link with expiration, password, and download limit; access before and after expiration; access with and without password; verify download counter; verify access is denied after limit is reached. |
 
-### REQ-WEB-004 — Admin Dashboard
+### REQ-WEB-004: Admin Dashboard
 
 | Field | Value |
 |-------|-------|
@@ -461,7 +461,7 @@
 | **Applicable Standards** | ISO 27001 A.8.2, NIST AC-2 |
 | **Verification Method** | End-to-end test: log in as admin; verify all dashboard sections are accessible; create, modify, and delete a Cedar policy; verify policy changes take effect; view WASM worker status. |
 
-### REQ-WEB-005 — Type-Safe API via Shared Crate
+### REQ-WEB-005: Type-Safe API via Shared Crate
 
 | Field | Value |
 |-------|-------|
@@ -478,7 +478,7 @@
 
 ## Desktop Client (REQ-DESK)
 
-### REQ-DESK-001 — Tauri Shell Wrapper
+### REQ-DESK-001: Tauri Shell Wrapper
 
 | Field | Value |
 |-------|-------|
@@ -491,7 +491,7 @@
 | **Applicable Standards** | ISO 27001 A.8.1 |
 | **Verification Method** | Build test: compile Tauri app for all three target platforms (Windows, macOS, Linux); verify application launches and displays the main window. |
 
-### REQ-DESK-002 — rclone Sidecar Management
+### REQ-DESK-002: rclone Sidecar Management
 
 | Field | Value |
 |-------|-------|
@@ -504,7 +504,7 @@
 | **Applicable Standards** | N/A |
 | **Verification Method** | Integration test: launch Tauri app; verify rclone sidecar starts; kill rclone process; verify Tauri detects the failure and restarts rclone; verify mount becomes available again. |
 
-### REQ-DESK-003 — Zero-Config Mount
+### REQ-DESK-003: Zero-Config Mount
 
 | Field | Value |
 |-------|-------|
@@ -517,7 +517,7 @@
 | **Applicable Standards** | ISO 27001 A.8.1, NIST IA-2 |
 | **Verification Method** | End-to-end test: install desktop client; enter OIDC credentials; verify Ferro drive appears in OS file manager; verify file operations (create, read, update, delete) work through the mounted drive without any manual rclone configuration. |
 
-### REQ-DESK-004 — System Tray Integration
+### REQ-DESK-004: System Tray Integration
 
 | Field | Value |
 |-------|-------|
@@ -530,7 +530,7 @@
 | **Applicable Standards** | N/A |
 | **Verification Method** | End-to-end test: launch desktop client; verify system tray icon appears; verify status updates reflect sync state; verify context menu actions work correctly. |
 
-### REQ-DESK-005 — Native Notifications
+### REQ-DESK-005: Native Notifications
 
 | Field | Value |
 |-------|-------|
@@ -547,7 +547,7 @@
 
 ## Enterprise Governance (REQ-ENT)
 
-### REQ-ENT-001 — Immutable Audit Log
+### REQ-ENT-001: Immutable Audit Log
 
 | Field | Value |
 |-------|-------|
@@ -560,7 +560,7 @@
 | **Applicable Standards** | ISO 27001 A.12.4, NIST AU-2, AU-3, AU-4, AU-9, GDPR Art. 30 |
 | **Verification Method** | Integration test: perform a series of operations; query the audit log; verify all operations are recorded with correct fields; attempt to modify a log entry; verify hash chain detects the tampering; verify entries cannot be deleted. |
 
-### REQ-ENT-002 — gRPC Audit Log Streaming
+### REQ-ENT-002: gRPC Audit Log Streaming
 
 | Field | Value |
 |-------|-------|
@@ -573,7 +573,7 @@
 | **Applicable Standards** | NIST AU-6, SI-4 |
 | **Verification Method** | Integration test: configure a gRPC consumer; perform operations; verify log entries are received in real-time; disconnect the consumer; verify entries are buffered; reconnect; verify buffered entries are delivered. |
 
-### REQ-ENT-003 — Ransomware Protection via Instant Snapshots
+### REQ-ENT-003: Ransomware Protection via Instant Snapshots
 
 | Field | Value |
 |-------|-------|
@@ -586,7 +586,7 @@
 | **Applicable Standards** | ISO 27001 A.12.4, NIST AU-9 |
 | **Verification Method** | Integration test: create a snapshot; perform bulk file modifications (simulating ransomware); revert to snapshot; verify file tree state matches the snapshot exactly; verify no physical data was copied during snapshot or revert. |
 
-### REQ-ENT-004 — Global Deduplication
+### REQ-ENT-004: Global Deduplication
 
 | Field | Value |
 |-------|-------|
@@ -599,7 +599,7 @@
 | **Applicable Standards** | GDPR Art. 17, GDPR Art. 5 |
 | **Verification Method** | Integration test: upload identical file to two different backends; verify single physical copy in the originating backend; upload from two different users; verify reference counting works correctly; verify deletion of all references removes physical copy. |
 
-### REQ-ENT-005 — Sovereign Proxying
+### REQ-ENT-005: Sovereign Proxying
 
 | Field | Value |
 |-------|-------|

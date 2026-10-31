@@ -24,7 +24,7 @@
 | `metadata_store` | SQLx PgPool / LibSqlPool| Connection pooling (thread-safe by design) |
 | `sha2` hasher    | Stateless function      | No shared state; pure computation           |
 
-**CPU-bound concern — SHA-256 hashing:**
+**CPU-bound concern; SHA-256 hashing:**
 
 SHA-256 computation (`sha2::Sha256`) is CPU-bound and blocks the Tokio async executor if run directly on the async runtime. The `put_content` path (ALG-CAS-PUT-001) hashes the entire content stream before storage.
 
@@ -34,9 +34,9 @@ SHA-256 computation (`sha2::Sha256`) is CPU-bound and blocks the Tokio async exe
 
 **No shared mutable state:**
 
-`StorageEngine` holds only `Arc` references to its dependencies. All mutation goes through the metadata database (serialized by PostgreSQL MVCC) or the object store backend (serialized per-object). Therefore, `StorageEngine` is thread-safe by design — no `Mutex`, `RwLock`, or atomic primitives needed within the struct itself.
+`StorageEngine` holds only `Arc` references to its dependencies. All mutation goes through the metadata database (serialized by PostgreSQL MVCC) or the object store backend (serialized per-object). Therefore, `StorageEngine` is thread-safe by design; no `Mutex`, `RwLock`, or atomic primitives needed within the struct itself.
 
-**Risk — Connection pool exhaustion:**
+**Risk; Connection pool exhaustion:**
 
 Under high concurrency (e.g., 10K concurrent PROPFIND with per-resource `head` calls), the SQLx connection pool may become a bottleneck.
 
@@ -113,11 +113,11 @@ The LockManager is SAFE provided:
 3. Call `authorizer.is_authorized(request, policy_set, entities)`.
 4. Return `AuthResponse`.
 
-**Risk — Read lock held during evaluation:**
+**Risk; Read lock held during evaluation:**
 
 If the policy set is large (up to 10K policies per DC-AUTH-CEDAR-MAX-001), holding the read lock during `is_authorized()` could block a concurrent `load_policies()` call that needs a write lock.
 
-- **Mitigation**: Clone the `PolicySet` before evaluation. Cedar's `PolicySet` uses `Arc` internally for policy sharing, making `clone()` O(1) — it copies only the Arc pointers, not the policy AST.
+- **Mitigation**: Clone the `PolicySet` before evaluation. Cedar's `PolicySet` uses `Arc` internally for policy sharing, making `clone()` O(1); it copies only the Arc pointers, not the policy AST.
 - **Pattern**:
   ```rust
   let policy_set = self.active_policy_set.read().await.clone();
@@ -125,7 +125,7 @@ If the policy set is large (up to 10K policies per DC-AUTH-CEDAR-MAX-001), holdi
   let response = self.authorizer.is_authorized(principal, action, resource, context, &policy_set);
   ```
 
-**Risk — Entity store contention:**
+**Risk; Entity store contention:**
 
 Entity loading (for principal attributes, resource attributes) hits the entity store on every request.
 
@@ -154,7 +154,7 @@ Entity loading (for principal attributes, resource attributes) hits the entity s
 - On-demand refresh when `kid` is unknown.
 - Write lock is held only during the `RwLock` swap, which is O(number of keys) ≈ O(10).
 
-**Risk — Clock skew handling:**
+**Risk; Clock skew handling:**
 
 Token validation compares `exp`/`nbf` against the current time. Different threads may observe slightly different `Instant::now()` values, but the 60-second clock skew tolerance (DC-AUTH-CLOCK-001) makes this irrelevant.
 
@@ -167,7 +167,7 @@ Token validation compares `exp`/`nbf` against the current time. Different thread
 **Axum's concurrency model:**
 
 - Each inbound HTTP request spawns an independent Tokio task.
-- `State` is cloned via `Arc` — zero-copy reference counting.
+- `State` is cloned via `Arc`; zero-copy reference counting.
 - The Tower middleware chain is composable: each layer processes the request asynchronously, releasing the executor between `.await` points.
 
 **WebDavState shared components:**
@@ -181,7 +181,7 @@ pub struct WebDavState {
 }
 ```
 
-**Risk — Slow middleware blocks the executor:**
+**Risk; Slow middleware blocks the executor:**
 
 Any `.await`-free synchronous computation in middleware (e.g., path normalization, XML parsing of small bodies) blocks the Tokio worker thread for the duration.
 
@@ -204,8 +204,8 @@ Any `.await`-free synchronous computation in middleware (e.g., path normalizatio
 
 **Condition for SAFE classification:**
 
-- **Redis-backed**: SAFE — Redis serializes all operations. The `reqwest::Client` used to communicate with Redis is `Clone + Send + Sync`.
-- **In-memory**: CONDITIONAL — requires `DashMap<SessionId, Session>` with atomic expiry enforcement via a background Tokio task.
+- **Redis-backed**: SAFE; Redis serializes all operations. The `reqwest::Client` used to communicate with Redis is `Clone + Send + Sync`.
+- **In-memory**: CONDITIONAL; requires `DashMap<SessionId, Session>` with atomic expiry enforcement via a background Tokio task.
 
 ---
 

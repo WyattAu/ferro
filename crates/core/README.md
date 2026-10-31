@@ -21,15 +21,15 @@ Core storage, metadata, search, and runtime abstractions for the Ferro platform.
 
 ## Key Types
 
-- **`InMemoryStorageEngine`** — in-memory `StorageEngine` for testing and development
-- **`ObjectStoreStorageEngine`** — storage backend wrapping any `object_store` implementation
-- **`SqliteMetadataStore`** — SQLite-backed metadata store
-- **`PgMetadataStore`** — PostgreSQL-backed metadata store (requires `postgres` feature)
-- **`InMemoryMetadataStore`** — in-memory metadata store for testing
-- **`MetadataStore`** — trait for pluggable metadata backends
-- **`SearchEngine`** — Tantivy full-text search with path, name, content, and owner fields
-- **`WasmWorkerRuntime`** — sandboxed WASM execution with fuel limits and WASI support
-- **`SqlitePersistence`** — snapshot and audit log persistence (requires `sqlite` feature)
+- **`InMemoryStorageEngine`**; in-memory `StorageEngine` for testing and development
+- **`ObjectStoreStorageEngine`**; storage backend wrapping any `object_store` implementation
+- **`SqliteMetadataStore`**; SQLite-backed metadata store
+- **`PgMetadataStore`**; PostgreSQL-backed metadata store (requires `postgres` feature)
+- **`InMemoryMetadataStore`**; in-memory metadata store for testing
+- **`MetadataStore`**; trait for pluggable metadata backends
+- **`SearchEngine`**; Tantivy full-text search with path, name, content, and owner fields
+- **`WasmWorkerRuntime`**; sandboxed WASM execution with fuel limits and WASI support
+- **`SqlitePersistence`**; snapshot and audit log persistence (requires `sqlite` feature)
 
 ## Usage
 

@@ -104,8 +104,8 @@ Several endpoints return raw `(StatusCode, Json)` tuples instead of using `ApiEr
 | 5 | `snapshots.rs:219,234` | `delete/restore_snapshot` | `NOT_FOUND` missing `error_code` | Medium |
 | 6 | `auth/oidc.rs:298` | OIDC middleware | Returns plain text `"Unauthorized"` instead of JSON | High |
 | 7 | `auth/oidc.rs:302` | OIDC middleware | Returns plain text `"Missing Bearer token"` instead of JSON | High |
-| 8 | `wopi.rs:287` | `put_file` | Success returns `(StatusCode::OK, "")` — empty body | Low (WOPI spec) |
-| 9 | `wopi.rs:330` | `unlock_file` | Success returns `(StatusCode::OK, "")` — empty body | Low (WOPI spec) |
+| 8 | `wopi.rs:287` | `put_file` | Success returns `(StatusCode::OK, "")`; empty body | Low (WOPI spec) |
+| 9 | `wopi.rs:330` | `unlock_file` | Success returns `(StatusCode::OK, "")`; empty body | Low (WOPI spec) |
 | 10 | `webdav.rs:83-87,168-174` | WebDAV catch-all | Uses `{"error": "..."}` instead of ApiError | Low (WebDAV uses XML/JSON hybrid) |
 
 ### Success Response Consistency
@@ -150,10 +150,10 @@ Most success responses correctly return `(StatusCode::OK, Json(body))`. The WOPI
 
 ### Debug Output in Production
 
-- `println!`: Only used in `cli/src/main.rs` (CLI tool output — acceptable). None in server/core/common.
+- `println!`: Only used in `cli/src/main.rs` (CLI tool output; acceptable). None in server/core/common.
 - `dbg!`: None found anywhere.
 - `eprintln!`: None found.
-- All server logging uses `tracing` macros — correct.
+- All server logging uses `tracing` macros; correct.
 
 ### SQL Injection
 
@@ -161,10 +161,10 @@ All SQL queries in `core/src/persistence.rs` and `core/src/sqlx_metadata.rs` use
 
 ### Input Validation
 
-- `wasm_upload.rs`: Validates filename (no path separators, `.wasm` extension), validates WASM magic bytes — good.
-- `webdav.rs`: Path sanitization via `sanitize_path()` — good.
-- `shares.rs`: Path construction uses `format!("/{}", path)` — potential path traversal if `path` contains `..`; however, the storage layer should handle this.
-- Body size limit enforced in `webdav.rs:93` — good.
+- `wasm_upload.rs`: Validates filename (no path separators, `.wasm` extension), validates WASM magic bytes; good.
+- `webdav.rs`: Path sanitization via `sanitize_path()`; good.
+- `shares.rs`: Path construction uses `format!("/{}", path)`; potential path traversal if `path` contains `..`; however, the storage layer should handle this.
+- Body size limit enforced in `webdav.rs:93`; good.
 
 ---
 
@@ -174,11 +174,11 @@ All SQL queries in `core/src/persistence.rs` and `core/src/sqlx_metadata.rs` use
 
 | File | Lines | Assessment |
 |------|-------|------------|
-| `server/src/webdav.rs` | 1994 | **High** — handles OPTIONS, GET, PUT, DELETE, MKCOL, COPY, MOVE, PROPFIND, PROPPATCH, LOCK, UNLOCK, plus all tests. Should be split into handler submodules. |
-| `web/src/components/file_browser.rs` | 1850 | **Medium** — single UI component; common for Leptos. Acceptable. |
-| `server/tests/integration.rs` | 1790 | **Info** — test file; acceptable. |
-| `web/src/api.rs` | 1081 | **Medium** — API client with many endpoints; could split by domain. |
-| `server/src/wasm_upload.rs` | 594 | **Low** — upload handler + tests; acceptable. |
+| `server/src/webdav.rs` | 1994 | **High**; handles OPTIONS, GET, PUT, DELETE, MKCOL, COPY, MOVE, PROPFIND, PROPPATCH, LOCK, UNLOCK, plus all tests. Should be split into handler submodules. |
+| `web/src/components/file_browser.rs` | 1850 | **Medium**; single UI component; common for Leptos. Acceptable. |
+| `server/tests/integration.rs` | 1790 | **Info**; test file; acceptable. |
+| `web/src/api.rs` | 1081 | **Medium**; API client with many endpoints; could split by domain. |
+| `server/src/wasm_upload.rs` | 594 | **Low**; upload handler + tests; acceptable. |
 
 ### Module Structure
 
@@ -196,7 +196,7 @@ All SQL queries in `core/src/persistence.rs` and `core/src/sqlx_metadata.rs` use
 
 ### Missing Doc Comments on `pub` Items
 
-**Severity**: Medium — the public API surface lacks documentation.
+**Severity**: Medium; the public API surface lacks documentation.
 
 #### `ferro_common` (14 undocumented items)
 
@@ -269,13 +269,13 @@ All SQL queries in `core/src/persistence.rs` and `core/src/sqlx_metadata.rs` use
 
 ### Priority Actions
 
-1. **[High] Restrict `decode_claims_unsafe` visibility** — `server/src/auth/oidc.rs:242`. Change to `pub(crate)` to prevent accidental use in production auth flows.
-2. **[High] Fix OIDC middleware plain-text error responses** — `server/src/auth/oidc.rs:298,302`. Return JSON via `ApiError::unauthorized()` for consistent API errors.
-3. **[High] Fail startup on default WOPI secret in production** — `server/src/lib.rs:113`. Add config validation that refuses to start with the default secret.
-4. **[High] Use constant-time comparison for share passwords** — `server/src/shares.rs:165`. Use `subtle::ConstantTimeEq`.
+1. **[High] Restrict `decode_claims_unsafe` visibility**; `server/src/auth/oidc.rs:242`. Change to `pub(crate)` to prevent accidental use in production auth flows.
+2. **[High] Fix OIDC middleware plain-text error responses**; `server/src/auth/oidc.rs:298,302`. Return JSON via `ApiError::unauthorized()` for consistent API errors.
+3. **[High] Fail startup on default WOPI secret in production**; `server/src/lib.rs:113`. Add config validation that refuses to start with the default secret.
+4. **[High] Use constant-time comparison for share passwords**; `server/src/shares.rs:165`. Use `subtle::ConstantTimeEq`.
 5. **[Medium] Migrate error responses in `wasm_upload.rs`, `snapshots.rs`, `workers.rs` to use `ApiError`** for consistent `error_code` field.
 6. **[Medium] Add doc comments to all `pub` items** in `ferro_common`, `ferro_core`, and `ferro_server`.
-7. **[Medium] Hash share passwords** instead of storing plaintext — `server/src/shares.rs:18`.
+7. **[Medium] Hash share passwords** instead of storing plaintext; `server/src/shares.rs:18`.
 8. **[Medium] Split `webdav.rs`** (1994 lines) into submodules by HTTP method or resource type.
-9. **[Medium] Reduce module visibility** in `server/src/lib.rs` — change internal modules from `pub` to `pub(crate)`.
-10. **[Low] Fix potential panic in `shares.rs:199`** — use `unwrap_or_else` for header value construction.
+9. **[Medium] Reduce module visibility** in `server/src/lib.rs`; change internal modules from `pub` to `pub(crate)`.
+10. **[Low] Fix potential panic in `shares.rs:199`**; use `unwrap_or_else` for header value construction.

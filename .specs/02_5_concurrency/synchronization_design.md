@@ -12,7 +12,7 @@
 
 ---
 
-## 1. MetadataLock — Path-Based Read/Write Locking
+## 1. MetadataLock: Path-Based Read/Write Locking
 
 ### Purpose
 
@@ -142,7 +142,7 @@ let pool = PgPoolOptions::new()
 
 ### Cedar Authorizer
 
-Single `Arc<Authorizer>` instance. No pooling needed — Cedar evaluation is CPU-bound and synchronous. The `Authorizer` is `Send + Sync` and safe for concurrent use.
+Single `Arc<Authorizer>` instance. No pooling needed; Cedar evaluation is CPU-bound and synchronous. The `Authorizer` is `Send + Sync` and safe for concurrent use.
 
 ---
 
@@ -162,7 +162,7 @@ Single `Arc<Authorizer>` instance. No pooling needed — Cedar evaluation is CPU
 All async operations (storage, metadata, lock management) run on Tokio's default multi-threaded executor. The default worker thread count is `num_cpus`.
 
 ```rust
-// Default behavior — no annotation needed
+// Default behavior; no annotation needed
 async fn handle_propfind(state: State<WebDavState>, req: Request) -> Response {
     let items = state.storage.list(prefix).await?;  // I/O-bound, runs on Tokio
     // ...
@@ -259,7 +259,7 @@ impl WasmExecutor {
 ### Background Tasks
 
 ```rust
-// Lock expiry cleanup — runs every 60s
+// Lock expiry cleanup; runs every 60s
 tokio::spawn(async move {
     let mut interval = tokio::time::interval(Duration::from_secs(60));
     loop {
@@ -268,7 +268,7 @@ tokio::spawn(async move {
     }
 });
 
-// JWKS refresh — runs every 24h
+// JWKS refresh; runs every 24h
 tokio::spawn(async move {
     let mut interval = tokio::time::interval(Duration::from_secs(86400));
     loop {
@@ -277,7 +277,7 @@ tokio::spawn(async move {
     }
 });
 
-// GC sweep — runs every 1h
+// GC sweep; runs every 1h
 tokio::spawn(async move {
     let mut interval = tokio::time::interval(Duration::from_secs(3600));
     loop {

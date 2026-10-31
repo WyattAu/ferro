@@ -158,11 +158,11 @@ cat docs/compliance/security_assessment.md | grep -A5 "Findings"
 
 ## References
 
-- `deny.toml` — cargo-deny configuration
-- `.github/workflows/ci.yml:179-239` — Security scanning CI
-- `docs/security/penetration_test_scope.md` — Pentest scope document
-- `docs/compliance/security_assessment.md` — Security assessment report
-- `docs/compliance/nist_sp80053_mapping.md` — NIST control mapping
-- `docs/security/security_controls_matrix.md` — Controls matrix
-- `docs/security/attack_scenarios.md` — Attack scenarios
-- `docs/security/audit_scope.md` — Audit scope
+- `deny.toml`; cargo-deny configuration
+- `.github/workflows/ci.yml:179-239`; Security scanning CI
+- `docs/security/penetration_test_scope.md`; Pentest scope document
+- `docs/compliance/security_assessment.md`; Security assessment report
+- `docs/compliance/nist_sp80053_mapping.md`; NIST control mapping
+- `docs/security/security_controls_matrix.md`; Controls matrix
+- `docs/security/attack_scenarios.md`; Attack scenarios
+- `docs/security/audit_scope.md`; Audit scope

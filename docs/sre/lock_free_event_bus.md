@@ -24,9 +24,9 @@ This plan replaces the current `tokio::sync::broadcast`-based event bus with a l
 ## Current Architecture Analysis
 
 ### Event Bus Implementation
-- **File:** `crates/event-bus/src/bus.rs:86-91` — `EventBus` struct
-- **File:** `crates/event-bus/src/bus.rs:118-194` — `publish` method
-- **File:** `crates/event-bus/src/bus.rs:196-262` — `publish_and_wait` method
+- **File:** `crates/event-bus/src/bus.rs:86-91`; `EventBus` struct
+- **File:** `crates/event-bus/src/bus.rs:118-194`; `publish` method
+- **File:** `crates/event-bus/src/bus.rs:196-262`; `publish_and_wait` method
 
 ### Current Bottlenecks
 
@@ -1068,7 +1068,7 @@ cargo fmt --check
 ```
 
 **5.4 Update documentation**
-- **File:** `docs/event-bus-architecture.md` — new architecture doc
+- **File:** `docs/event-bus-architecture.md`; new architecture doc
 
 #### Benchmark Targets (Day 5)
 | Metric | Before | After | Target |

@@ -846,9 +846,9 @@ case_sensitive = true
 | [RFC 3253] | Clemm, G., et al., "Versioning Extensions to WebDAV", RFC 3253, March 2002 |
 | [RFC 3744] | Clemm, G., et al., "WebDAV Access Control Protocol", RFC 3744, May 2004 |
 | [RFC 3986] | Berners-Lee, T., et al., "URI Generic Syntax", RFC 3986, January 2005 |
-| [IEEE 1016] | IEEE Standard for Information Technology — Systems Design — Software Design Descriptions |
+| [IEEE 1016] | IEEE Standard for Information Technology; Systems Design; Software Design Descriptions |
 | [YP-WEBDAV-PROTOCOL-001] | Ferro Yellow Paper: WebDAV Protocol Specification |
-| [FERRO-REQ-001] | Ferro System Requirements — EARS Specification |
+| [FERRO-REQ-001] | Ferro System Requirements; EARS Specification |
 | [DC-WEBDAV] | Ferro Domain Constraints for WebDAV |
 | [TV-WEBDAV] | Ferro Test Vectors for WebDAV |
 

@@ -1,4 +1,4 @@
-# STRIDE Threat Model — Ferro System
+# STRIDE Threat Model: Ferro System
 
 **Document ID:** FERRO-SEC-TM-001
 **Date:** 2026-04-18
@@ -88,7 +88,7 @@ The threat model covers the following components:
 | **Affected Component** | COMP-CAS-002 (CasStore), Cloud Backends |
 | **Severity** | Critical |
 | **Mitigation** | 1. SHA-256 verification on every read (DC-INTEGRITY-001, PROP-CAS-002). 2. Mismatch triggers `IntegrityFailure` error and audit log entry. 3. Atomic puts prevent partial writes (PROP-CAS-003, object_store PutMode::Create). 4. ETag validation on cloud backends. 5. Cloud backend SSE (server-side encryption) recommended (GDPR Art. 32). |
-| **Detection Method** | Every `get_content` computes and compares SHA-256. IntegrityFailure events are audit-logged with hash, path, and timestamp. Alert on any IntegrityFailure — indicates either backend compromise or data corruption. |
+| **Detection Method** | Every `get_content` computes and compares SHA-256. IntegrityFailure events are audit-logged with hash, path, and timestamp. Alert on any IntegrityFailure; indicates either backend compromise or data corruption. |
 
 ### TH-TAMPER-003: Cedar Policy Injection
 
@@ -135,7 +135,7 @@ The threat model covers the following components:
 | **Description** | An administrator modifies Cedar policies (granting unauthorized access, removing security controls) and denies responsibility. Without proper policy change tracking, it is impossible to determine who made the change and when. |
 | **Affected Component** | COMP-POLICY-004 (PolicyStore) |
 | **Severity** | Medium |
-| **Mitigation** | 1. Policy change logging with admin identity, timestamp, full policy diff (before/after). 2. Policy version history stored in database (optimistic concurrency via `version` column). 3. Admin session binding — policy changes require active admin session. 4. Policy rollback capability from version history. 5. MFA required for policy modification (TH-ELEVATE-002). |
+| **Mitigation** | 1. Policy change logging with admin identity, timestamp, full policy diff (before/after). 2. Policy version history stored in database (optimistic concurrency via `version` column). 3. Admin session binding; policy changes require active admin session. 4. Policy rollback capability from version history. 5. MFA required for policy modification (TH-ELEVATE-002). |
 | **Detection Method** | Policy change audit log with admin identity. Alert on policy changes. Policy diff review workflow. Version history enables point-in-time reconstruction. |
 
 ---
@@ -257,7 +257,7 @@ The threat model covers the following components:
 | **Description** | An attacker bypasses Cedar authorization to perform actions they are not permitted to do. This includes exploiting policy evaluation bugs, crafting requests that match unintended policy patterns, or finding routes that skip the Cedar middleware layer. |
 | **Affected Component** | COMP-CEDAR-002 (CedarAuthorizer), Middleware Chain |
 | **Severity** | Critical |
-| **Mitigation** | 1. Cedar deny-by-default guaranteed by evaluation semantics (PROP-AUTH-002, THM-CEDAR-001). 2. Forbid-overrides-permit semantics (deny always wins). 3. No routes exist outside the middleware chain — all paths require auth. 4. Cedar is formally verified in Lean 4 (differential testing with spec). 5. Policy schema validation catches semantic errors at load time. 6. Authorization decision logged for every request (DC-AUTH-LOG-001). |
+| **Mitigation** | 1. Cedar deny-by-default guaranteed by evaluation semantics (PROP-AUTH-002, THM-CEDAR-001). 2. Forbid-overrides-permit semantics (deny always wins). 3. No routes exist outside the middleware chain; all paths require auth. 4. Cedar is formally verified in Lean 4 (differential testing with spec). 5. Policy schema validation catches semantic errors at load time. 6. Authorization decision logged for every request (DC-AUTH-LOG-001). |
 | **Detection Method** | All Cedar decisions (Allow/Deny) audit-logged. Alert on unexpected Allow decisions. Policy evaluation error monitoring (errors default to Deny). Regular authorization test suite execution. |
 
 ### TH-ELEVATE-002: Admin Account Compromise
@@ -279,7 +279,7 @@ The threat model covers the following components:
 | **Description** | A malicious WASM plugin escapes the Wasmtime sandbox to access the host filesystem, network, environment variables, or other system resources, potentially gaining control of the Ferro server process. |
 | **Affected Component** | WASM Plugin System (Wasmtime/WASI), REQ-WASM-003 |
 | **Severity** | Critical |
-| **Mitigation** | 1. Capability-based security: WASI capabilities explicitly granted per plugin (no default access). 2. No raw syscalls from WASM — all host access through WASI API. 3. Wasmtime sandbox provides memory isolation between plugin and host. 4. No filesystem, network, or environment variable access unless explicitly granted. 5. Plugin runs in separate Wasmtime instance (no shared state with host). 6. Fuel metering and memory limits prevent resource-based escape vectors. 7. Regular Wasmtime security updates (cargo-audit). |
+| **Mitigation** | 1. Capability-based security: WASI capabilities explicitly granted per plugin (no default access). 2. No raw syscalls from WASM; all host access through WASI API. 3. Wasmtime sandbox provides memory isolation between plugin and host. 4. No filesystem, network, or environment variable access unless explicitly granted. 5. Plugin runs in separate Wasmtime instance (no shared state with host). 6. Fuel metering and memory limits prevent resource-based escape vectors. 7. Regular Wasmtime security updates (cargo-audit). |
 | **Detection Method** | Wasmtime trap monitoring (plugin attempted unauthorized operation). Audit log for all WASI capability violations. Server health monitoring during/after plugin execution. Periodic security review of plugin code. Monitor Wasmtime CVEs. |
 
 ---
@@ -329,7 +329,7 @@ The threat model covers the following components:
 | TH-DOS-001 | A04:2021 | SC-5, SC-6 | A.12.4 | Art. 32 |
 | TH-DOS-002 | A04:2021 | SC-5 | A.12.4 | Art. 32 |
 | TH-DOS-003 | A04:2021 | SC-7 | A.15.1 | Art. 32 |
-| TH-DOS-004 | A04:2021 | SC-5 | A.12.4 | — |
+| TH-DOS-004 | A04:2021 | SC-5 | A.12.4 | - |
 | TH-DOS-005 | A04:2021 | SC-5, SC-6 | A.12.4 | Art. 32 |
 | TH-ELEVATE-001 | A01:2021 | AC-3, AC-6 | A.9.1 | Art. 25 |
 | TH-ELEVATE-002 | A07:2021 | AC-2, AC-6 | A.8.2 | Art. 32 |

@@ -136,7 +136,7 @@ gh run list --workflow=ci.yml --limit 1 --json jobs --jq '.jobs[] | select(.name
 
 ## References
 
-- `.github/workflows/ci.yml` — CI test pipeline
-- `.github/workflows/quality-gate.yml` — Quality gates
-- `CONTRIBUTING.md` — Testing guidelines
-- `README.md:329-336` — Development section
+- `.github/workflows/ci.yml`; CI test pipeline
+- `.github/workflows/quality-gate.yml`; Quality gates
+- `CONTRIBUTING.md`; Testing guidelines
+- `README.md:329-336`; Development section

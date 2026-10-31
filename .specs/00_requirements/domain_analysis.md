@@ -1,4 +1,4 @@
-# Ferro Domain Analysis — Phase -1: Context Discovery
+# Ferro Domain Analysis: Phase -1: Context Discovery
 
 **Document ID:** FERRO-DA-001
 **Date:** 2026-04-18
@@ -95,18 +95,18 @@ Scoring scale: 1 (trivial) to 10 (extreme)
 
 ### Complexity Rationale
 
-**Core Server (8.0) — Highest**
+**Core Server (8.0); Highest**
 - CAS deduplication requires consistent hashing and atomic reference counting across concurrent uploads
 - Multi-backend storage abstraction must handle partial failures, retries, and eventual consistency differences between S3/GCS/Azure
 - Pre-signed URL generation has security implications (timing attacks, scope leakage)
 - Metadata engine dual-backend (PostgreSQL + LibSQL) requires migration coherence
 
-**Identity & Auth (7.5) — Second Highest**
+**Identity & Auth (7.5); Second Highest**
 - Cedar policy evaluation must be correct; authorization bugs are security vulnerabilities
 - OIDC token lifecycle management across sessions
 - Policy conflict detection and resolution
 
-**Enterprise (7.1) — Third Highest**
+**Enterprise (7.1); Third Highest**
 - Immutable audit log requires append-only guarantees even under adversarial conditions
 - Instant snapshot/rollback on CAS requires careful metadata versioning
 
@@ -116,13 +116,13 @@ Scoring scale: 1 (trivial) to 10 (extreme)
 
 | Subsystem | EN-Only? | Additional Languages Needed | Rationale |
 |-----------|----------|---------------------------|-----------|
-| Core Server | Yes | — | `object_store` crate and Rust ecosystem are EN-documented |
+| Core Server | Yes | - | `object_store` crate and Rust ecosystem are EN-documented |
 | WebDAV | No | **Required:** ZH, RU | RFC 4918/3253 are EN-only, but ZH/RU blog posts document MS Office WebDAV quirks (locking behavior, encoding issues) not covered in RFCs |
 | WOPI | No | **Required:** ZH | OnlyOffice/Collabora have extensive Chinese documentation for WOPI integration edge cases |
 | OIDC/Cedar | No | **Recommended:** ZH | Cedar policy language has growing ZH community; AWS Cedar docs have ZH translations |
-| WASM/WASI | Yes | — | Wasmtime/WASI specs are well-documented in EN |
-| Tantivy | Yes | — | Rust-native, EN-documented |
-| Leptos | Yes | — | Rust-native, EN-documented |
+| WASM/WASI | Yes | - | Wasmtime/WASI specs are well-documented in EN |
+| Tantivy | Yes | - | Rust-native, EN-documented |
+| Leptos | Yes | - | Rust-native, EN-documented |
 | Tauri | No | **Recommended:** ZH, JP | Tauri has large ZH/JP communities with tutorials for rclone sidecar patterns |
 | rclone Integration | No | **Recommended:** ZH | rclone has significant ZH user base; advanced mount configurations better documented in ZH |
 
@@ -130,7 +130,7 @@ Scoring scale: 1 (trivial) to 10 (extreme)
 
 ---
 
-## 6. Risk Assessment — Critical Path Risks (CPRs)
+## 6. Risk Assessment: Critical Path Risks (CPRs)
 
 ### Phase 1: Core Server + Basic WebDAV
 

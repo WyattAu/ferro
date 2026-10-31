@@ -22,7 +22,7 @@ Health checks verify:
 ```
 t=0s    Health check fails
 t=30s   Second health check fails
-t=60s   Third health check fails — region marked unhealthy
+t=60s   Third health check fails; region marked unhealthy
 t=60s   Load balancer begins traffic rerouting
 t=90s   All traffic moved to healthy regions
 t=120s  Database promotion complete in secondary region

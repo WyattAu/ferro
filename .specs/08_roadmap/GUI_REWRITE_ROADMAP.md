@@ -271,21 +271,21 @@ Week 21──24  Phase 7: Polish & Hardening
 | Photos (grid)            | GET /api/v1/photos | Masonry layout, lazy loading                     |
 | Photos (timeline)        | GET /api/v1/photos | Chronological view with date headers            |
 | Photos (albums)          | CRUD /api/v1/albums | Album CRUD, add/remove photos                 |
-| Photos (lightbox)        | — | Full-screen view, swipe, keyboard nav            |
+| Photos (lightbox)        | - | Full-screen view, swipe, keyboard nav            |
 | Photos (EXIF)            | GET /api/v1/photos/:id/exif | Camera, date, GPS, settings display        |
 | Photos (map)             | GET /api/v1/photos/map | Photos plotted by GPS coordinates             |
 | Video player             | GET /api/v1/video/:id/stream | Range request streaming, custom controls  |
-| Video playlist           | — | Queue, shuffle, repeat                           |
+| Video playlist           | - | Queue, shuffle, repeat                           |
 | Audio player             | GET /api/v1/audio/:id/stream | Persistent player, playlist, shuffle      |
-| Audio waveform           | — | Waveform visualization for navigation            |
+| Audio waveform           | - | Waveform visualization for navigation            |
 | Whiteboard (canvas)      | CRUD /api/v1/whiteboard | Drawing tools: pen, shapes, text, eraser    |
 | Whiteboard (collab)      | WS /api/v1/whiteboard | Real-time cursor tracking, sync              |
 | Whiteboard (export)      | GET /api/v1/whiteboard/:id/export | PNG, SVG, PDF export                 |
-| Preview (markdown)       | — | Rendered markdown with syntax highlighting      |
-| Preview (CSV)            | — | Scrollable table with sort                      |
-| Preview (HTML)           | — | Sandboxed iframe rendering                      |
-| Preview (code)           | — | Syntax highlighted code block                   |
-| Thumbnails               | — | On-demand generation, cached, responsive sizes   |
+| Preview (markdown)       | - | Rendered markdown with syntax highlighting      |
+| Preview (CSV)            | - | Scrollable table with sort                      |
+| Preview (HTML)           | - | Sandboxed iframe rendering                      |
+| Preview (code)           | - | Syntax highlighted code block                   |
+| Thumbnails               | - | On-demand generation, cached, responsive sizes   |
 
 ### Week 9
 
@@ -741,12 +741,12 @@ The following features exist in the current frontend (per GUI_AUDIT.md) but are 
 
 | Feature | Current State | Migration Plan |
 |---------|--------------|----------------|
-| **Mail (IMAP)** | AUDIT Section 2.12 — 6 endpoints, account management, folder nav, compose | Defer to Phase 8 or separate project. Requires IMAP client architecture decision. |
-| **Analytics** | AUDIT Section 2.14 — Share link analytics, storage charts, activity timeline | Defer to Phase 8. Low priority compared to core features. |
-| **Graph view** | AUDIT Section 3 — Dependency graph visualization | Include in Phase 3 if time permits. Low priority. |
-| **Custom views** | AUDIT Section 3 — Configurable data table views | Include in Phase 4 if time permits. Low priority. |
-| **Photo editor** | AUDIT Appendix A — Crop, rotate, filters | Include in Phase 3 if time permits. Medium priority. |
-| **Slideshow** | AUDIT Appendix A — Auto-advance, transitions | Include in Phase 3 if time permits. Low priority. |
+| **Mail (IMAP)** | AUDIT Section 2.12; 6 endpoints, account management, folder nav, compose | Defer to Phase 8 or separate project. Requires IMAP client architecture decision. |
+| **Analytics** | AUDIT Section 2.14; Share link analytics, storage charts, activity timeline | Defer to Phase 8. Low priority compared to core features. |
+| **Graph view** | AUDIT Section 3; Dependency graph visualization | Include in Phase 3 if time permits. Low priority. |
+| **Custom views** | AUDIT Section 3; Configurable data table views | Include in Phase 4 if time permits. Low priority. |
+| **Photo editor** | AUDIT Appendix A; Crop, rotate, filters | Include in Phase 3 if time permits. Medium priority. |
+| **Slideshow** | AUDIT Appendix A; Auto-advance, transitions | Include in Phase 3 if time permits. Low priority. |
 
 **Decision required:** Product owner must explicitly approve deferral or assign these to a subsequent project.
 

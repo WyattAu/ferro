@@ -2,8 +2,8 @@
 
 Monitoring for Ferro with pre-built dashboards and alerting rules. Supports two monitoring stacks:
 
-- **Grafana + Loki** — Industry-standard log aggregation with Prometheus metrics
-- **VictoriaMetrics + VictoriaLogs** — High-performance alternative with lower resource usage
+- **Grafana + Loki**; Industry-standard log aggregation with Prometheus metrics
+- **VictoriaMetrics + VictoriaLogs**; High-performance alternative with lower resource usage
 
 ## Quick Start
 
@@ -92,10 +92,10 @@ graph LR
 
 When importing, select the appropriate datasource for each variable:
 
-- `${DS_PROMETHEUS}` — Prometheus or VictoriaMetrics
-- `${DS_LOKI}` — Loki datasource
-- `${DS_VICTORIAMETRICS}` — VictoriaMetrics datasource
-- `${DS_VICTORIALOGS}` — VictoriaLogs datasource
+- `${DS_PROMETHEUS}`; Prometheus or VictoriaMetrics
+- `${DS_LOKI}`; Loki datasource
+- `${DS_VICTORIAMETRICS}`; VictoriaMetrics datasource
+- `${DS_VICTORIALOGS}`; VictoriaLogs datasource
 
 Dashboards are also auto-provisioned if you use the provided Docker Compose config (they mount into `/etc/grafana/provisioning/dashboards/`).
 

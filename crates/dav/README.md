@@ -17,29 +17,29 @@ CalDAV and CardDAV protocol implementations for the Ferro platform. Provides iCa
 
 ### Parsers
 
-- **`parse_ical`** / **`serialize_ical`** — RFC 5545 iCalendar parser and serializer
-- **`parse_vcard`** / **`serialize_vcard`** — RFC 6350 vCard parser and serializer
-- **`IcalComponent`**, **`IcalProperty`** — structured iCalendar representation
-- **`Vcard`**, **`VcardValue`**, **`VcardAddress`** — structured vCard representation
+- **`parse_ical`** / **`serialize_ical`**; RFC 5545 iCalendar parser and serializer
+- **`parse_vcard`** / **`serialize_vcard`**; RFC 6350 vCard parser and serializer
+- **`IcalComponent`**, **`IcalProperty`**; structured iCalendar representation
+- **`Vcard`**, **`VcardValue`**, **`VcardAddress`**; structured vCard representation
 
 ### Store Traits
 
-- **`CalendarStore`** — trait for calendar CRUD and time-range event queries
-- **`AddressBookStore`** — trait for address book CRUD and contact management
-- **`InMemoryCalendarStore`** — thread-safe in-memory calendar store (with optional SQLite persistence)
-- **`InMemoryAddressBookStore`** — thread-safe in-memory address book store (with optional SQLite persistence)
-- **`DynCalendarStore`** / **`DynAddressBookStore`** — type-erased `Arc<dyn ...>` aliases
+- **`CalendarStore`**; trait for calendar CRUD and time-range event queries
+- **`AddressBookStore`**; trait for address book CRUD and contact management
+- **`InMemoryCalendarStore`**; thread-safe in-memory calendar store (with optional SQLite persistence)
+- **`InMemoryAddressBookStore`**; thread-safe in-memory address book store (with optional SQLite persistence)
+- **`DynCalendarStore`** / **`DynAddressBookStore`**; type-erased `Arc<dyn ...>` aliases
 
 ### Handlers (requires `handlers` feature)
 
-- **`CalDavState`** / **`caldav::*`** — CalDAV Axum router handlers (OPTIONS, PROPFIND, REPORT, MKCALENDAR, GET, PUT, DELETE)
-- **`CardDavState`** / **`carddav::*`** — CardDAV Axum router handlers (OPTIONS, PROPFIND, REPORT, GET, PUT, DELETE)
+- **`CalDavState`** / **`caldav::*`**; CalDAV Axum router handlers (OPTIONS, PROPFIND, REPORT, MKCALENDAR, GET, PUT, DELETE)
+- **`CardDavState`** / **`carddav::*`**; CardDAV Axum router handlers (OPTIONS, PROPFIND, REPORT, GET, PUT, DELETE)
 
 ### XML Utilities
 
-- **`build_dav_multistatus`** — build WebDAV multistatus XML responses
-- **`parse_calendar_query_time_range`** — extract time-range filters from calendar-query REPORT
-- **`parse_addressbook_query_filter`** — extract filters from addressbook-query REPORT
+- **`build_dav_multistatus`**; build WebDAV multistatus XML responses
+- **`parse_calendar_query_time_range`**; extract time-range filters from calendar-query REPORT
+- **`parse_addressbook_query_filter`**; extract filters from addressbook-query REPORT
 
 ## Usage
 

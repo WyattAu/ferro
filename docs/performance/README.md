@@ -144,9 +144,9 @@ cargo valgrind
 | Memory usage | <512MB | ~256MB |
 | CPU usage | <50% | ~30% |
 
-> **Note 2026-09-03:** `cargo check` 21s, `238 passed` `ferro-server --lib`. Profiling gap remains — see `docs/sre/performance_optimization_plan.md` (flamegraph `ConcurrencyLimitLayer`, `Mutex<rusqlite::Connection>` `crates/common/src/lib.rs:46`, `VACUUM INTO` `crates/server/src/startup.rs:982`). Tunnel same-host direct `http://127.0.0.1:8081` tested `530 1033` and reverted to `https://127.0.0.1:443` `keepAlive 10/90s`.
+> **Note 2026-09-03:** `cargo check` 21s, `238 passed` `ferro-server --lib`. Profiling gap remains; see `docs/sre/performance_optimization_plan.md` (flamegraph `ConcurrencyLimitLayer`, `Mutex<rusqlite::Connection>` `crates/common/src/lib.rs:46`, `VACUUM INTO` `crates/server/src/startup.rs:982`). Tunnel same-host direct `http://127.0.0.1:8081` tested `530 1033` and reverted to `https://127.0.0.1:443` `keepAlive 10/90s`.
 
-## 2026-09-11 benchmark — app vs tunnel separation
+## 2026-09-11 benchmark: app vs tunnel separation
 
 Method: 10× sequential per endpoint, from TrueNAS localhost (container) vs
 from the dev machine through the Cloudflare tunnel.
@@ -158,7 +158,7 @@ from the dev machine through the Cloudflare tunnel.
 | GET /api/users/me (RS256 verify) | 1.1 ms | 120 ms |
 
 Conclusions:
-- App-side latency is 1-2 ms per request — 50× inside the 100 ms target.
+- App-side latency is 1-2 ms per request; 50× inside the 100 ms target.
   The historical "1.55 s p99" and "48 req/s" figures measured serial
   curl requests through the tunnel: each paid TLS handshake + edge RTT.
 - Under 20-way concurrent load, tunnel latency stays flat (~100-117 ms).

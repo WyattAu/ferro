@@ -1,6 +1,6 @@
 # Ferro Deployment Guide
 
-Ferro can be deployed on multiple platforms. All configurations are modular — enable only the components you need.
+Ferro can be deployed on multiple platforms. All configurations are modular; enable only the components you need.
 
 ## Quick Start
 
@@ -39,10 +39,10 @@ POSTGRES_PASSWORD=your-password docker compose -f docker-compose.yml -f docker-c
 
 The Docker Compose configs use a layered overlay pattern:
 
-- `docker-compose.yml` — Base: Ferro only
-- `docker-compose.pg.yml` — Overlay: Adds PostgreSQL
-- `docker-compose.redis.yml` — Overlay: Adds Redis
-- `docker-compose.full.yml` — Documents full stack composition
+- `docker-compose.yml`; Base: Ferro only
+- `docker-compose.pg.yml`; Overlay: Adds PostgreSQL
+- `docker-compose.redis.yml`; Overlay: Adds Redis
+- `docker-compose.full.yml`; Documents full stack composition
 
 Combine layers with `-f` flags. Environment variables control configuration:
 
@@ -121,4 +121,4 @@ All deployments follow security best practices:
 - `cap-drop: ALL` with minimal capabilities added back
 - Resource limits on all containers
 - Health checks on all services
-- No secrets in configuration files — use environment variables
+- No secrets in configuration files; use environment variables

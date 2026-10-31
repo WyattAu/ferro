@@ -1,4 +1,4 @@
-# Ferro Docker Image Audit — EvergreenImageRegistry Standards Compliance
+# Ferro Docker Image Audit: EvergreenImageRegistry Standards Compliance
 
 **Date:** 2026-06-12
 **Auditor:** Nexus (Principal Systems Architect)
@@ -20,18 +20,18 @@
 
 ## Detailed Audit per Constraint
 
-### C001: Non-root Execution (UID 65532) — CRITICAL
+### C001: Non-root Execution (UID 65532): CRITICAL
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
 | `Dockerfile` | **FAIL** | Uses UID 1000 (`ferro:ferro`), not 65532 |
-| `Dockerfile.web` | **FAIL** | No USER directive — runs as root |
-| `Dockerfile.admin` | **FAIL** | No USER directive — runs as root |
-| `Dockerfile.firecracker` | **FAIL** | No USER directive — runs as root |
+| `Dockerfile.web` | **FAIL** | No USER directive; runs as root |
+| `Dockerfile.admin` | **FAIL** | No USER directive; runs as root |
+| `Dockerfile.firecracker` | **FAIL** | No USER directive; runs as root |
 
 **Required fix:** All images MUST run as `USER 65532:65532` (OpenShift nonroot range).
 
-### C002: Read-Only Root Filesystem — CRITICAL
+### C002: Read-Only Root Filesystem: CRITICAL
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
@@ -42,7 +42,7 @@
 
 **Required fix:** All writable paths must be mounted volumes. nginx must log to stdout.
 
-### C003: No Shell — CRITICAL
+### C003: No Shell: CRITICAL
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
@@ -53,7 +53,7 @@
 
 **Required fix:** Final stage MUST use `scratch`, `wolfi`, or `distroless`. Shell access is a critical attack vector.
 
-### C004: No Package Manager — CRITICAL
+### C004: No Package Manager: CRITICAL
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
@@ -64,7 +64,7 @@
 
 **Required fix:** All packages must be installed in builder stage and copied to final stage.
 
-### C005: Static Linking — HIGH
+### C005: Static Linking: HIGH
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
@@ -75,7 +75,7 @@
 
 **Required fix:** Build with `CGO_ENABLED=0` and use `rustls` instead of `openssl` for static linking.
 
-### C007: Zero Critical/High CVEs — CRITICAL
+### C007: Zero Critical/High CVEs: CRITICAL
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
@@ -86,19 +86,19 @@
 
 **Required fix:** Add vulnerability scanning to CI/CD pipeline.
 
-### C008: Signed via Cosign — CRITICAL
+### C008: Signed via Cosign: CRITICAL
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
 | All | **FAIL** | No Cosign signing configured |
 
-### C009: SBOM Generated — HIGH
+### C009: SBOM Generated: HIGH
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
 | All | **FAIL** | No SBOM generation configured |
 
-### C015: No Debug Tools — HIGH
+### C015: No Debug Tools: HIGH
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
@@ -107,30 +107,30 @@
 | `Dockerfile.admin` | PASS | No debug tools |
 | `Dockerfile.firecracker` | **FAIL** | `curl` in final stage |
 
-### C016: No Hardcoded Secrets — CRITICAL
+### C016: No Hardcoded Secrets: CRITICAL
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
 | All | PASS | No hardcoded secrets found |
 
-### C018: No sudo/su — HIGH
+### C018: No sudo/su: HIGH
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
 | All | PASS | No sudo/su found |
 
-### C019: Pinned Image Tags — CRITICAL
+### C019: Pinned Image Tags: CRITICAL
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
-| `Dockerfile` | **FAIL** | `rust:1.95-bookworm` — tag, not digest |
-| `Dockerfile.web` | **FAIL** | `rust:1.92` — tag, not digest |
-| `Dockerfile.admin` | **FAIL** | `rust:1.92` — tag, not digest |
-| `Dockerfile.firecracker` | **FAIL** | `alpine:3.19` — tag, not digest |
+| `Dockerfile` | **FAIL** | `rust:1.95-bookworm`; tag, not digest |
+| `Dockerfile.web` | **FAIL** | `rust:1.92`; tag, not digest |
+| `Dockerfile.admin` | **FAIL** | `rust:1.92`; tag, not digest |
+| `Dockerfile.firecracker` | **FAIL** | `alpine:3.19`; tag, not digest |
 
 **Required fix:** Pin FROM to `@sha256:<digest>` for reproducibility.
 
-### Multi-stage Builds — MANDATORY
+### Multi-stage Builds: MANDATORY
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
@@ -139,7 +139,7 @@
 | `Dockerfile.admin` | PASS | 2 stages (builder + nginx) |
 | `Dockerfile.firecracker` | **FAIL** | Single stage (no builder) |
 
-### HEALTHCHECK — MANDATORY
+### HEALTHCHECK: MANDATORY
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
@@ -150,13 +150,13 @@
 
 **Required fix:** Use TCP/HTTP probe via health-shim, not curl.
 
-### OCI Labels — MANDATORY
+### OCI Labels: MANDATORY
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
 | All | **FAIL** | No OCI labels (org.opencontainers.image.*) |
 
-### Configurable UID (C028) — MANDATORY
+### Configurable UID (C028): MANDATORY
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
@@ -165,14 +165,14 @@
 | `Dockerfile.admin` | **FAIL** | No UID configuration |
 | `Dockerfile.firecracker` | **FAIL** | No UID configuration |
 
-### Base Image Hierarchy (ADR-007) — MANDATORY
+### Base Image Hierarchy (ADR-007): MANDATORY
 
 | Dockerfile | Status | Details |
 |------------|--------|---------|
-| `Dockerfile` | **FAIL** | `debian:bookworm-slim` — BANNED |
-| `Dockerfile.web` | **FAIL** | `nginx:alpine` — BANNED (alpine) |
-| `Dockerfile.admin` | **FAIL** | `nginx:alpine` — BANNED (alpine) |
-| `Dockerfile.firecracker` | **FAIL** | `alpine:3.19` — BANNED |
+| `Dockerfile` | **FAIL** | `debian:bookworm-slim`; BANNED |
+| `Dockerfile.web` | **FAIL** | `nginx:alpine`; BANNED (alpine) |
+| `Dockerfile.admin` | **FAIL** | `nginx:alpine`; BANNED (alpine) |
+| `Dockerfile.firecracker` | **FAIL** | `alpine:3.19`; BANNED |
 
 **Permanently banned:** debian-slim, alpine, ubuntu, centos. Use wolfi, distroless, or scratch.
 

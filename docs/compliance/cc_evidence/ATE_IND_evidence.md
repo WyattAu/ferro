@@ -32,8 +32,8 @@ The evaluator shall perform independent testing to verify the security functions
 
 **Total:** 2.6M+ fuzzing iterations
 
-**Corpus:** `fuzz/corpus/` — accumulated test inputs
-**Artifacts:** `fuzz/artifacts/` — crash reproductions
+**Corpus:** `fuzz/corpus/`; accumulated test inputs
+**Artifacts:** `fuzz/artifacts/`; crash reproductions
 
 ### 2. Property-Based Testing (proptest)
 
@@ -58,7 +58,7 @@ CI integration ensures tests catch code mutations that change behavior.
 
 ### 4. Formal Verification (Independent)
 
-**Path:** `formal/` — 19 Lean4 proof files
+**Path:** `formal/`; 19 Lean4 proof files
 
 Properties formally verified:
 - Authentication correctness
@@ -138,9 +138,9 @@ cd formal && lake build
 
 ## References
 
-- `fuzz/` — Fuzz testing targets and corpora
-- `formal/` — Lean4 formal verification
-- `docs/security/penetration_test_scope.md` — Pentest scope
-- `docs/compliance/security_assessment.md` — Security assessment
-- `docs/compliance/nist_sp80053_mapping.md` — NIST control mapping
-- `.github/workflows/sanitizers.yml` — Sanitizer CI
+- `fuzz/`; Fuzz testing targets and corpora
+- `formal/`; Lean4 formal verification
+- `docs/security/penetration_test_scope.md`; Pentest scope
+- `docs/compliance/security_assessment.md`; Security assessment
+- `docs/compliance/nist_sp80053_mapping.md`; NIST control mapping
+- `.github/workflows/sanitizers.yml`; Sanitizer CI

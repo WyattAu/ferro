@@ -15,15 +15,15 @@ The developer shall describe the procedures used to deliver the TOE to customers
 **Trigger:** Push of `v*` tags
 
 **Pipeline:**
-1. **Verify** — Waits for all core CI checks (Clippy, Rustfmt, MSRV, Test, Security Audit) to pass on main
-2. **Build** — Cross-compiles for 6 targets:
+1. **Verify**; Waits for all core CI checks (Clippy, Rustfmt, MSRV, Test, Security Audit) to pass on main
+2. **Build**; Cross-compiles for 6 targets:
    - `x86_64-unknown-linux-gnu` (Linux AMD64)
    - `x86_64-unknown-linux-musl` (Linux AMD64 static)
    - `aarch64-unknown-linux-gnu` (Linux ARM64)
    - `x86_64-apple-darwin` (macOS Intel)
    - `aarch64-apple-darwin` (macOS Apple Silicon)
    - `x86_64-pc-windows-msvc` (Windows)
-3. **Create Release** — GitHub Release with binary artifacts
+3. **Create Release**; GitHub Release with binary artifacts
 
 ### 2. Binary Artifacts
 
@@ -131,8 +131,8 @@ sha256sum target/release/ferro-server
 
 ## References
 
-- `.github/workflows/release.yml` — Release automation
-- `.github/workflows/ci.yml:260-300` — Docker build/publish
-- `.github/workflows/ci.yml:241-258` — SBOM generation
-- `Dockerfile` — Container build
-- `Cargo.lock` — Dependency lock file
+- `.github/workflows/release.yml`; Release automation
+- `.github/workflows/ci.yml:260-300`; Docker build/publish
+- `.github/workflows/ci.yml:241-258`; SBOM generation
+- `Dockerfile`; Container build
+- `Cargo.lock`; Dependency lock file

@@ -10,16 +10,16 @@ Self-hosted storage orchestrator. Rust. WebDAV. Content-addressable. WASM-extend
 73-crate Rust workspace (edition 2024, MSRV 1.92, toolchain 1.95.0). Axum web framework. SQLite WAL for persistence. Content-addressable storage with SHA-256 deduplication.
 
 ```
-ferro-server       Axum binary — WebDAV, REST, CalDAV, CardDAV, WOPI
+ferro-server       Axum binary; WebDAV, REST, CalDAV, CardDAV, WOPI
 ferro-core         Storage backends (memory, local, S3, GCS, Azure)
 ferro-common       Shared types, traits, error handling
 ferro-crypto       SHA-256, HMAC, password hashing, age encryption
 ferro-auth         OIDC (PKCE), Cedar authorization, API keys, WebAuthn
-ferro-dav          WebDAV RFC 4918 — PROPFIND, MKCOL, PUT, LOCK, UNLOCK, COPY, MOVE, PROPPATCH
+ferro-dav          WebDAV RFC 4918; PROPFIND, MKCOL, PUT, LOCK, UNLOCK, COPY, MOVE, PROPPATCH
 ferro-caldav       CalDAV RFC 4791, CardDAV RFC 6352
-ferro-web          Leptos WASM frontend — file browser, search, sharing
+ferro-web          Leptos WASM frontend; file browser, search, sharing
 ferro-desktop      Tauri v2 desktop client (Linux, macOS, Windows)
-ferro-cli          Admin CLI — user management, config, health
+ferro-cli          Admin CLI; user management, config, health
 ferro-distributed  Erasure coding, Raft consensus, geo-replication
 ```
 
@@ -33,14 +33,14 @@ Full crate index: [CONTRIBUTING.md](CONTRIBUTING.md)
 | Access | WebDAV Class 1/2/3, REST API v1, CalDAV, CardDAV, WOPI (Collabora/OnlyOffice) |
 | Auth | OIDC (PKCE), Cedar policies, API keys, TOTP/HOTP, WebAuthn, LDAP |
 | Search | Tantivy full-text with auto-indexing, saved queries, smart collections |
-| Processing | WASM workers — resize, convert, transcode, OCR, watermark |
+| Processing | WASM workers; resize, convert, transcode, OCR, watermark |
 | Sharing | Public links (password/expiry), QR codes, file requests, federated sharing |
 | Collaboration | CRDT real-time editing, chat, comments, tags |
 | Compliance | WORM, retention policies, DLP, antivirus scanning, audit logging |
 | Sync | Bidirectional sync, offline-first, selective sync profiles |
 | Observability | Prometheus metrics, health probes, structured logging |
-| Desktop | Tauri v2 — native file browser, FUSE mount, keyboard shortcuts |
-| Mobile | Tauri v2 — iOS/Android with push notifications (FCM/APNS) |
+| Desktop | Tauri v2; native file browser, FUSE mount, keyboard shortcuts |
+| Mobile | Tauri v2; iOS/Android with push notifications (FCM/APNS) |
 | Federation | ActivityPub cross-instance federation |
 | Multi-tenant | Tenant isolation, per-user quotas, guest accounts |
 
@@ -76,14 +76,14 @@ Priority: CLI flags > environment variables > `ferro.toml` > defaults.
 
 | Flag | Env Var | Default | Description |
 |------|---------|---------|-------------|
-| `--port` | — | `8080` | Server port |
-| `--storage` | — | `memory` | Backend: `memory`, `local:/path`, `s3://bucket`, `gs://bucket`, `az://container` |
-| `--data-dir` | `FERRO_DATA_DIR` | — | Persistence directory (SQLite WAL, CAS, snapshots, audit) |
-| `--oidc-issuer` | `FERRO_OIDC_ISSUER` | — | OIDC issuer URL (enables auth) |
-| `--oidc-client-id` | `FERRO_OIDC_CLIENT_ID` | — | OIDC client ID |
-| `--admin-user` | `FERRO_ADMIN_USER` | — | HTTP Basic Auth username |
-| `--admin-password` | `FERRO_ADMIN_PASSWORD` | — | HTTP Basic Auth password |
-| `--config` | `FERRO_CONFIG` | — | TOML config file path |
+| `--port` | - | `8080` | Server port |
+| `--storage` | - | `memory` | Backend: `memory`, `local:/path`, `s3://bucket`, `gs://bucket`, `az://container` |
+| `--data-dir` | `FERRO_DATA_DIR` | - | Persistence directory (SQLite WAL, CAS, snapshots, audit) |
+| `--oidc-issuer` | `FERRO_OIDC_ISSUER` | - | OIDC issuer URL (enables auth) |
+| `--oidc-client-id` | `FERRO_OIDC_CLIENT_ID` | - | OIDC client ID |
+| `--admin-user` | `FERRO_ADMIN_USER` | - | HTTP Basic Auth username |
+| `--admin-password` | `FERRO_ADMIN_PASSWORD` | - | HTTP Basic Auth password |
+| `--config` | `FERRO_CONFIG` | - | TOML config file path |
 
 Full reference: [docs/configuration.html](https://wyattau.github.io/ferro/configuration.html)
 
@@ -91,7 +91,7 @@ Full reference: [docs/configuration.html](https://wyattau.github.io/ferro/config
 
 | Backend | Build | Env Vars |
 |---------|-------|----------|
-| Local filesystem | default | — |
+| Local filesystem | default | - |
 | Amazon S3 | `--features s3` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` |
 | Google Cloud Storage | `--features gcs` | `GOOGLE_APPLICATION_CREDENTIALS` |
 | Azure Blob Storage | `--features azure` | `AZURE_STORAGE_ACCOUNT_NAME`, `AZURE_STORAGE_ACCOUNT_KEY` |

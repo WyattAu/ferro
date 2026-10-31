@@ -1,4 +1,4 @@
-# Ferro Acceptance Criteria — Must-Priority Requirements
+# Ferro Acceptance Criteria: Must-Priority Requirements
 
 **Document ID:** FERRO-AC-001
 **Date:** 2026-04-18
@@ -6,7 +6,7 @@
 
 ---
 
-## REQ-STOR-001 — Multi-Backend Storage Abstraction
+## REQ-STOR-001: Multi-Backend Storage Abstraction
 
 ### Given/When/Then
 
@@ -61,7 +61,7 @@ Scenario: Backend unavailability does not affect other backends
 
 ---
 
-## REQ-STOR-002 — Content-Addressable Storage (SHA-256)
+## REQ-STOR-002: Content-Addressable Storage (SHA-256)
 
 ### Given/When/Then
 
@@ -102,7 +102,7 @@ Scenario: Partial overwrite preserves unmodified data
 
 ---
 
-## REQ-STOR-005 — Atomic Write Operations
+## REQ-STOR-005: Atomic Write Operations
 
 ### Given/When/Then
 
@@ -136,7 +136,7 @@ Scenario: Concurrent upload race results in one winner
 
 ---
 
-## REQ-STOR-006 — Concurrent Upload Handling
+## REQ-STOR-006: Concurrent Upload Handling
 
 ### Given/When/Then
 
@@ -166,7 +166,7 @@ Scenario: Concurrent uploads to different paths all succeed
 
 ---
 
-## REQ-WEBDAV-001 — RFC 4918 Class 1 Compliance
+## REQ-WEBDAV-001: RFC 4918 Class 1 Compliance
 
 ### Given/When/Then
 
@@ -223,7 +223,7 @@ Scenario: Insufficient storage returns 507
 
 ---
 
-## REQ-WEBDAV-002 — RFC 4918 Class 2 Compliance (Locking)
+## REQ-WEBDAV-002: RFC 4918 Class 2 Compliance (Locking)
 
 ### Given/When/Then
 
@@ -274,7 +274,7 @@ Scenario: UNLOCK releases the lock
 
 ---
 
-## REQ-WEBDAV-004 — rclone Compatibility
+## REQ-WEBDAV-004: rclone Compatibility
 
 ### Given/When/Then
 
@@ -306,7 +306,7 @@ Scenario: Mount Ferro via rclone and perform operations
 
 ---
 
-## REQ-WOPI-005 — File Locking for Concurrent Editing
+## REQ-WOPI-005: File Locking for Concurrent Editing
 
 ### Given/When/Then
 
@@ -344,7 +344,7 @@ Scenario: WOPI lock expires and becomes available
 
 ---
 
-## REQ-AUTH-001 — OpenID Connect Authentication
+## REQ-AUTH-001: OpenID Connect Authentication
 
 ### Given/When/Then
 
@@ -392,7 +392,7 @@ Scenario: Nonce validation prevents replay attacks
 
 ---
 
-## REQ-AUTH-002 — Cedar Policy Engine Integration
+## REQ-AUTH-002: Cedar Policy Engine Integration
 
 ### Given/When/Then
 
@@ -435,7 +435,7 @@ Scenario: Policy with conditions
 
 ---
 
-## REQ-AUTH-003 — Fine-Grained Authorization Policies
+## REQ-AUTH-003: Fine-Grained Authorization Policies
 
 ### Given/When/Then
 
@@ -473,7 +473,7 @@ Scenario: Resource attribute conditions
 
 ---
 
-## REQ-AUTH-004 — Session Management
+## REQ-AUTH-004: Session Management
 
 ### Given/When/Then
 
@@ -514,7 +514,7 @@ Scenario: Absolute session lifetime
 
 ---
 
-## REQ-WASM-003 — Plugin Sandboxing
+## REQ-WASM-003: Plugin Sandboxing
 
 ### Given/When/Then
 
@@ -560,7 +560,7 @@ Scenario: Plugin with explicit filesystem access is scoped
 
 ---
 
-## REQ-WASM-004 — Resource Limits for Plugins
+## REQ-WASM-004: Resource Limits for Plugins
 
 ### Given/When/Then
 
@@ -603,7 +603,7 @@ Scenario: Plugin exceeding wall-clock timeout is terminated
 
 ---
 
-## REQ-WEB-005 — Type-Safe API via Shared Crate
+## REQ-WEB-005: Type-Safe API via Shared Crate
 
 ### Given/When/Then
 
@@ -635,7 +635,7 @@ Scenario: API response types match server implementation
 
 ---
 
-## REQ-DESK-003 — Zero-Config Mount
+## REQ-DESK-003: Zero-Config Mount
 
 ### Given/When/Then
 
@@ -677,7 +677,7 @@ Scenario: Mount survives application restart
 
 ---
 
-## REQ-ENT-001 — Immutable Audit Log
+## REQ-ENT-001: Immutable Audit Log
 
 ### Given/When/Then
 

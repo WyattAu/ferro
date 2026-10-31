@@ -12,7 +12,7 @@
 | **HFT** | Jane Street, Citadel Securities, Jump Trading, Two Sigma | Nanosecond latency, formal verification, zero panics, custom allocators, nightly compiler |
 | **Tier-1 FAANG** | Google, Meta, Apple | Massive-scale CI, 2+ reviewer policy, static analysis at scale, chaos engineering, SLO/SLA |
 | **Tier-2 Big Tech** | Amazon, Netflix, Stripe, Cloudflare | Strong CI/CD, security-first, incident automation, blameless post-mortems |
-| **Ferro (Current)** | — | Our current state |
+| **Ferro (Current)** | - | Our current state |
 
 ---
 
@@ -23,7 +23,7 @@
 | Capability | HFT | Google/Meta | Amazon/Netflix | Ferro | Gap |
 |------------|-----|-------------|----------------|-------|-----|
 | Compiler warnings as errors | Yes | Yes | Yes | **Yes** | PARITY |
-| Clippy `-D warnings` | Yes + pedantic | Yes | Yes | **Yes** (perf/complexity/suspicious) | SMALL — pedantic not enforced workspace-wide |
+| Clippy `-D warnings` | Yes + pedantic | Yes | Yes | **Yes** (perf/complexity/suspicious) | SMALL; pedantic not enforced workspace-wide |
 | Clippy pedantic | Yes (all lints) | Yes | Partial | **No** (ferro-crdt fails) | MEDIUM |
 | `unsafe` block auditing | Yes (every block reviewed) | Yes (OSS-Fuzz + review) | Yes | **Partial** (26 blocks, all SAFETY-commented) | SMALL |
 | Custom lint rules (semantic) | Yes (custom rustc plugins) | Yes (via lint passes) | Partial | **No** | LARGE |
@@ -99,7 +99,7 @@
 | No unwrap in production | Yes (Clippy restriction) | Yes | Yes | **Yes** (2 Mutex poison only) | PARITY |
 | No panic in production | Yes (catch_unwind) | Partial | Partial | **Yes** (0 panics in prod) | PARITY |
 | Error context propagation | Yes (anyhow/custom) | Yes | Yes | **Yes (thiserror + anyhow)** | PARITY |
-| Discarded Results audit | Yes (Clippy `#[must_use]`) | Yes | Yes | **Fixed critical sites** | SMALL — 55 total still |
+| Discarded Results audit | Yes (Clippy `#[must_use]`) | Yes | Yes | **Fixed critical sites** | SMALL; 55 total still |
 | Structured logging | Yes | Yes | Yes | **Yes (tracing)** | PARITY |
 | Error budget (SLO) | Yes | Yes | Yes | **No** | LARGE |
 

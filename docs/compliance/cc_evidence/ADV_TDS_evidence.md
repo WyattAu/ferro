@@ -78,7 +78,7 @@ Key crates with security relevance:
 
 ### 4. Interface Contracts
 
-**Path:** `.specs/02_architecture/interface_contracts/` — **NOT YET CREATED**
+**Path:** `.specs/02_architecture/interface_contracts/`; **NOT YET CREATED**
 
 Key interface contracts are defined through Rust traits:
 
@@ -132,7 +132,7 @@ cargo check --workspace --all-features
 
 ## References
 
-- `.specs/02_architecture/crate_dependency_graph.md` — Full Mermaid graph
-- `crates/server-state/src/lib.rs` — ServerState trait definition
-- `crates/server-state/src/traits.rs` — Supporting trait definitions
-- `docs/compliance/nist_sp80053_mapping.md` — Control-by-control mapping
+- `.specs/02_architecture/crate_dependency_graph.md`; Full Mermaid graph
+- `crates/server-state/src/lib.rs`; ServerState trait definition
+- `crates/server-state/src/traits.rs`; Supporting trait definitions
+- `docs/compliance/nist_sp80053_mapping.md`; Control-by-control mapping

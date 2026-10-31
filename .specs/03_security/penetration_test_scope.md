@@ -1,4 +1,4 @@
-# Penetration Test Scope — Ferro Server
+# Penetration Test Scope: Ferro Server
 
 ## 1. Executive Summary
 
@@ -26,7 +26,7 @@ All endpoints under `/api/` and `/api/v1/`. Key categories:
 #### Authentication
 | Method | Path | Auth Required | Notes |
 |--------|------|---------------|-------|
-| GET | `/api/auth/info` | No | Public — returns auth config |
+| GET | `/api/auth/info` | No | Public; returns auth config |
 | GET | `/api/auth/login` | No | OIDC redirect initiation |
 | GET | `/api/auth/callback` | No | OIDC callback with code exchange |
 | POST | `/api/auth/refresh` | Yes | Token refresh |

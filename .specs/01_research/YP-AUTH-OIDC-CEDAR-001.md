@@ -21,7 +21,7 @@ Ferro requires an authentication and authorization system that supports Single S
 
 ### OIDC Authentication Layer
 
-OpenID Connect Core 1.0 provides an identity layer on top of OAuth 2.0, enabling Relying Parties (RPs) to verify End-User identity via JWT-based ID Tokens issued by an OpenID Provider (OP). Ferro acts as the RP, validating tokens issued by a configurable OP. The Authorization Code Flow (with PKCE for public clients) is the primary authentication mechanism, returning tokens exclusively from the Token Endpoint — never exposing tokens to the User Agent.
+OpenID Connect Core 1.0 provides an identity layer on top of OAuth 2.0, enabling Relying Parties (RPs) to verify End-User identity via JWT-based ID Tokens issued by an OpenID Provider (OP). Ferro acts as the RP, validating tokens issued by a configurable OP. The Authorization Code Flow (with PKCE for public clients) is the primary authentication mechanism, returning tokens exclusively from the Token Endpoint; never exposing tokens to the User Agent.
 
 ### Cedar Authorization Layer
 
@@ -57,7 +57,7 @@ AWS Cedar is a language and evaluation engine for attribute-based access control
 | Refresh Token         | Long-lived token used to obtain new Access/ID Tokens. Stored securely; never sent to the browser.            |
 | OpenID Provider (OP)  | OAuth 2.0 Authorization Server that authenticates End-Users and issues ID Tokens (e.g., Keycloak, Okta).    |
 | Relying Party (RP)    | OAuth 2.0 Client requiring End-User authentication (Ferro acts as the RP).                                   |
-| JWKS                  | JSON Web Key Set — the OP's public key endpoint for signature verification.                                   |
+| JWKS                  | JSON Web Key Set; the OP's public key endpoint for signature verification.                                   |
 | Principal             | Cedar entity representing the authenticated user making an authorization request.                             |
 | Action                | Cedar entity representing the operation the principal wants to perform.                                       |
 | Resource              | Cedar entity representing the target of the action.                                                          |
@@ -71,7 +71,7 @@ AWS Cedar is a language and evaluation engine for attribute-based access control
 | Authorization Request | Cedar tuple `(principal, action, resource, context)` submitted for authorization decision.                  |
 | Decision              | Cedar evaluation result: `Allow` or `Deny`.                                                                   |
 | Determining Policies  | The set of policies whose evaluation determined the final decision.                                           |
-| PKCE                  | Proof Key for Code Exchange — extension to Authorization Code Flow for public clients (RFC 7636).            |
+| PKCE                  | Proof Key for Code Exchange; extension to Authorization Code Flow for public clients (RFC 7636).            |
 | Claim                 | Piece of information asserted about an Entity in a JWT (e.g., `sub`, `iss`, `aud`).                          |
 | Scope                 | OAuth 2.0 mechanism requesting specific access levels (OIDC requires `openid` scope).                        |
 | Authorization Code    | Short-lived, single-use code exchanged at the Token Endpoint for tokens.                                     |
@@ -80,7 +80,7 @@ AWS Cedar is a language and evaluation engine for attribute-based access control
 
 ## YP-4: Theoretical Foundation
 
-### DEF-OIDC-001: OpenID Connect — Formal Model
+### DEF-OIDC-001: OpenID Connect: Formal Model
 
 OpenID Connect (OIDC) is an identity protocol layer on OAuth 2.0 [RFC 6749] that enables End-User authentication via a three-token model.
 
@@ -91,14 +91,14 @@ Token_Triplet = (id_token: JWT, access_token: Opaque|JWT, refresh_token?: Opaque
 ```
 
 1. **ID Token** (`id_token`): A JWS-signed JWT containing authentication claims:
-   - `iss` (REQUIRED): Issuer Identifier — HTTPS URL of the OP.
-   - `sub` (REQUIRED): Subject Identifier — unique, never-reassigned ID for the End-User within the OP.
-   - `aud` (REQUIRED): Audience — must contain the RP's `client_id`.
-   - `exp` (REQUIRED): Expiration time — epoch seconds; token MUST be rejected after this time.
-   - `iat` (REQUIRED): Issued-at time — epoch seconds.
+   - `iss` (REQUIRED): Issuer Identifier; HTTPS URL of the OP.
+   - `sub` (REQUIRED): Subject Identifier; unique, never-reassigned ID for the End-User within the OP.
+   - `aud` (REQUIRED): Audience; must contain the RP's `client_id`.
+   - `exp` (REQUIRED): Expiration time; epoch seconds; token MUST be rejected after this time.
+   - `iat` (REQUIRED): Issued-at time; epoch seconds.
    - `auth_time` (CONDITIONAL): Time of End-User authentication.
    - `nonce` (RECOMMENDED): Associates client session with ID Token; mitigates replay attacks.
-   - `azp` (OPTIONAL): Authorized party — the client to which the token was issued.
+   - `azp` (OPTIONAL): Authorized party; the client to which the token was issued.
 
 2. **Access Token** (`access_token`): Opaque or JWT token granting access to the UserInfo Endpoint and other protected resources. NOT used by Ferro for authorization decisions (Cedar provides that).
 
@@ -161,7 +161,7 @@ OP verifies:      SHA256(code_verifier) == code_challenge
 
 ---
 
-### DEF-CEDAR-001: Cedar Policy Language — Formal Model
+### DEF-CEDAR-001: Cedar Policy Language: Formal Model
 
 Cedar is a declarative policy language for attribute-based access control (ABAC). A Cedar policy is a statement of the form:
 
@@ -248,19 +248,19 @@ action "viewPhoto", "editPhoto", "deletePhoto";
 
 **Claim: Cedar evaluates policies correctly with three key properties: default-deny, forbid-overrides-permit, and skip-on-error.**
 
-**Property 1 — Default-Deny:**
+**Property 1; Default-Deny:**
 
 > For any request `q` and empty policy set `PS = ∅`, `D(q, ∅) = Deny`.
 
 *Proof*: With `permits = ∅` and `forbids = ∅`, the decision falls through to the third case: `D = Deny`. ∎
 
-**Property 2 — Forbid-Overrides-Permit:**
+**Property 2; Forbid-Overrides-Permit:**
 
 > For any request `q` and policy set `PS`, if `forbids ≠ ∅` then `D(q, PS) = Deny`, regardless of `permits`.
 
 *Proof*: The first case in the decision algorithm checks `forbids ≠ ∅` before `permits`. If any forbid policy evaluates to `true`, the decision is immediately `Deny`. ∎
 
-**Property 3 — Skip-on-Error:**
+**Property 3; Skip-on-Error:**
 
 > Policies that evaluate to `error` do not contribute to `permits` or `forbids`. They are reported in diagnostics but do not affect the decision.
 
@@ -448,7 +448,7 @@ function evaluate_policy(request: Request, policy: Policy, entities: Entities) -
     return true
 ```
 
-**Pseudocode — Rust Integration:**
+**Pseudocode; Rust Integration:**
 
 ```rust
 use cedar_policy::{Authorizer, Decision, Entities, PolicySet, Request, Context, EntityUid};
@@ -583,13 +583,13 @@ Domain constraints are defined in `domain_constraints/domain_constraints_auth.to
 
 12. **JSON Web Key (JWK)** (RFC 7517). M. Jones. May 2015. https://tools.ietf.org/html/rfc7517
 
-13. **ISO/IEC 29115:2013** — Entity authentication assurance framework. https://www.iso.org/standard/45138.html
+13. **ISO/IEC 29115:2013**; Entity authentication assurance framework. https://www.iso.org/standard/45138.html
 
 ---
 
 ## R3-6 Addendum (Revision 1.1): Refresh Rotation & DPoP Replay Gate
 
-**Source verified:** RFC 9449 DPoP (datatracker.ietf.org, fetched 2026-10-14) — §4.2 claims, §4.3 checking, §5.8 refresh binding, §11.1 replay.
+**Source verified:** RFC 9449 DPoP (datatracker.ietf.org, fetched 2026-10-14); §4.2 claims, §4.3 checking, §5.8 refresh binding, §11.1 replay.
 
 ### ALG-ROTATION-001
 Refresh tokens are single-use: each accepted refresh rotates the token and records the predecessor as consumed. A consumed token remains in the registry forever, so reuse is always detectable.
@@ -598,10 +598,10 @@ Refresh tokens are single-use: each accepted refresh rotates the token and recor
 DPoP-style proofs (jti + iat window + ath token-hash binding, RFC 9449 §4.2/§4.3) are gated on a per-context seen-set: unseen jti + valid window + matching ath ⇒ accept and record; recorded jti ⇒ reject forever.
 
 ### THM-ROTATION-SINGLE-USE
-`consume` records persist: a token present in the used-set remains present after any subsequent consume — reuse is always detectable. [Proved — Lean `consume_records`, `reuse_detectable`, TokenRotation.lean]
+`consume` records persist: a token present in the used-set remains present after any subsequent consume; reuse is always detectable. [Proved; Lean `consume_records`, `reuse_detectable`, TokenRotation.lean]
 
 ### THM-DPOP-REPLAY-REJECTED / THM-DPOP-ACCEPT-RECORDS / THM-DPOP-NEVER-REACCEPTED
-Replayed jti never validates; acceptance records the jti; an accepted proof is never re-accepted. [Proved — Lean `replay_rejected`, `accept_records`, `accepted_never_reaccepted`]
+Replayed jti never validates; acceptance records the jti; an accepted proof is never re-accepted. [Proved; Lean `replay_rejected`, `accept_records`, `accepted_never_reaccepted`]
 
 ### Comparison
-Keycloak ships refresh rotation without formal single-use proofs; Auth0 documents rotation detection but not as a theorem. The rotation + seen-set pair is the same shape as TCP sequence-number dedup — small, and now proved.
+Keycloak ships refresh rotation without formal single-use proofs; Auth0 documents rotation detection but not as a theorem. The rotation + seen-set pair is the same shape as TCP sequence-number dedup; small, and now proved.
