@@ -117,9 +117,9 @@ impl ShareStore {
         if let Some(ref db) = self.db {
             let conn = db.lock().unwrap_or_else(|e| e.into_inner());
             let allow_download_val = link.allow_download.map(|v| if v { 1i32 } else { 0i32 }).unwrap_or(-1);
-            let _allow_upload_val = link.allow_upload.map(|v| if v { 1i32 } else { 0i32 }).unwrap_or(-1);
+            let allow_upload_val = link.allow_upload.map(|v| if v { 1i32 } else { 0i32 }).unwrap_or(-1);
             if let Err(e) = conn.execute(
-                "INSERT OR REPLACE INTO shares (token, file_path, password, expires_at, created_at, created_by, download_count, max_downloads, is_public, share_type, allow_download, upload_target) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                "INSERT OR REPLACE INTO shares (token, file_path, password, expires_at, created_at, created_by, download_count, max_downloads, is_public, share_type, allow_download, allow_upload, upload_target) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
                 params![
                     link.token,
                     link.path,
@@ -136,6 +136,7 @@ impl ShareStore {
                         _ => "download",
                     },
                     allow_download_val,
+                    allow_upload_val,
                     if link.allow_upload == Some(true) {
                         Some(link.path.clone())
                     } else {
@@ -170,7 +171,12 @@ impl ShareStore {
     }
 
     pub fn load_all_from_db(conn: &rusqlite::Connection) -> Result<Vec<ShareLink>, rusqlite::Error> {
-        let has_extended = conn.prepare("SELECT share_type FROM shares LIMIT 0").is_ok();
+        // The probe must cover EVERY column the extended SELECT touches:
+        // probing share_type alone let databases without allow_upload take
+        // the extended branch, fail to prepare, and silently load nothing.
+        let has_extended = conn
+            .prepare("SELECT share_type, allow_download, allow_upload FROM shares LIMIT 0")
+            .is_ok();
         let mut stmt = if has_extended {
             conn.prepare(
                 "SELECT token, file_path, password, expires_at, created_by, download_count, max_downloads, allow_download, allow_upload FROM shares",
@@ -186,10 +192,15 @@ impl ShareStore {
                 .map(|dt| dt.with_timezone(&chrono::Utc))
                 .unwrap_or_else(|_| Utc::now());
             if has_extended {
-                let allow_download_raw: Option<i32> = row.get(7).ok();
-                let allow_upload_raw: Option<i32> = row.get(8).ok();
-                let allow_download = allow_download_raw.map(|v| v != 0);
-                let allow_upload = allow_upload_raw.map(|v| v != 0);
+                // -1 is the persist side's "unset" sentinel; only 0/1 are
+                // real values, anything else restores as None.
+                let tri = |v: Option<i32>| match v {
+                    Some(1) => Some(true),
+                    Some(0) => Some(false),
+                    _ => None,
+                };
+                let allow_download = tri(row.get(7).ok());
+                let allow_upload = tri(row.get(8).ok());
                 Ok(ShareLink {
                     token: row.get(0)?,
                     path: row.get(1)?,

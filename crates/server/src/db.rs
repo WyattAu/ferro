@@ -29,6 +29,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("015", include_str!("../../../migrations/015_users_wipe_pending.sql")),
     ("016", include_str!("../../../migrations/016_groups.sql")),
     ("017", include_str!("../../../migrations/017_tasks_owner.sql")),
+    // 018 must stay after 011–017: migrations apply in list order gated by
+    // `version > current`, so inserting it out of list position would make
+    // fresh databases skip the higher-numbered migrations that follow it.
+    ("018", include_str!("../../../migrations/018_shares_allow_upload.sql")),
 ];
 
 fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
