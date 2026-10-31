@@ -366,7 +366,14 @@ async fn test_carddav_mkcol() {
         .await
         .unwrap();
 
-    assert_eq!(resp.status(), StatusCode::CREATED, "MKCOL should return 201 Created");
+    // RFC 4918 §9.3: MKCOL fails with 409 when an intermediate collection
+    // does not exist. /dav/card/mkcol-test/ is never created, so creating
+    // mkcol-test/sub must be rejected — litmus enforces the same rule.
+    assert_eq!(
+        resp.status(),
+        StatusCode::CONFLICT,
+        "MKCOL under a missing parent must return 409 Conflict"
+    );
 }
 
 #[tokio::test]
