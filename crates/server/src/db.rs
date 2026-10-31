@@ -4,7 +4,7 @@ use tracing::info;
 pub use common::DbHandle;
 
 #[cfg(test)]
-const SCHEMA_VERSION: i64 = 17;
+const SCHEMA_VERSION: i64 = 18;
 
 const MIGRATIONS: &[(&str, &str)] = &[
     ("001", include_str!("../../../migrations/001_initial_schema.sql")),

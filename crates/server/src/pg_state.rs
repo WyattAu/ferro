@@ -23,12 +23,25 @@ impl PgShareStore {
                 max_downloads INTEGER,
                 download_count INTEGER NOT NULL DEFAULT 0,
                 created_by TEXT NOT NULL DEFAULT 'anonymous',
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                allow_download BOOLEAN,
+                allow_upload BOOLEAN
             )
         "#,
         )
         .execute(&pool)
         .await?;
+
+        // Deployments created before the flag columns existed: CREATE TABLE
+        // IF NOT EXISTS does not alter an existing table.
+        for ddl in [
+            "ALTER TABLE shares ADD COLUMN IF NOT EXISTS allow_download BOOLEAN",
+            "ALTER TABLE shares ADD COLUMN IF NOT EXISTS allow_upload BOOLEAN",
+        ] {
+            if let Err(e) = sqlx::query(ddl).execute(&pool).await {
+                tracing::warn!(error = %e, ddl, "shares flag column migration failed");
+            }
+        }
 
         debug!("PgShareStore initialized");
         Ok(Self { pool })
@@ -48,7 +61,7 @@ impl crate::shares::ShareStoreTrait for PgShareStore {
 
         if let Err(e) = sqlx::query(
             r#"
-            INSERT INTO shares (token, path, password, expires_at, max_downloads, created_by)
+            INSERT INTO shares (token, path, password, expires_at, max_downloads, created_by, allow_download, allow_upload) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             VALUES ($1, $2, $3, $4, $5, $6)
         "#,
         )
@@ -58,6 +71,8 @@ impl crate::shares::ShareStoreTrait for PgShareStore {
         .bind(expires_at)
         .bind(max_downloads)
         .bind(&created_by)
+        .bind(req.allow_download)
+        .bind(req.allow_upload)
         .execute(&self.pool)
         .await
         {
@@ -78,16 +93,35 @@ impl crate::shares::ShareStoreTrait for PgShareStore {
     }
 
     async fn get(&self, token: &str) -> Option<ShareLink> {
-        let row: Option<(String, String, Option<String>, chrono::DateTime<Utc>, Option<i32>, i32, String)> =
-            sqlx::query_as(
-                "SELECT token, path, password, expires_at, max_downloads, download_count, created_by FROM shares WHERE token = $1"
-            )
-            .bind(token)
-            .fetch_optional(&self.pool)
-            .await
-            .ok()?;
+        let row: Option<(
+            String,
+            String,
+            Option<String>,
+            chrono::DateTime<Utc>,
+            Option<i32>,
+            i32,
+            String,
+            Option<bool>,
+            Option<bool>,
+        )> = sqlx::query_as(
+            "SELECT token, path, password, expires_at, max_downloads, download_count, created_by, allow_download, allow_upload FROM shares WHERE token = $1"
+        )
+        .bind(token)
+        .fetch_optional(&self.pool)
+        .await
+        .ok()?;
 
-        let (token, path, password, expires_at, max_downloads, download_count, created_by) = row?;
+        let (
+            token,
+            path,
+            password,
+            expires_at,
+            max_downloads,
+            download_count,
+            created_by,
+            allow_download,
+            allow_upload,
+        ) = row?;
 
         Some(ShareLink {
             token,
@@ -97,8 +131,8 @@ impl crate::shares::ShareStoreTrait for PgShareStore {
             max_downloads: max_downloads.map(|d| d as u32),
             download_count: download_count as u32,
             created_by,
-            allow_download: None,
-            allow_upload: None,
+            allow_download,
+            allow_upload,
         })
     }
 
@@ -114,17 +148,36 @@ impl crate::shares::ShareStoreTrait for PgShareStore {
     }
 
     async fn list(&self) -> Vec<ShareLink> {
-        let rows: Vec<(String, String, Option<String>, chrono::DateTime<Utc>, Option<i32>, i32, String)> =
-            sqlx::query_as(
-                "SELECT token, path, password, expires_at, max_downloads, download_count, created_by FROM shares ORDER BY created_at DESC"
-            )
-            .fetch_all(&self.pool)
-            .await
-            .unwrap_or_default();
+        let rows: Vec<(
+            String,
+            String,
+            Option<String>,
+            chrono::DateTime<Utc>,
+            Option<i32>,
+            i32,
+            String,
+            Option<bool>,
+            Option<bool>,
+        )> = sqlx::query_as(
+            "SELECT token, path, password, expires_at, max_downloads, download_count, created_by, allow_download, allow_upload FROM shares ORDER BY created_at DESC"
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap_or_default();
 
         rows.into_iter()
             .map(
-                |(token, path, password, expires_at, max_downloads, download_count, created_by)| {
+                |(
+                    token,
+                    path,
+                    password,
+                    expires_at,
+                    max_downloads,
+                    download_count,
+                    created_by,
+                    allow_download,
+                    allow_upload,
+                )| {
                     ShareLink {
                         token,
                         path,
@@ -133,8 +186,8 @@ impl crate::shares::ShareStoreTrait for PgShareStore {
                         max_downloads: max_downloads.map(|d| d as u32),
                         download_count: download_count as u32,
                         created_by,
-                        allow_download: None,
-                        allow_upload: None,
+                        allow_download,
+                        allow_upload,
                     }
                 },
             )
