@@ -338,7 +338,7 @@ pub fn Header() -> impl IntoView {
                                 .into_any()
                             } else {
                                 view! {
-                                    <img src="/logo_notext.png" alt=t!("brand.name") class="h-10 w-auto object-contain" />
+                                    <img src="/ui/logo_notext.png" alt=t!("brand.name") class="h-10 w-auto object-contain" />
                                 }
                                 .into_any()
                             }
@@ -410,8 +410,14 @@ pub fn Header() -> impl IntoView {
                             return view! { <div class="hidden"></div> }.into_any();
                         }
 
-                        if let (Some(_token), Some(user)) = (token, user) {
-                            let display_name = user.name.unwrap_or_else(|| user.email.unwrap_or(user.sub));
+                        // Basic mode has no bearer token; a resolved user
+                        // (set by init_auth after verifying credentials) is
+                        // the session marker there.
+                        let authenticated = token.is_some() || user.is_some();
+                        if authenticated {
+                            let display_name = user
+                                .map(|u| u.name.unwrap_or_else(|| u.email.unwrap_or(u.sub)))
+                                .unwrap_or_else(|| "admin".to_string());
                             let auth_st = auth_state.clone();
                             view! {
                                 <div class="flex items-center gap-2 sm:gap-3">

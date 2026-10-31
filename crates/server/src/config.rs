@@ -9,9 +9,17 @@ pub use ferro_server_config::*;
 
 /// GET /api/config — return server configuration and capabilities.
 pub async fn get_server_config_impl<S: ServerState>(state: &S) -> Response {
+    let auth_mode = if state.oidc().is_some() {
+        "oidc"
+    } else if state.admin_user().is_some() {
+        "basic"
+    } else {
+        "none"
+    };
     let body = serde_json::json!({
         "version": env!("CARGO_PKG_VERSION"),
         "auth_enabled": state.auth_enabled(),
+        "auth_mode": auth_mode,
         "search_enabled": state.search().is_some(),
         "wasm_enabled": state.wasm_runtime().is_some(),
         "wasm_workers_enabled": state.wasm_runtime().is_some(),

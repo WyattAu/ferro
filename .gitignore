@@ -14,3 +14,4 @@ scripts/__pycache__/
 formal/.lake/build/
 e2e/test-results/
 load-test-results.json
+.playwright-mcp/

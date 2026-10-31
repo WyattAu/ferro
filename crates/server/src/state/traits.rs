@@ -1073,7 +1073,11 @@ impl ferro_server_state::ServerState for AppState {
     }
 
     fn auth_enabled(&self) -> bool {
-        self.oidc.is_some()
+        // auth is "enabled" in both configured modes: OIDC federation and the
+        // simple admin/basic mode. Reporting only OIDC here told the web UI
+        // there was no auth at all in basic mode, so it never asked for
+        // credentials and every authenticated call failed with 403.
+        self.oidc.is_some() || self.admin_user.is_some()
     }
 
     fn wopi_office_url(&self) -> &str {

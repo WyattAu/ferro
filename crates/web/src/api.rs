@@ -43,6 +43,8 @@ pub struct ListingResponse {
 pub struct AuthResponse {
     pub login_url: Option<String>,
     pub configured: bool,
+    /// "oidc" | "basic" | "none" — how the server authenticates users.
+    pub auth_mode: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -509,13 +511,24 @@ pub async fn get_auth_config() -> Result<AuthResponse, String> {
     let text = fetch_text("/api/config", &opts).await?;
     let config: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
 
+    let configured = config.get("auth_enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+    // Older servers only reported auth_enabled (then meaning "OIDC"); basic
+    // mode sends the whole Authorization header it was given, so treat a
+    // missing auth_mode on an auth-enabled server as oidc for that flow.
+    let auth_mode = if configured {
+        config
+            .get("auth_mode")
+            .and_then(|v| v.as_str())
+            .unwrap_or("oidc")
+            .to_string()
+    } else {
+        "none".to_string()
+    };
+
     Ok(AuthResponse {
-        login_url: config
-            .get("auth_enabled")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false)
-            .then(|| "/api/auth/login".to_string()),
-        configured: config.get("auth_enabled").and_then(|v| v.as_bool()).unwrap_or(false),
+        login_url: configured.then(|| "/api/auth/login".to_string()),
+        configured,
+        auth_mode,
     })
 }
 
@@ -524,6 +537,7 @@ pub async fn get_auth_config() -> Result<AuthResponse, String> {
     Ok(AuthResponse {
         login_url: None,
         configured: false,
+        auth_mode: "none".to_string(),
     })
 }
 
@@ -627,6 +641,41 @@ pub async fn fetch_json(url: &str) -> Result<serde_json::Value, String> {
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_json(_url: &str) -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({}))
+}
+
+/// Verify a Basic header against the server. `/api/auth/info` is public and
+/// always reports sub "anonymous" in basic mode, so the real probe is an
+/// authenticated endpoint: file listing answers 200 with valid credentials
+/// and 401 without.
+#[cfg(target_arch = "wasm32")]
+pub async fn verify_basic_auth(header: &str) -> bool {
+    let opts = web_sys::RequestInit::new();
+    opts.set_method("GET");
+    let headers = match web_sys::Headers::new() {
+        Ok(h) => h,
+        Err(_) => return false,
+    };
+    let _ = headers.set("Authorization", header);
+    opts.set_headers(&headers);
+    let request = match web_sys::Request::new_with_str_and_init("/api/v1/files?path=/", &opts) {
+        Ok(r) => r,
+        Err(_) => return false,
+    };
+    let Some(window) = web_sys::window() else {
+        return false;
+    };
+    match wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request)).await {
+        Ok(resp_value) => {
+            let resp: web_sys::Response = resp_value.into();
+            resp.ok()
+        }
+        Err(_) => false,
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn verify_basic_auth(_header: &str) -> bool {
+    false
 }
 
 #[cfg(target_arch = "wasm32")]

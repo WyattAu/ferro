@@ -16,6 +16,8 @@ const STORAGE_KEY: &str = "ferro_access_token";
 const REFRESH_KEY: &str = "ferro_refresh_token";
 #[allow(dead_code)] // Used by WASM runtime
 const OIDC_LOGOUT_KEY: &str = "ferro_oidc_logout_url";
+#[allow(dead_code)] // Used by WASM runtime
+const BASIC_KEY: &str = "ferro_basic_auth";
 
 #[derive(Clone)]
 #[allow(dead_code)] // Used by WASM runtime
@@ -156,7 +158,142 @@ fn read_oidc_logout_url() -> Option<String> {
 
 #[cfg(target_arch = "wasm32")]
 pub fn get_auth_header() -> Option<String> {
-    read_stored_token().map(|t| format!("Bearer {}", t))
+    if let Some(token) = read_stored_token() {
+        return Some(format!("Bearer {}", token));
+    }
+    // Simple/basic auth mode: the whole "Basic dXNlcjpwYXNz" header value is
+    // stored, so no credential revelation can happen here.
+    read_stored_basic()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn read_stored_basic() -> Option<String> {
+    get_local_storage()?.get_item(BASIC_KEY).ok()?
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn store_basic_auth(header: &str) {
+    if let Some(storage) = get_local_storage() {
+        let _ = storage.set_item(BASIC_KEY, header);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn clear_stored_basic() {
+    if let Some(storage) = get_local_storage() {
+        let _ = storage.remove_item(BASIC_KEY);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn store_basic_auth(_header: &str) {}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn clear_stored_basic() {}
+
+/// Build a Basic authorization header per RFC 7617: `user:pass` in UTF-8,
+/// base64-encoded. Username and password must not contain a colon; the
+/// username is percent-rejected up front so header injection is impossible.
+pub fn basic_auth_header(username: &str, password: &str) -> Result<String, String> {
+    if username.contains(':') {
+        return Err("Username must not contain ':".to_string());
+    }
+    if username.is_empty() && password.is_empty() {
+        return Err("Username and password are required".to_string());
+    }
+    let creds = format!("{username}:{password}");
+    Ok(format!("Basic {}", base64(creds.as_bytes())))
+}
+
+/// Minimal RFC 4648 standard base64 (with padding) — the web crate has no
+/// base64 dependency and btoa() via js_sys requires a live document.
+fn base64(input: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
+    for chunk in input.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = chunk.get(1).copied().unwrap_or(0) as u32;
+        let b2 = chunk.get(2).copied().unwrap_or(0) as u32;
+        let n = (b0 << 16) | (b1 << 8) | b2;
+        out.push(ALPHABET[(n >> 18) as usize & 63] as char);
+        out.push(ALPHABET[(n >> 12) as usize & 63] as char);
+        out.push(if chunk.len() > 1 {
+            ALPHABET[(n >> 6) as usize & 63] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            ALPHABET[n as usize & 63] as char
+        } else {
+            '='
+        });
+    }
+    out
+}
+
+/// Mode of the login page's auth flow, shared between the config fetch and
+/// the rendered view. Defaults to "oidc" (the historical behavior) until the
+/// server config resolves. Kept in a thread_local so it survives view
+/// rebuilds; the web runtime is single-threaded.
+pub fn login_page_mode_signal() -> (ReadSignal<String>, WriteSignal<String>) {
+    thread_local! {
+        static MODE: std::cell::RefCell<Option<(ReadSignal<String>, WriteSignal<String>)>> =
+            const { std::cell::RefCell::new(None) };
+    }
+    MODE.with_borrow_mut(|m| {
+        if m.is_none() {
+            *m = Some(signal("oidc".to_string()));
+        }
+        *m.as_ref().unwrap()
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn set_login_page_mode(mode: &str) {
+    let mode = if mode.is_empty() { "oidc" } else { mode };
+    let (_, write) = login_page_mode_signal();
+    write.set(mode.to_string());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn set_login_page_mode(_mode: &str) {}
+
+/// Decode a `Basic <b64>` header back to the username (display purposes).
+pub fn basic_auth_username(header: &str) -> Option<String> {
+    let encoded = header.strip_prefix("Basic ")?;
+    let bytes = base64_decode(encoded)?;
+    let creds = String::from_utf8(bytes).ok()?;
+    creds.split_once(':').map(|(u, _)| u.to_string())
+}
+
+/// Minimal RFC 4648 standard base64 decoder (padding required).
+fn base64_decode(input: &str) -> Option<Vec<u8>> {
+    fn value(c: u8) -> Option<u32> {
+        match c {
+            b'A'..=b'Z' => Some((c - b'A') as u32),
+            b'a'..=b'z' => Some((c - b'a') as u32 + 26),
+            b'0'..=b'9' => Some((c - b'0') as u32 + 52),
+            b'+' => Some(62),
+            b'/' => Some(63),
+            _ => None,
+        }
+    }
+    let input = input.trim_end_matches('=');
+    let mut out = Vec::with_capacity(input.len() * 3 / 4);
+    for chunk in input.as_bytes().chunks(4) {
+        let mut n: u32 = 0;
+        for (i, &c) in chunk.iter().enumerate() {
+            n |= value(c)? << (18 - 6 * i);
+        }
+        out.push((n >> 16) as u8);
+        if chunk.len() > 2 {
+            out.push((n >> 8) as u8);
+        }
+        if chunk.len() > 3 {
+            out.push(n as u8);
+        }
+    }
+    Some(out)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -250,8 +387,10 @@ pub fn init_auth(state: &AuthState) {
             }
         }
 
+        let mut auth_mode = "none".to_string();
         match crate::api::get_auth_config().await {
             Ok(config) => {
+                auth_mode = config.auth_mode.clone();
                 state.set_auth_enabled.set(config.configured);
                 if !config.configured {
                     state.set_loading.set(false);
@@ -263,24 +402,54 @@ pub fn init_auth(state: &AuthState) {
             }
         }
 
-        // Auth guard: when OIDC auth is enabled and the visitor is anonymous,
-        // redirect to the Keycloak login instead of rendering an empty file
-        // browser. Login/callback pages are exempt to avoid redirect loops.
+        // Auth guard: when auth is enabled and the visitor is anonymous,
+        // send them to the right login flow instead of rendering an empty
+        // file browser. Login/callback pages are exempt to avoid loops.
         if state.auth_enabled.get_untracked() && state.access_token.get_untracked().is_none() {
             let path = web_sys::window()
                 .map(|w| w.location().pathname().unwrap_or_default())
                 .unwrap_or_default();
             let on_auth_page = path.starts_with("/ui/auth/login") || path.starts_with("/ui/auth/callback");
             if !on_auth_page {
-                match crate::api::auth_login().await {
-                    Ok(resp) => {
-                        if let Some(window) = web_sys::window() {
-                            let _ = window.location().set_href(&resp.authorization_url);
+                if auth_mode == "basic" {
+                    // Basic mode: OIDC is not configured, so never bounce the
+                    // visitor at /api/auth/login (it only serves an error).
+                    // Stored basic credentials are verified here; on success
+                    // the session resumes silently.
+                    match read_stored_basic() {
+                        Some(header) => {
+                            // /api/auth/info is public (always "anonymous"
+                            // here), so validate against an authenticated
+                            // endpoint instead.
+                            if crate::api::verify_basic_auth(&header).await {
+                                let user = UserInfo {
+                                    sub: basic_auth_username(&header).unwrap_or_else(|| "admin".to_string()),
+                                    email: None,
+                                    name: basic_auth_username(&header),
+                                };
+                                state.set_user.set(Some(user));
+                            } else {
+                                clear_stored_basic();
+                                redirect_to_basic_login();
+                                return;
+                            }
+                        }
+                        None => {
+                            redirect_to_basic_login();
+                            return;
                         }
                     }
-                    Err(e) => {
-                        web_sys::console::warn_1(&format!("Auth redirect failed: {}", e).into());
-                        state.set_loading.set(false);
+                } else {
+                    match crate::api::auth_login().await {
+                        Ok(resp) => {
+                            if let Some(window) = web_sys::window() {
+                                let _ = window.location().set_href(&resp.authorization_url);
+                            }
+                        }
+                        Err(e) => {
+                            web_sys::console::warn_1(&format!("Auth redirect failed: {}", e).into());
+                            state.set_loading.set(false);
+                        }
                     }
                 }
                 return;
@@ -289,6 +458,16 @@ pub fn init_auth(state: &AuthState) {
 
         state.set_loading.set(false);
     });
+}
+
+#[cfg(target_arch = "wasm32")]
+fn redirect_to_basic_login() {
+    if let Some(window) = web_sys::window() {
+        let current = window.location().pathname().unwrap_or_default();
+        if !current.starts_with("/ui/auth/login") {
+            let _ = window.location().set_href("/ui/auth/login");
+        }
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -365,6 +544,7 @@ pub fn handle_callback(_state: &AuthState, _code: &str, _query_state: &str) {}
 #[cfg(target_arch = "wasm32")]
 pub fn logout(state: &AuthState) {
     clear_stored_token();
+    clear_stored_basic();
     state.set_access_token.set(None);
     state.set_user.set(None);
     // Redirect to OIDC end_session_endpoint for proper front-channel logout
@@ -386,3 +566,38 @@ pub fn logout(state: &AuthState) {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn logout(_state: &AuthState) {}
+
+#[cfg(test)]
+mod tests {
+    use super::base64;
+    use super::basic_auth_header;
+    use super::basic_auth_username;
+
+    #[test]
+    fn test_base64() {
+        assert_eq!(base64(b"admin"), "YWRtaW4=");
+        assert_eq!(base64(b"ad"), "YWQ=");
+        assert_eq!(base64(b"a"), "YQ==");
+        assert_eq!(base64(b""), "");
+        // utf-8 password
+        assert_eq!(base64("pässword".as_bytes()), "cMOkc3N3b3Jk");
+    }
+
+    #[test]
+    fn test_basic_username_roundtrip() {
+        let header = basic_auth_header("admin", "päss:wörD").ok().unwrap();
+        assert_eq!(basic_auth_username(&header).as_deref(), Some("admin"));
+        assert_eq!(basic_auth_username("garbage"), None);
+        assert_eq!(basic_auth_username("Basic !!!"), None);
+    }
+
+    #[test]
+    fn test_basic_header() {
+        assert_eq!(
+            basic_auth_header("admin", "secret").ok(),
+            Some(format!("Basic {}", base64(b"admin:secret")))
+        );
+        assert!(basic_auth_header("user:evil", "x").is_err());
+        assert!(basic_auth_header("", "x").is_ok());
+    }
+}

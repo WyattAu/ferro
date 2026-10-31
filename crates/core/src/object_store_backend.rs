@@ -312,12 +312,13 @@ impl StorageEngine for ObjectStoreStorageEngine {
         for obj_meta in result.objects {
             let vpath = self.to_virtual_path(&obj_meta.location);
             let etag = obj_meta.e_tag.clone().unwrap_or_default();
+            let mime_type = ferro_common::mime::mime_for_path(&vpath);
 
             items.push(FileMetadata {
                 path: vpath,
                 content_hash: ContentHash::from_etag(&etag),
                 size: obj_meta.size as u64,
-                mime_type: "application/octet-stream".to_string(),
+                mime_type,
                 is_collection: false,
                 created_at: obj_meta.last_modified,
                 modified_at: obj_meta.last_modified,
@@ -386,7 +387,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
                     mime_type: if is_collection {
                         "httpd/unix-directory".to_string()
                     } else {
-                        "application/octet-stream".to_string()
+                        ferro_common::mime::mime_for_path(path)
                     },
                     is_collection,
                     created_at: meta.last_modified,
@@ -427,7 +428,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
                         path: path.to_string(),
                         content_hash: ContentHash::new_unchecked("0".repeat(64)),
                         size: metadata.len(),
-                        mime_type: "application/octet-stream".to_string(),
+                        mime_type: ferro_common::mime::mime_for_path(path),
                         is_collection: false,
                         created_at: chrono_modified,
                         modified_at: chrono_modified,
@@ -516,12 +517,13 @@ impl StorageEngine for ObjectStoreStorageEngine {
             let etag = obj_meta.e_tag.clone().unwrap_or_default();
             // Normalize native ETag to consistent 64-char SHA-256 hash (see head() comment).
             let content_hash = ContentHash::from_etag(&etag);
+            let mime_type = ferro_common::mime::mime_for_path(&vpath);
 
             items.push(FileMetadata {
                 path: vpath,
                 content_hash,
                 size: obj_meta.size as u64,
-                mime_type: "application/octet-stream".to_string(),
+                mime_type,
                 is_collection: obj_meta.location.as_ref().ends_with('/'),
                 created_at: obj_meta.last_modified,
                 modified_at: obj_meta.last_modified,

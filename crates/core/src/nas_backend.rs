@@ -286,7 +286,7 @@ impl NasStorageEngine {
                 etag: format!("\"{etag_str}\""),
                 content_hash,
                 size,
-                mime_type: "application/octet-stream".to_string(),
+                mime_type: ferro_common::mime::mime_for_path(virtual_path),
                 is_collection: false,
                 created_at: chrono_modified,
                 modified_at: chrono_modified,

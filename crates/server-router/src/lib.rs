@@ -105,11 +105,19 @@ async fn quota_handler<S: RouterState>(State(state): State<S>) -> Response {
 
 /// Generic config handler showing server configuration.
 async fn config_handler<S: RouterState>(State(state): State<S>) -> Response {
+    let auth_mode = if state.oidc().is_some() {
+        "oidc"
+    } else if state.admin_user().is_some() {
+        "basic"
+    } else {
+        "none"
+    };
     let body = serde_json::json!({
         "external_url": state.external_url(),
         "max_body_size": state.max_body_size(),
         "thumbnail_size": state.thumbnail_size(),
         "auth_enabled": ServerState::auth_enabled(&state),
+        "auth_mode": auth_mode,
     });
 
     (StatusCode::OK, axum::Json(body)).into_response()

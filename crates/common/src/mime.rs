@@ -1,3 +1,15 @@
+/// Extension-based MIME detection for paths where content is not at hand
+/// (metadata listings, PROPFIND, share links). Falls back to
+/// `application/octet-stream` for unknown extensions, matching the storage
+/// backend's historical default.
+#[must_use]
+pub fn mime_for_path(path: &str) -> String {
+    mime_guess::from_path(path)
+        .first()
+        .map(|m| m.essence_str().to_string())
+        .unwrap_or_else(|| "application/octet-stream".to_string())
+}
+
 /// Detect MIME type from the first bytes of content using magic bytes.
 #[must_use]
 pub fn sniff_content_type(data: &[u8], path: &str) -> String {

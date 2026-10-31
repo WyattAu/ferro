@@ -1,2 +1,3 @@
 [build]
 public_url = "/ui/"
+public_dir = "public"
