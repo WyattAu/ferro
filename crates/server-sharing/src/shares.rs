@@ -383,6 +383,7 @@ pub async fn delete_share(Extension(state): Extension<SharingState>, Path(token)
 pub async fn serve_share(
     Extension(state): Extension<SharingState>,
     Path(token): Path<String>,
+    headers: axum::http::HeaderMap,
     axum::extract::Query(params): axum::extract::Query<HashMap<String, String>>,
 ) -> Response {
     if state.share_store.is_share_locked(&token) {
@@ -444,23 +445,24 @@ pub async fn serve_share(
         return crate::shares_ext::serve_preview_html(&link, &meta);
     }
 
-    let reader = match state.storage.get_stream(&link.path).await {
-        Ok(r) => r,
-        Err(_) => return ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"),
-    };
+    // RFC 7233: video players and browsers send Range requests to seek —
+    // without 206 support, Google-Drive-style media sharing cannot stream.
+    // Only single-range requests are honored; multi-range falls back to a
+    // full 200 (RFC-permitted). Range requests do NOT count against
+    // max_downloads: seeking is not downloading.
+    let file_size = meta.size;
+    let range_req = headers
+        .get(axum::http::header::RANGE)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
 
-    state.share_store.increment_download(&token).await;
+    let byte_range = resolve_range(range_req.as_deref(), file_size);
 
     let mut headers = axum::http::HeaderMap::new();
     headers.insert(
         "Content-Type",
         axum::http::HeaderValue::from_str(&meta.mime_type)
             .unwrap_or_else(|_| axum::http::HeaderValue::from_static("application/octet-stream")),
-    );
-    headers.insert(
-        "Content-Length",
-        axum::http::HeaderValue::from_str(&meta.size.to_string())
-            .unwrap_or_else(|_| axum::http::HeaderValue::from_static("0")),
     );
     headers.insert(
         "Content-Disposition",
@@ -470,11 +472,125 @@ pub async fn serve_share(
         ))
         .unwrap_or_else(|_| axum::http::HeaderValue::from_static("inline; filename=\"download\"")),
     );
+    headers.insert("Accept-Ranges", axum::http::HeaderValue::from_static("bytes"));
 
+    match byte_range {
+        RangeOutcome::Unsatisfiable => {
+            headers.insert(
+                "Content-Range",
+                axum::http::HeaderValue::from_str(&format!("bytes */{file_size}"))
+                    .unwrap_or_else(|_| axum::http::HeaderValue::from_static("bytes */0")),
+            );
+            return (
+                StatusCode::RANGE_NOT_SATISFIABLE,
+                headers,
+                axum::body::Body::from(format!("bytes range out of bounds: 0..{file_size}")),
+            )
+                .into_response();
+        }
+        RangeOutcome::Partial(start, end) => {
+            let length = end - start + 1;
+            headers.insert(
+                "Content-Range",
+                axum::http::HeaderValue::from_str(&format!("bytes {start}-{end}/{file_size}"))
+                    .unwrap_or_else(|_| axum::http::HeaderValue::from_static("bytes */0")),
+            );
+            headers.insert(
+                "Content-Length",
+                axum::http::HeaderValue::from_str(&length.to_string())
+                    .unwrap_or_else(|_| axum::http::HeaderValue::from_static("0")),
+            );
+            let reader = match state.storage.get_stream_range(&link.path, start, end).await {
+                Ok(r) => r,
+                Err(_) => return ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"),
+            };
+            let stream = tokio_util::io::ReaderStream::new(reader);
+            return (
+                StatusCode::PARTIAL_CONTENT,
+                headers,
+                axum::body::Body::from_stream(stream),
+            )
+                .into_response();
+        }
+        RangeOutcome::Full => {}
+    }
+
+    let reader = match state.storage.get_stream(&link.path).await {
+        Ok(r) => r,
+        Err(_) => return ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"),
+    };
+
+    state.share_store.increment_download(&token).await;
+
+    headers.insert(
+        "Content-Length",
+        axum::http::HeaderValue::from_str(&meta.size.to_string())
+            .unwrap_or_else(|_| axum::http::HeaderValue::from_static("0")),
+    );
     let stream = tokio_util::io::ReaderStream::new(reader);
     let body = axum::body::Body::from_stream(stream);
 
     (StatusCode::OK, headers, body).into_response()
+}
+
+/// Outcome of resolving an HTTP `Range` header against a resource size.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RangeOutcome {
+    /// Serve `bytes start-end` as 206.
+    Partial(u64, u64),
+    /// No (or unsupported) Range header - serve the full resource as 200.
+    Full,
+    /// Range outside the resource - 416 with `Content-Range: bytes */size`.
+    Unsatisfiable,
+}
+
+/// Resolve a single-range `bytes=` header (RFC 7233). Multi-range and
+/// malformed headers fall back to [`RangeOutcome::Full`] (RFC-permitted);
+/// suffix (`bytes=-N`) and open-ended (`bytes=N-`) forms are supported.
+#[must_use]
+pub fn resolve_range(range_header: Option<&str>, file_size: u64) -> RangeOutcome {
+    let Some(header) = range_header else {
+        return RangeOutcome::Full;
+    };
+    let Some(spec) = header.strip_prefix("bytes=") else {
+        return RangeOutcome::Full;
+    };
+    if spec.contains(',') {
+        return RangeOutcome::Full;
+    }
+    let Some((start_s, end_s)) = spec.split_once('-') else {
+        return RangeOutcome::Full;
+    };
+    if start_s.is_empty() {
+        let Ok(n) = end_s.parse::<u64>() else {
+            return RangeOutcome::Full;
+        };
+        if n == 0 || file_size == 0 {
+            return RangeOutcome::Unsatisfiable;
+        }
+        return RangeOutcome::Partial(file_size.saturating_sub(n), file_size.saturating_sub(1));
+    }
+    let Ok(start) = start_s.parse::<u64>() else {
+        return RangeOutcome::Full;
+    };
+    // RFC 7233 §4.4: a byte-range whose start is at or beyond the resource
+    // length is unsatisfiable — checked before the end clamp so an open
+    // range (`bytes=N-`) past EOF is 416, not silently full-content.
+    if start >= file_size {
+        return RangeOutcome::Unsatisfiable;
+    }
+    let end = if end_s.is_empty() {
+        file_size.saturating_sub(1)
+    } else {
+        match end_s.parse::<u64>() {
+            Ok(e) => e.min(file_size.saturating_sub(1)),
+            Err(_) => return RangeOutcome::Full,
+        }
+    };
+    if start > end {
+        return RangeOutcome::Full;
+    }
+    RangeOutcome::Partial(start, end)
 }
 
 fn constant_time_eq(a: &str, b: &str) -> bool {
@@ -1025,5 +1141,36 @@ mod tests {
         assert_eq!(MAX_SHARE_LINKS, 10_000);
         assert_eq!(MAX_SHARE_PASSWORD_ATTEMPTS, 10);
         assert_eq!(SHARE_LOCKOUT_SECS, 300);
+    }
+
+    #[test]
+    fn test_resolve_range_single() {
+        assert_eq!(resolve_range(Some("bytes=0-99"), 256), RangeOutcome::Partial(0, 99));
+        assert_eq!(
+            resolve_range(Some("bytes=100-199"), 256),
+            RangeOutcome::Partial(100, 199)
+        );
+        assert_eq!(
+            resolve_range(Some("bytes=200-999"), 256),
+            RangeOutcome::Partial(200, 255)
+        );
+    }
+
+    #[test]
+    fn test_resolve_range_suffix_and_open() {
+        assert_eq!(resolve_range(Some("bytes=-10"), 256), RangeOutcome::Partial(246, 255));
+        assert_eq!(resolve_range(Some("bytes=-300"), 256), RangeOutcome::Partial(0, 255));
+        assert_eq!(resolve_range(Some("bytes=100-"), 256), RangeOutcome::Partial(100, 255));
+    }
+
+    #[test]
+    fn test_resolve_range_unsatisfiable_and_fallbacks() {
+        assert_eq!(resolve_range(Some("bytes=300-"), 256), RangeOutcome::Unsatisfiable);
+        assert_eq!(resolve_range(Some("bytes=5-2"), 256), RangeOutcome::Full);
+        assert_eq!(resolve_range(Some("bytes=0-1,5-9"), 256), RangeOutcome::Full);
+        assert_eq!(resolve_range(Some("chars=0-1"), 256), RangeOutcome::Full);
+        assert_eq!(resolve_range(None, 256), RangeOutcome::Full);
+        assert_eq!(resolve_range(Some("bytes=-0"), 256), RangeOutcome::Unsatisfiable);
+        assert_eq!(resolve_range(Some("bytes=0-9"), 0), RangeOutcome::Unsatisfiable);
     }
 }

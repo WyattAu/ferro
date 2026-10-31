@@ -9,8 +9,8 @@ use crate::api_error::ApiError;
 use ferro_server_state::ServerState;
 
 pub use ferro_server_sharing::shares::{
-    CreateShareRequest, SHARE_LOCKOUT_SECS, ShareLink, ShareStore, ShareStoreTrait, hash_share_password,
-    verify_share_password,
+    CreateShareRequest, RangeOutcome, SHARE_LOCKOUT_SECS, ShareLink, ShareStore, ShareStoreTrait, hash_share_password,
+    resolve_range, verify_share_password,
 };
 
 // ---------------------------------------------------------------------------
@@ -141,7 +141,12 @@ pub async fn get_share(State(state): State<AppState>, Path(token): Path<String>)
 }
 
 /// Core logic for serving a shared file by token.
-async fn serve_share_impl<S: ServerState>(state: &S, token: &str, params: &HashMap<String, String>) -> Response {
+async fn serve_share_impl<S: ServerState>(
+    state: &S,
+    token: &str,
+    headers: &axum::http::HeaderMap,
+    params: &HashMap<String, String>,
+) -> Response {
     // Check if this token is temporarily locked due to too many failed attempts
     if state.share_store().is_share_locked(token) {
         return ApiError::with_details(
@@ -205,6 +210,56 @@ async fn serve_share_impl<S: ServerState>(state: &S, token: &str, params: &HashM
         return crate::shares_ext::serve_preview_html(&link, &meta);
     }
 
+    // RFC 7233: video players and browsers send Range requests to seek —
+    // without 206 support, Google-Drive-style media sharing cannot stream.
+    // Single-range honored; multi-range falls back to full 200 (allowed).
+    // Range requests do NOT consume max_downloads: seeking ≠ downloading.
+    let file_size = meta.size;
+    let range_header = headers.get(axum::http::header::RANGE).and_then(|v| v.to_str().ok());
+    match ferro_server_sharing::shares::resolve_range(range_header, file_size) {
+        ferro_server_sharing::shares::RangeOutcome::Unsatisfiable => {
+            let mut h = axum::http::HeaderMap::new();
+            h.insert(
+                "Content-Range",
+                axum::http::HeaderValue::from_str(&format!("bytes */{file_size}"))
+                    .unwrap_or_else(|_| axum::http::HeaderValue::from_static("bytes */0")),
+            );
+            return (
+                StatusCode::RANGE_NOT_SATISFIABLE,
+                h,
+                axum::body::Body::from(format!("bytes range out of bounds: 0..{file_size}")),
+            )
+                .into_response();
+        }
+        ferro_server_sharing::shares::RangeOutcome::Partial(start, end) => {
+            let length = end - start + 1;
+            let mut h = axum::http::HeaderMap::new();
+            h.insert(
+                "Content-Type",
+                axum::http::HeaderValue::from_str(&meta.mime_type)
+                    .unwrap_or_else(|_| axum::http::HeaderValue::from_static("application/octet-stream")),
+            );
+            h.insert(
+                "Content-Range",
+                axum::http::HeaderValue::from_str(&format!("bytes {start}-{end}/{file_size}"))
+                    .unwrap_or_else(|_| axum::http::HeaderValue::from_static("bytes */0")),
+            );
+            h.insert(
+                "Content-Length",
+                axum::http::HeaderValue::from_str(&length.to_string())
+                    .unwrap_or_else(|_| axum::http::HeaderValue::from_static("0")),
+            );
+            h.insert("Accept-Ranges", axum::http::HeaderValue::from_static("bytes"));
+            let reader = match state.storage().get_stream_range(&link.path, start, end).await {
+                Ok(r) => r,
+                Err(_) => return ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"),
+            };
+            let stream = tokio_util::io::ReaderStream::new(reader);
+            return (StatusCode::PARTIAL_CONTENT, h, axum::body::Body::from_stream(stream)).into_response();
+        }
+        ferro_server_sharing::shares::RangeOutcome::Full => {}
+    }
+
     let reader = match state.storage().get_stream(&link.path).await {
         Ok(r) => r,
         Err(_) => return ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"),
@@ -223,6 +278,7 @@ async fn serve_share_impl<S: ServerState>(state: &S, token: &str, params: &HashM
         axum::http::HeaderValue::from_str(&meta.size.to_string())
             .unwrap_or_else(|_| axum::http::HeaderValue::from_static("0")),
     );
+    headers.insert("Accept-Ranges", axum::http::HeaderValue::from_static("bytes"));
     headers.insert(
         "Content-Disposition",
         axum::http::HeaderValue::from_str(&format!(
@@ -243,9 +299,10 @@ async fn serve_share_impl<S: ServerState>(state: &S, token: &str, params: &HashM
 pub async fn serve_share(
     State(state): State<AppState>,
     Path(token): Path<String>,
+    headers: axum::http::HeaderMap,
     axum::extract::Query(params): axum::extract::Query<HashMap<String, String>>,
 ) -> Response {
-    serve_share_impl(&state, &token, &params).await
+    serve_share_impl(&state, &token, &headers, &params).await
 }
 
 /// Core logic for handling share upload.
