@@ -7,7 +7,8 @@ docs/dist
 .gitignore
 .envrc
 .flake*
-deploy
+deploy/*
+!deploy/entrypoint.sh
 *.md
 Dockerfile
 docker-compose*.yml

@@ -45,9 +45,17 @@ ENV CGO_ENABLED=0
 RUN cargo build --release --locked --package ferro-server --package ferro-cli --features "${BUILD_FEATURES}"
 
 # ==============================================================================
-# Stage 2: Final (scratch - minimal attack surface)
+# Stage 2: Final (debian-slim: the release binaries link glibc, so scratch
+# fails at exec with "No such file or directory" — the dynamic loader is
+# missing. slim keeps the image small while providing the loader.)
 # ==============================================================================
-FROM scratch
+FROM debian:bookworm-slim
+
+# CA bundle comes from the builder stage (COPY below); slim provides the
+# glibc loader the dynamically linked release binaries need. libssl3 is
+# required by openssl-sys in the pg/s3 dependency chain.
+RUN apt-get update && apt-get install -y --no-install-recommends libssl3 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # EvergreenImageRegistry v30.0.0 OCI labels
 LABEL org.opencontainers.image.title="Ferro" \
@@ -64,7 +72,7 @@ LABEL org.opencontainers.image.title="Ferro" \
       evergreen.security.no-new-privileges="true" \
       evergreen.security.read-only-rootfs="true"
 
-# Copy CA certificates from builder (scratch has none)
+# Copy CA certificates (builder stage copy retained as a fallback source)
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Copy application binaries
