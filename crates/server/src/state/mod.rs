@@ -238,6 +238,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(storage: Arc<dyn StorageEngine>) -> Self {
+        let audit_for_adapters = Arc::new(AuditLog::new());
         Self {
             storage,
             lock_manager: Arc::new(LockManager::new()),
@@ -258,7 +259,7 @@ impl AppState {
             cas_store: None,
             presigned_generator: None,
             share_store: Arc::new(crate::shares::ShareStore::new()),
-            audit_log: Arc::new(AuditLog::new()),
+            audit_log: audit_for_adapters.clone(),
             snapshot_store: Arc::new(SnapshotStore::new(50)),
             rate_limit_burst: 10_000,
             rate_limit_refill: 166,
@@ -374,8 +375,8 @@ impl AppState {
             admin_tags_store: Arc::new(adapters::AdminTagStoreAdapter(Arc::new(
                 ferro_server_collaboration::tags::TagStore::new(),
             ))),
-            user_mgmt_audit_adapter: Arc::new(adapters::UserMgmtAuditLogAdapter(Arc::new(AuditLog::new()))),
-            state_audit_adapter: Arc::new(traits::AuditLogAdapter(Arc::new(AuditLog::new()))),
+            user_mgmt_audit_adapter: Arc::new(adapters::UserMgmtAuditLogAdapter(audit_for_adapters.clone())),
+            state_audit_adapter: Arc::new(traits::AuditLogAdapter(audit_for_adapters.clone())),
 
             // Resilience defaults
             storage_circuit_breaker: ferro_server_resilience::NamedCircuitBreaker::new(
