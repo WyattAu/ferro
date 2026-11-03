@@ -22,7 +22,15 @@ ignore = [
     { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2 unmaintained -- transitive via leptos (web frontend only)" },
     { id = "RUSTSEC-2026-0204", reason = "transitive dep -- limited scope, no server impact" },
     { id = "RUSTSEC-2025-0119", reason = "transitive dep -- limited scope, no server impact" },
-    { id = "RUSTSEC-0000-0000", reason = "proc-macro-error2 unmaintained -- transitive via leptos/i18n-embed (frontend only), no migration available yet" },
+    { id = "RUSTSEC-2026-0374", reason = "basic-toml unmaintained -- transitive via age -> i18n-embed (encryption UX strings, no migration available)" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names unmaintained -- desktop keyring chain (ferro-desktop only), zbus 6 migration tracked separately" },
+    { id = "RUSTSEC-2026-0370", reason = "zvariant unmaintained -- desktop keyring chain (ferro-desktop only), merged into zbus 6" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive unmaintained -- desktop keyring chain (ferro-desktop only), merged into zbus 6" },
+    { id = "RUSTSEC-2026-0391", reason = "zstd abandoned-stream leak -- transitive via async-compression (tower-http zstd); we only COMPRESS responses, the vulnerable decoder path is not attacker-facing; async-compression needs zstd 0.14 support first" },
+    { id = "RUSTSEC-2026-0367", reason = "zip SUID/SGID preservation on extract -- the server only WRITES zips (ZipWriter for downloads/backups) and serves vendored swagger assets; ZipArchive::extract to disk is never called; utoipa-swagger-ui v10 + zip 9 migration tracked separately" },
+    { id = "RUSTSEC-2026-0368", reason = "zip symlink-escape on extract -- see RUSTSEC-2026-0367 note (extract-to-disk unused)" },
+    { id = "RUSTSEC-2026-0369", reason = "zip symlink permission confining on extract -- see RUSTSEC-2026-0367 note (extract-to-disk unused)" },
+    { id = "RUSTSEC-2026-0429", reason = "zip extract abort on large symlink entry -- see RUSTSEC-2026-0367 note (extract-to-disk unused)" },
 ]
 
 [licenses]

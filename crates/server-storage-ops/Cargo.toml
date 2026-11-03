@@ -30,4 +30,4 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png",
 media-kit = { workspace = true }
 pdf = "0.9"
 dashmap = "6"
-lru = "0.16"
+lru = "0.18"

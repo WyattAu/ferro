@@ -941,7 +941,7 @@ pub async fn mobile_download_zip(paths: Vec<String>, output_path: String) -> Res
 
     let zip_file = std::fs::File::create(&output_path).map_err(|e| format!("Failed to create zip file: {}", e))?;
     let mut zip = zip::ZipWriter::new(zip_file);
-    let options = zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     for remote_path in &paths {
         let url = format!("{}{}", config.server_url.trim_end_matches('/'), remote_path);
