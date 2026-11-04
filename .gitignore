@@ -15,3 +15,7 @@ formal/.lake/build/
 e2e/test-results/
 load-test-results.json
 .playwright-mcp/
+formal/.lake/
+crates/mobile/android-standalone/.gradle/
+crates/mobile/android-standalone/app/build/
+crates/mobile/android-standalone/build/
