@@ -79,7 +79,25 @@ pub async fn list_files_impl<S: HasStorage>(state: &S, params: &ListFilesParams)
                 )
                     .into_response();
             }
+            // A missing directory: the USER ROOT (/users/<sub>) is an empty
+            // drive — brand-new users hit this on first login and their
+            // first file-list must succeed. Deeper missing paths stay 404
+            // (WebDAV-consistent). Listing a FILE path still conflicts.
             Err(e) => {
+                let is_user_root = normalized.starts_with("/users/")
+                    && normalized.matches('/').count() == 2;
+                if is_user_root {
+                    return (
+                        StatusCode::OK,
+                        axum::Json(serde_json::json!({
+                            "path": normalized,
+                            "name": normalized.rsplit('/').next().unwrap_or(""),
+                            "is_collection": true,
+                            "entries": [],
+                        })),
+                    )
+                        .into_response();
+                }
                 return (
                     StatusCode::NOT_FOUND,
                     axum::Json(serde_json::json!({
