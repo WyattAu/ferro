@@ -4,3 +4,6 @@ xc = "clippy --workspace --all-targets --locked -- -D warnings"
 xf = "fmt --all -- --check"
 cov = "tarpaulin --workspace --all-features --skip-clean --out Html --output-dir coverage"
 cov-ci = "tarpaulin --workspace --all-features --skip-clean --out Xml --output-dir coverage"
+
+[build]
+target-dir = "/home/wyatt/.cache/cargo-target"

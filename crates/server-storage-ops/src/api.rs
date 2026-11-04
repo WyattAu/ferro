@@ -84,8 +84,7 @@ pub async fn list_files_impl<S: HasStorage>(state: &S, params: &ListFilesParams)
             // first file-list must succeed. Deeper missing paths stay 404
             // (WebDAV-consistent). Listing a FILE path still conflicts.
             Err(e) => {
-                let is_user_root = normalized.starts_with("/users/")
-                    && normalized.matches('/').count() == 2;
+                let is_user_root = normalized.starts_with("/users/") && normalized.matches('/').count() == 2;
                 if is_user_root {
                     return (
                         StatusCode::OK,

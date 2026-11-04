@@ -26,7 +26,7 @@
     padding: 0;
 }
 
-html, body, #app {
+html, body {
     height: 100%;
     overflow-x: hidden;
     font-family: var(--font-body);
@@ -599,7 +599,7 @@ svg.w-20 { width: 5rem; height: 5rem; }
         --border: #3D3832;
         --border-strong: #E8E0D8;
     }
-    :root:not(.light), :root:not(.light) #app {
+    :root:not(.light), :root:not(.light) body {
         color: #E8E0D8;
         background: #1A1714;
         background-image:
@@ -767,21 +767,20 @@ html.dark, .dark {
 /* ═══════════════════════════════════════════════════════════
    THEME TRANSITIONS
    ═══════════════════════════════════════════════════════════ */
-html, body, #app {
+html, body {
     color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-    html:not(.light), html:not(.light) body, html:not(.light) #app {
+    html:not(.light), html:not(.light) body {
         color-scheme: dark;
     }
 }
-html.dark, html.dark body, html.dark #app {
+html.dark, html.dark body {
     color-scheme: dark;
 }
 
 html,
 html body,
-html #app,
 .surface,
 .surface-dark,
 .brutal-block,

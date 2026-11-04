@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#FF0F172A</color>
+    <color name="black">#FF000000</color>
+    <color name="primary">#FF1E293B</color>
+    <color name="primary_variant">#FF334155</color>
+    <color name="secondary">#FFE85D04</color>
+    <color name="surface">#FF1E293B</color>
+    <color name="white">#FFFFFFFF</color>
+    <string name="app_name">Ferro</string>
+    <style name="Theme.Ferro" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryVariant">@color/primary_variant</item>
+        <item name="colorSecondary">@color/secondary</item>
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

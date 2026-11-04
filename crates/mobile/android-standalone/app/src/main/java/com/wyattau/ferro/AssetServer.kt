@@ -75,6 +75,8 @@ class AssetServer(private val context: Context, private val port: Int = 8888) {
                 || rawPath.startsWith("/api/")
                 || rawPath.startsWith("/dav/")
                 || rawPath.startsWith("/healthz")
+                || rawPath.startsWith("/s/")
+            android.util.Log.d("AssetServer", "req method=$method rawPath=$rawPath isApi=$isApiRequest")
 
             if (isApiRequest) {
                 proxyRequest(client, method, rawPath, headers, body)

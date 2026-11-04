@@ -35,6 +35,9 @@ class MainActivity : AppCompatActivity() {
         assetServer = AssetServer(this, 8888)
         assetServer.start()
 
+        // Expose the WebView to chrome://inspect for CDP-driven testing
+        WebView.setWebContentsDebuggingEnabled(true)
+
         // Setup WebView
         webView = WebView(this).apply {
             settings.apply {

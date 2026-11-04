@@ -107,6 +107,16 @@ use axum::response::{IntoResponse, Response};
 use tower::limit::ConcurrencyLimitLayer;
 use tower_http::compression::CompressionLayer;
 
+// TEMP probe
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<AppState>();
+};
+const _: () = {
+    const fn assert_clone<T: Clone>() {}
+    assert_clone::<AppState>();
+};
+
 pub fn build_router(state: AppState) -> Router {
     build_router_with_static(state, None, "*", "v1")
 }
