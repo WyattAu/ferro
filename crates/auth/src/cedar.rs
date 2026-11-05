@@ -331,6 +331,14 @@ pub async fn cedar_middleware(
 ) -> axum::response::Response {
     let path = request.uri().path();
 
+    // OPTIONS is capability discovery (WebDAV support banner, CORS
+    // preflight). Browsers send preflights unauthenticated, rclone and
+    // other DAV clients probe with it before any credentials exist —
+    // policy-authorizing it breaks clients and leaks nothing.
+    if request.method() == axum::http::Method::OPTIONS {
+        return next.run(request).await;
+    }
+
     // Skip authorization for exempt paths
     if is_public_auth_path(path) {
         return next.run(request).await;

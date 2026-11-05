@@ -19,9 +19,23 @@ fn find_free_port() -> u16 {
 
 /// Spawn the ferro-server binary with a given port.
 fn spawn_server(port: u16) -> Child {
+    // The test exercises WebDAV operations, not Cedar policy: hand the
+    // spawned server a permissive policy so the authorization layer does
+    // not implicitly deny every non-public method (MKCOL, PUT, ...).
+    let policy_path = std::env::temp_dir().join(format!("ferro-rclone-policy-{port}.cedar"));
+    std::fs::write(&policy_path, "permit(principal, action, resource);\n")
+        .expect("write permissive cedar policy");
+
     Command::new(env!("CARGO_BIN_EXE_ferro-server"))
         .env("RUST_LOG", "warn")
-        .args(["--host", "127.0.0.1", "--port", &port.to_string()])
+        .args([
+            "--host",
+            "127.0.0.1",
+            "--port",
+            &port.to_string(),
+            "--cedar-policy-file",
+            policy_path.to_str().expect("policy path"),
+        ])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
@@ -60,7 +74,11 @@ async fn webdav_operations(port: u16) {
         .send()
         .await
         .unwrap();
-    assert!(resp.status().is_success());
+    assert!(
+        resp.status().is_success(),
+        "OPTIONS discovery must not be policy-gated: got {}",
+        resp.status()
+    );
     let dav = resp.headers().get("DAV").unwrap().to_str().unwrap();
     assert!(dav.contains("1"), "DAV header missing or wrong: {}", dav);
 
