@@ -47,10 +47,17 @@ async fn copy_move_preflight<S: WebDavCoreState>(state: &S, path: &str, dest: &s
 
     // Destination parent must exist (a COPY/MOVE cannot create collections).
     // Ancestors at or above the per-user root are implicit (see mkcol).
+    // Object stores have implicit directories: a parent created only by a
+    // PUT'd child has no explicit entry, so `exists()` misses it — probe
+    // with a listing instead (Ok = the parent exists, possibly empty).
     if !dest_exists && let Some((parent, _)) = dest.rsplit_once('/') {
         let parent = if parent.is_empty() { "/" } else { parent };
         let implicit_root = parent == "/users" || (parent.starts_with("/users/") && parent.matches('/').count() <= 2);
-        if parent != "/" && !implicit_root && !state.storage().exists(parent).await? {
+        let parent_absent = parent != "/"
+            && !implicit_root
+            && !state.storage().exists(parent).await.unwrap_or(false)
+            && state.storage().list(parent).await.is_err();
+        if parent_absent {
             return Err(FerroError::Conflict(format!(
                 "Destination collection {} does not exist",
                 parent

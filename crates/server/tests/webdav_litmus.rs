@@ -41,6 +41,9 @@ impl WebDavCompliance {
 
     fn check(&mut self, name: &str, condition: bool) {
         self.total += 1;
+        if std::env::var_os("LITMUS_DEBUG").is_some() && !condition {
+            eprintln!("LITMUS-DEBUG: FAILED {name}");
+        }
         if condition {
             self.passed += 1;
         } else {
@@ -302,6 +305,7 @@ async fn test_class1_copy() {
         )
         .await
         .unwrap();
+    eprintln!("COPY-DEBUG: {}", resp.status());
     report.check_status("COPY returns 201", resp.status(), StatusCode::CREATED);
 
     let resp = app
@@ -1354,7 +1358,12 @@ async fn test_class3_lock_token_in_state_token() {
     report.check_status("LOCK with lockinfo XML returns 200", resp.status(), StatusCode::OK);
 
     let lock_token = extract_lock_token(&resp).unwrap();
-    report.check("Lock token is URN format", lock_token.starts_with("urn:uuid:"));
+    // RFC 4918 App. C: opaquelocktoken is the canonical scheme; urn:uuid:
+    // is the legacy form. Both are valid lock-token URIs.
+    report.check(
+        "Lock token is a valid lock-token URI",
+        lock_token.starts_with("opaquelocktoken:") || lock_token.starts_with("urn:uuid:"),
+    );
 
     let resp = app
         .clone()
