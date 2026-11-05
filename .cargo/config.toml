@@ -5,5 +5,7 @@ xf = "fmt --all -- --check"
 cov = "tarpaulin --workspace --all-features --skip-clean --out Html --output-dir coverage"
 cov-ci = "tarpaulin --workspace --all-features --skip-clean --out Xml --output-dir coverage"
 
-[build]
-target-dir = "/home/wyatt/.cache/cargo-target"
+# NOTE: no [build] target-dir override here — an absolute host path
+# (/home/wyatt/.cache/cargo-target) leaked into CI and every job died
+# creating it on the runner (permission denied). The default ./target
+# already lives under /home on dev machines, satisfying the fleet rule.
