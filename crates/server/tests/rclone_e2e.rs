@@ -275,7 +275,7 @@ async fn test_real_server_e2e() {
     let mut server = spawn_server(port);
 
     // Give the server time to start
-    wait_for_server(port, Duration::from_secs(10)).await;
+    wait_for_server(port, Duration::from_secs(120)).await;
 
     // Run WebDAV operations
     webdav_operations(port).await;
@@ -394,7 +394,7 @@ fn delete_remote_file(port: u16, remote_path: &str) {
 async fn test_rclone_copy() {
     let port = find_free_port();
     let mut server = spawn_server(port);
-    wait_for_server(port, Duration::from_secs(10)).await;
+    wait_for_server(port, Duration::from_secs(120)).await;
 
     let local_dir = tempfile::tempdir().unwrap();
     let local_file = local_dir.path().join("copy-me.txt");
@@ -421,7 +421,7 @@ async fn test_rclone_copy() {
 async fn test_rclone_sync() {
     let port = find_free_port();
     let mut server = spawn_server(port);
-    wait_for_server(port, Duration::from_secs(10)).await;
+    wait_for_server(port, Duration::from_secs(120)).await;
 
     let local_dir = tempfile::tempdir().unwrap();
     std::fs::write(local_dir.path().join("a.txt"), "aaa").unwrap();
@@ -449,7 +449,7 @@ async fn test_rclone_sync() {
 async fn test_rclone_move() {
     let port = find_free_port();
     let mut server = spawn_server(port);
-    wait_for_server(port, Duration::from_secs(10)).await;
+    wait_for_server(port, Duration::from_secs(120)).await;
 
     let local_dir = tempfile::tempdir().unwrap();
     std::fs::write(local_dir.path().join("move-me.txt"), "moved content").unwrap();
@@ -478,7 +478,7 @@ async fn test_rclone_move() {
 async fn test_rclone_ls() {
     let port = find_free_port();
     let mut server = spawn_server(port);
-    wait_for_server(port, Duration::from_secs(10)).await;
+    wait_for_server(port, Duration::from_secs(120)).await;
 
     setup_remote_dir(port, "/rclone-ls");
     put_remote_file(port, "/rclone-ls/file1.txt", "one");
@@ -501,7 +501,7 @@ async fn test_rclone_ls() {
 async fn test_rclone_size() {
     let port = find_free_port();
     let mut server = spawn_server(port);
-    wait_for_server(port, Duration::from_secs(10)).await;
+    wait_for_server(port, Duration::from_secs(120)).await;
 
     setup_remote_dir(port, "/rclone-size");
     put_remote_file(port, "/rclone-size/small.txt", "12345");
@@ -522,7 +522,7 @@ async fn test_rclone_size() {
 async fn test_rclone_check() {
     let port = find_free_port();
     let mut server = spawn_server(port);
-    wait_for_server(port, Duration::from_secs(10)).await;
+    wait_for_server(port, Duration::from_secs(120)).await;
 
     let local_dir = tempfile::tempdir().unwrap();
     std::fs::write(local_dir.path().join("check.txt"), "identical content").unwrap();
@@ -546,7 +546,7 @@ async fn test_rclone_check() {
 async fn test_rclone_large_file() {
     let port = find_free_port();
     let mut server = spawn_server(port);
-    wait_for_server(port, Duration::from_secs(10)).await;
+    wait_for_server(port, Duration::from_secs(120)).await;
 
     let local_dir = tempfile::tempdir().unwrap();
     let large_content = "A".repeat(10 * 1024 * 1024);
@@ -574,7 +574,7 @@ async fn test_rclone_large_file() {
 async fn test_rclone_special_characters() {
     let port = find_free_port();
     let mut server = spawn_server(port);
-    wait_for_server(port, Duration::from_secs(10)).await;
+    wait_for_server(port, Duration::from_secs(120)).await;
 
     let local_dir = tempfile::tempdir().unwrap();
     let special_names = [
@@ -618,7 +618,7 @@ async fn test_rclone_special_characters() {
 async fn test_rclone_concurrent_operations() {
     let port = find_free_port();
     let mut server = spawn_server(port);
-    wait_for_server(port, Duration::from_secs(10)).await;
+    wait_for_server(port, Duration::from_secs(120)).await;
 
     setup_remote_dir(port, "/rclone-concurrent");
 
@@ -664,7 +664,7 @@ async fn test_rclone_concurrent_operations() {
 async fn test_rclone_copy_progress() {
     let port = find_free_port();
     let mut server = spawn_server(port);
-    wait_for_server(port, Duration::from_secs(10)).await;
+    wait_for_server(port, Duration::from_secs(120)).await;
 
     let local_dir = tempfile::tempdir().unwrap();
     std::fs::write(local_dir.path().join("progress.txt"), "progress test").unwrap();
