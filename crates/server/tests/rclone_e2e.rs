@@ -23,8 +23,7 @@ fn spawn_server(port: u16) -> Child {
     // spawned server a permissive policy so the authorization layer does
     // not implicitly deny every non-public method (MKCOL, PUT, ...).
     let policy_path = std::env::temp_dir().join(format!("ferro-rclone-policy-{port}.cedar"));
-    std::fs::write(&policy_path, "permit(principal, action, resource);\n")
-        .expect("write permissive cedar policy");
+    std::fs::write(&policy_path, "permit(principal, action, resource);\n").expect("write permissive cedar policy");
 
     Command::new(env!("CARGO_BIN_EXE_ferro-server"))
         .env("RUST_LOG", "warn")
