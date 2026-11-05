@@ -22,6 +22,18 @@ first after any compaction or restart.
 | utoipa 6 + zip 9 + axum 0.8 migration | DEFERRED | utoipa v8 swagger-ui build script incompatible with zip 9; needs axum 0.7→0.8 workspace migration |
 | Traefik ferro router dropped on recreate | OPEN | NAS tunnel now bypasses Traefik for ferro.wyattau.com (ingress → localhost:8081) |
 
+
+## Round addendum (2026-11-05 late)
+
+| Task | Status | Evidence / next |
+|---|---|---|
+| WebDAV COPY 409 on implicit parents | DONE, pushed 34d0553c | preflight probes with listing instead of exists(); litmus 22/22 |
+| Cedar OPTIONS un-gating (WebDAV discovery) | DONE, pushed 5f46b7ef | spawned server OPTIONS 200 + DAV banner; production anonymous OPTIONS now 401-auth (correct) |
+| Production redeploy with cedar fix | PENDING | prod-img5 building (incremental); NAS compose pull + up -d after push |
+| CI green | PENDING | runs cancelled at ~33m twice (cancel-in-progress + parallel sessions); not test failures — next CI run for main validates |
+| rclone_e2e spawn timeout | DONE, pushed d630997c | 10s → 120s |
+| 30 cargo-deny advisories | DONE, pushed 5a80d626 | deny 0 errors |
+
 ## Resume notes
 
 - Dev server binary rebuilds via `systemd-run --user --unit=devsrv-build`
