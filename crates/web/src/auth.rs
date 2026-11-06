@@ -429,9 +429,25 @@ pub fn init_auth(state: &AuthState) {
                                 };
                                 state.set_user.set(Some(user));
                             } else {
-                                clear_stored_basic();
-                                redirect_to_basic_login();
-                                return;
+                                // Distinguish rejection from outage: a 401
+                                // means the credentials are wrong (clear
+                                // them); a network/server failure means the
+                                // backend is unreachable — keep the creds
+                                // and retry so a transient restart window
+                                // doesn't log the user out.
+                                match crate::api::verify_status(&header).await {
+                                    Some(401) => {
+                                        clear_stored_basic();
+                                        redirect_to_basic_login();
+                                        return;
+                                    }
+                                    _ => {
+                                        // Unreachable (server restarting):
+                                        // keep creds, stay on the page, let
+                                        // the next init/pass retry.
+                                        state.set_loading.set(false);
+                                    }
+                                }
                             }
                         }
                         None => {

@@ -104,7 +104,12 @@ class AssetServer(private val context: Context, private val port: Int = 8888) {
             request.append("Connection: close\r\n")
 
             for ((key, value) in headers) {
-                if (key !in listOf("host", "connection", "transfer-encoding")) {
+                // Also strip accept-encoding: the backend may respond
+                // compressed (gzip/zstd) and this proxy relays the body
+                // without the Content-Encoding header — the WebView would
+                // parse compressed bytes as text (binary garbage on
+                // /api/config and every JSON endpoint).
+                if (key !in listOf("host", "connection", "transfer-encoding", "accept-encoding")) {
                     request.append("$key: $value\r\n")
                 }
             }
@@ -161,6 +166,10 @@ class AssetServer(private val context: Context, private val port: Int = 8888) {
                 append("Access-Control-Allow-Origin: *\r\n")
                 append("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PROPFIND, MKCOL, MOVE, COPY, OPTIONS\r\n")
                 append("Access-Control-Allow-Headers: *\r\n")
+                // API responses must never be served stale by the WebView:
+                // a cached /api/config made the login page pick the wrong
+                // auth mode after server-side auth changes.
+                append("Cache-Control: no-cache, no-store, must-revalidate\r\n")
                 append("Connection: close\r\n")
                 append("\r\n")
             }
@@ -193,7 +202,17 @@ class AssetServer(private val context: Context, private val port: Int = 8888) {
             inputStream.close()
             sendResponse(client, 200, mimeType, null, bytes)
         } catch (e: FileNotFoundException) {
-            sendResponse(client, 404, "text/plain", "Not Found: $path")
+            // SPA fallback: extension-less paths are client-side routes
+            // (e.g. /ui/auth/login) — serve the app shell so deep links
+            // and refreshes work with the path-based router.
+            if (!path.contains('.')) {
+                val shell = context.assets.open("www/index.html")
+                val bytes = shell.readBytes()
+                shell.close()
+                sendResponse(client, 200, "text/html", null, bytes)
+            } else {
+                sendResponse(client, 404, "text/plain", "Not Found: $path")
+            }
         }
     }
 

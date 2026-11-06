@@ -41,9 +41,6 @@ impl WebDavCompliance {
 
     fn check(&mut self, name: &str, condition: bool) {
         self.total += 1;
-        if std::env::var_os("LITMUS_DEBUG").is_some() && !condition {
-            eprintln!("LITMUS-DEBUG: FAILED {name}");
-        }
         if condition {
             self.passed += 1;
         } else {

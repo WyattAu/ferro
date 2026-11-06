@@ -2204,3 +2204,20 @@ mod tests {
         assert_eq!(parsed.results[0].score, 1.0);
     }
 }
+
+/// Return the HTTP status of an authenticated probe request, or None on
+/// transport failure — lets callers distinguish "server rejected the
+/// credentials" (401) from "server unreachable" (None).
+#[cfg(target_arch = "wasm32")]
+pub async fn verify_status(header: &str) -> Option<u16> {
+    let opts = web_sys::RequestInit::new();
+    opts.set_method("GET");
+    let headers = web_sys::Headers::new().ok()?;
+    headers.set("Authorization", header).ok()?;
+    opts.set_headers(&headers);
+    let request = web_sys::Request::new_with_str_and_init("/api/v1/files?path=/", &opts).ok()?;
+    let window = web_sys::window()?;
+    let resp_value = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request)).await.ok()?;
+    let resp: web_sys::Response = resp_value.into();
+    Some(resp.status())
+}
