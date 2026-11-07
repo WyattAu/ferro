@@ -2217,7 +2217,9 @@ pub async fn verify_status(header: &str) -> Option<u16> {
     opts.set_headers(&headers);
     let request = web_sys::Request::new_with_str_and_init("/api/v1/files?path=/", &opts).ok()?;
     let window = web_sys::window()?;
-    let resp_value = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request)).await.ok()?;
+    let resp_value = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .ok()?;
     let resp: web_sys::Response = resp_value.into();
     Some(resp.status())
 }
