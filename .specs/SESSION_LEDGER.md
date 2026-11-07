@@ -1,6 +1,6 @@
 # Ferro session ledger — mobile + native-Rust + CI round
 
-Status: CURRENT (2026-11-04/05). Append-only; update the table, re-read
+Status: CURRENT (2026-11-04/06). Append-only; update the table, re-read
 first after any compaction or restart.
 
 ## Status table
@@ -15,33 +15,21 @@ first after any compaction or restart.
 | 30 cargo-deny advisories cleared | DONE, pushed 5a80d626 | deny 0 errors (10 documented ignores in deny.toml) |
 | CI config-leak root cause (absolute target-dir) | DONE, pushed 3a1766cd | .cargo/config.toml [build] override removed; was killing every job with exit 101 |
 | rclone_e2e spawn flake (10s → 120s) | DONE, pushed d630997c | only remaining CI red was this flake + lockfile inconsistency |
-| CI green on c11e59e | PENDING | run in progress; test job had been blocked by the lockfile inconsistency fixed here |
-| NAS redeploy after green CI | DONE early | prod-20261105 pulled from ghcr (post-fix digest 275bde3c) at 03:30 UTC Nov 5 |
-| Phone in-app test (vivo, Ferro app) | BLOCKED | vivo unplugged; app installed; needs replug + `adb reverse tcp:8080 tcp:8199` + wake |
-| Phone web test (Samsung, Chrome) | DONE | login/list/Range/video-playing verified via CDP + screenshots |
-| utoipa 6 + zip 9 + axum 0.8 migration | DEFERRED | utoipa v8 swagger-ui build script incompatible with zip 9; needs axum 0.7→0.8 workspace migration |
-| Traefik ferro router dropped on recreate | OPEN | NAS tunnel now bypasses Traefik for ferro.wyattau.com (ingress → localhost:8081) |
+| Android app in-flow verification (vivo) | DONE | fresh APK (SPA fallback + no-store proxy + login fixes): login → listing → in-app video playback + seek via CDP |
+| Android AssetServer fixes (SPA fallback, no-store, accept-encoding strip) | DONE, pushed af81d9d0 | deep links 404 → shell; binary-garbage JSON; stale cached configs |
+| Configurable backend URL (server_url pref) | DONE, uncommitted→push with this round | AssetServer reads SharedPreferences; default adb-reverse 8080 |
+| CI green on d630997c+ | PENDING | earlier runs cancelled by concurrency (newer pushes); latest run had 60m cap; re-run after current round settles |
 
+## Environment quick-reference (dev server on box:8199)
 
-## Round addendum (2026-11-05 late)
+- Relaunch: env FERRO_STORAGE=local:/tmp/opencode/ferro-video FERRO_ADMIN_USER=admin FERRO_ADMIN_PASSWORD=admin FERRO_STATIC_DIR=crates/web/dist ./target/debug/ferro-server --host 0.0.0.0 --port 8199 --data-dir /tmp/opencode/ferro-data --cedar-policy-file /tmp/opencode/ferro-litmus-policy.cedar --cors-origins "http://localhost:8199,http://127.0.0.1:8199,http://127.0.0.1:8888,http://192.168.0.105:8199,http://192.168.1.1:8199,http://100.93.183.32:8199"
+- After relaunch: rotate admin password (env reset arms the default-password gate).
+- CORS origins must cover the phone's WebView origin (127.0.0.1:8888).
+- adb reverse rules are per-device and die with the USB session: re-add after replug.
+- /tmp/opencode is wiped on env restarts (Cedar policy file must be recreated).
 
-| Task | Status | Evidence / next |
-|---|---|---|
-| WebDAV COPY 409 on implicit parents | DONE, pushed 34d0553c | preflight probes with listing instead of exists(); litmus 22/22 |
-| Cedar OPTIONS un-gating (WebDAV discovery) | DONE, pushed 5f46b7ef | spawned server OPTIONS 200 + DAV banner; production anonymous OPTIONS now 401-auth (correct) |
-| Production redeploy with cedar fix | PENDING | prod-img5 building (incremental); NAS compose pull + up -d after push |
-| CI green | PENDING | runs cancelled at ~33m twice (cancel-in-progress + parallel sessions); not test failures — next CI run for main validates |
-| rclone_e2e spawn timeout | DONE, pushed d630997c | 10s → 120s |
-| 30 cargo-deny advisories | DONE, pushed 5a80d626 | deny 0 errors |
+## Open items
 
-## Resume notes
-
-- Dev server binary rebuilds via `systemd-run --user --unit=devsrv-build`
-  (target dir vanishes on tree flap; rebuild is incremental when the
-  cache survives).
-- After ANY dev server relaunch: rotate the admin password (env restart
-  resets to default; the default-password gate 403s everything).
-- Phone quick-start: `adb reverse tcp:8080 tcp:8199`; app → login
-  admin / Drive-T3st!pass; CDP via `adb forward tcp:9223
-  localabstract:webview_devtools_remote_<pid>`.
-- Production share link: `/s/8f3a91d2-5c47-4b68-a09e-video4463v1`.
+- CI: one clean run of main to publish the docker image (60m timeouts in place).
+- Production OIDC: phone app on prod domain needs Keycloak login (basic login is dev-only).
+- CI feature-flag/PG job failures: investigate separately (pre-date this round; the rclone 120s + audit fixes address the main flake class).
