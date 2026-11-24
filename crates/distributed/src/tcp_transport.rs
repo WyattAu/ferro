@@ -319,8 +319,17 @@ mod tests {
     }
 
     async fn find_free_port() -> u16 {
-        let listener = TokioTcpListener::bind("127.0.0.1:0").await.unwrap();
-        listener.local_addr().unwrap().port()
+        // Process-unique port blocks (iteration 30): the CI feature-matrix
+        // runs several test binaries concurrently; the old probe-bind-
+        // release raced the same ephemeral ports between processes and
+        // flaked "Address already in use" (GH run 45319123124). Each
+        // process now owns a 50-port block keyed by its PID, so parallel
+        // processes never probe the same port.
+        use std::sync::atomic::{AtomicU16, Ordering};
+        static PORT_COUNTER: AtomicU16 = AtomicU16::new(0);
+        let base = 20000u32 + (std::process::id() % 400) * 50;
+        let offset = u32::from(PORT_COUNTER.fetch_add(1, Ordering::Relaxed) % 50);
+        u16::try_from(base + offset).expect("port block within u16")
     }
 
     #[tokio::test]

@@ -18,9 +18,11 @@ ignore = [
     # Unmaintained transitive dependencies with limited blast radius:
     { id = "RUSTSEC-2025-0141", reason = "bincode unmaintained -- transitive via fuse3 (FUSE-only, no server impact)" },
     { id = "RUSTSEC-2024-0436", reason = "paste unmaintained -- transitive via leptos (web frontend only)" },
-    { id = "RUSTSEC-2026-0545", reason = "zip 2.6.1 WinZip AES auth-code bug -- UNREACHABLE in ferro: we only READ our own restic/tooling zips (Deflated, no AES) and WRITE Deflated; migration to zip 9 + utoipa 6 + swagger-ui 10 tracked as a planned dependency pass (2026-11-24, revisit <= 2027-06)" },
+    { id = "RUSTSEC-2026-0545", reason = "zip 2.6.1 WinZip AES auth-code bug -- same unreachable-path analysis as 0548 below (own-tooling zips, Deflated, no AES entries; the swagger-ui vendored build is the only 2.6.1 consumer and it never touches tenant data) (2026-11-24)" },
+    { id = "RUSTSEC-2026-0548", reason = "zip 2.4.2 local/central header mismatch -- UNREACHABLE in ferro: reads go through ZipArchive::by_index (central directory), never ZipStreamReader::extract; the zip-9 + utoipa-6 + swagger-ui-10 + axum-0.8 alignment is a tracked planned pass (2026-11-24, revisit <= 2027-06)" },
     { id = "RUSTSEC-2026-0543", reason = "chrono unmaintained -- transitive; no fixed version exists; revisit when chrono successor ecosystem lands (2026-11-24, revisit <= 2027-06)" },
-    { id = "RUSTSEC-2026-0544", reason = "humantime unmaintained -- transitive; no fixed version; low blast radius (duration parsing in dev paths) (2026-11-24, revisit <= 2027-06)" },
+    { id = "RUSTSEC-2026-0459", reason = "libsqlite3-sys 0.30.1 CVE-2026-119375 -- BLOCKED upstream: rusqlite 0.43 (needs ^0.40) conflicts with sqlx 0.8 (bundles ^0.30); sqlx 0.9.1 still ^0.37. flag-kit 2.0.0 already ships the 0.43 bump for future adoption. Migration blocked on sqlx; revisit each sqlx release (2026-11-24, revisit <= 2027-06)" },
+    { id = "RUSTSEC-2026-0542", reason = "humantime unmaintained -- transitive; no fixed version; low blast radius (duration parsing in dev paths) (2026-11-24, revisit <= 2027-06)" },
     { id = "RUSTSEC-2024-0384", reason = "instant unmaintained -- transitive via reed-solomon-erasure (distributed crate only)" },
     { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2 unmaintained -- transitive via leptos (web frontend only)" },
     { id = "RUSTSEC-2026-0204", reason = "transitive dep -- limited scope, no server impact" },
