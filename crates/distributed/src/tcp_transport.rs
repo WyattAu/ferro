@@ -312,7 +312,6 @@ impl Drop for TcpRaftTransport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::net::TcpListener as TokioTcpListener;
 
     fn make_node(id: &str) -> NodeId {
         NodeId(id.into())
