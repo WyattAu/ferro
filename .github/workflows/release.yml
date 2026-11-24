@@ -2,7 +2,12 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    tags:
+      - 'v*'
+      # prod-* = the tenant-image convention SIS versions.env pins
+      # (iteration 29: the Nov prod images bypassed this pipeline because
+      # it never triggered on the prod- prefix — unsigned by construction).
+      - 'prod-*'
 
 env:
   CARGO_TERM_COLOR: always
