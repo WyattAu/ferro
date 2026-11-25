@@ -497,11 +497,11 @@ async fn test_file_request_expiry() {
 
 #[tokio::test]
 // IGNORED (iteration 30, 2026-11-25): fails 404 under axum 0.8 — the
-    // matchit 0.8 route tree does not match {token}/qr-style param+suffix
-    // routes the way 0.7 did; needs a proper route investigation. The QR
-    // share feature itself works on axum 0.7 (the pre-migration CI).
-    #[ignore = "axum 0.8 route matching: test_qr_code_for_valid_share (see SIS iteration 30)"]
-    async fn test_qr_code_for_valid_share() {
+// matchit 0.8 route tree does not match {token}/qr-style param+suffix
+// routes the way 0.7 did; needs a proper route investigation. The QR
+// share feature itself works on axum 0.7 (the pre-migration CI).
+#[ignore = "axum 0.8 route matching: test_qr_code_for_valid_share (see SIS iteration 30)"]
+async fn test_qr_code_for_valid_share() {
     let (base_url, _ct) = start_server().await;
     wait_for_server(&base_url).await;
 
@@ -524,7 +524,11 @@ async fn test_file_request_expiry() {
         .send()
         .await
         .unwrap();
-    println!("DEBUG share-get status: {} body: {}", dbg.status(), dbg.text().await.unwrap_or_default());
+    println!(
+        "DEBUG share-get status: {} body: {}",
+        dbg.status(),
+        dbg.text().await.unwrap_or_default()
+    );
 
     let resp = client
         .get(format!("{}/api/v1/shares/{}/qr", base_url, token))
@@ -535,11 +539,10 @@ async fn test_file_request_expiry() {
     let body = resp.text().await.unwrap_or_default();
     println!("DEBUG qr status: {} body: {}", status, body);
 
-    assert_eq!(status, 200);
-    assert_eq!(
+    assert_eq!(status, 200, "QR response should be an SVG");
+    assert!(
         body.contains("<svg") || body.contains("image/svg+xml"),
-        true,
-        "QR response should be an SVG"
+        "QR response body should contain svg markup"
     );
 }
 
@@ -563,11 +566,11 @@ async fn test_qr_code_nonexistent_share_returns_404() {
 
 #[tokio::test]
 // IGNORED (iteration 30, 2026-11-25): fails 404 under axum 0.8 — the
-    // matchit 0.8 route tree does not match {token}/qr-style param+suffix
-    // routes the way 0.7 did; needs a proper route investigation. The QR
-    // share feature itself works on axum 0.7 (the pre-migration CI).
-    #[ignore = "axum 0.8 route matching: test_qr_code_svg_format (see SIS iteration 30)"]
-    async fn test_qr_code_svg_format() {
+// matchit 0.8 route tree does not match {token}/qr-style param+suffix
+// routes the way 0.7 did; needs a proper route investigation. The QR
+// share feature itself works on axum 0.7 (the pre-migration CI).
+#[ignore = "axum 0.8 route matching: test_qr_code_svg_format (see SIS iteration 30)"]
+async fn test_qr_code_svg_format() {
     let (base_url, _ct) = start_server().await;
     wait_for_server(&base_url).await;
 
@@ -1658,11 +1661,11 @@ async fn test_transcode_quality_serde() {
 
 #[tokio::test]
 // IGNORED (iteration 30, 2026-11-25): fails 404 under axum 0.8 — the
-    // matchit 0.8 route tree does not match {token}/qr-style param+suffix
-    // routes the way 0.7 did; needs a proper route investigation. The QR
-    // share feature itself works on axum 0.7 (the pre-migration CI).
-    #[ignore = "axum 0.8 route matching: test_zip_download_with_share_and_qr (see SIS iteration 30)"]
-    async fn test_zip_download_with_share_and_qr() {
+// matchit 0.8 route tree does not match {token}/qr-style param+suffix
+// routes the way 0.7 did; needs a proper route investigation. The QR
+// share feature itself works on axum 0.7 (the pre-migration CI).
+#[ignore = "axum 0.8 route matching: test_zip_download_with_share_and_qr (see SIS iteration 30)"]
+async fn test_zip_download_with_share_and_qr() {
     let (base_url, _ct) = start_server().await;
     wait_for_server(&base_url).await;
 
