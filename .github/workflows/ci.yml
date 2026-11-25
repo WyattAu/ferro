@@ -8,7 +8,11 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # cancel-in-progress removed (iteration 30): the release gate waits for
+  # a green run on main, and the workspace clippy+test matrix takes ~2h
+  # cold — cancel-in-progress meant every rapid push cancelled the run
+  # the pending release was waiting for, so a green run never survived.
+  cancel-in-progress: false
 
 permissions:
   contents: read
