@@ -186,7 +186,7 @@ async fn test_zip_download_content_integrity() {
     assert_eq!(archive.len(), 1);
 
     let mut file = archive.by_index(0).unwrap();
-    assert_eq!(file.name(), "integrity.txt");
+    assert_eq!(file.name().unwrap().as_ref(), "integrity.txt");
 
     let mut extracted = String::new();
     use std::io::Read;
@@ -218,7 +218,7 @@ async fn test_zip_download_nonexistent_file_skips() {
     let cursor = std::io::Cursor::new(&bytes);
     let mut archive = zip::ZipArchive::new(cursor).unwrap();
     assert_eq!(archive.len(), 1);
-    assert_eq!(archive.by_index(0).unwrap().name(), "exists.txt");
+    assert_eq!(archive.by_index(0).unwrap().name().unwrap().as_ref(), "exists.txt");
 
     _ct.cancel();
 }

@@ -57,6 +57,8 @@ allow = [
     "0BSD",
     "OpenSSL",
     "CC0-1.0",
+    # zip 9.0.5 pulls bzip2 v0.6.1 (the Rust binding of libbzip2)
+    "bzip2-1.0.6",
 ]
 
 [bans]
