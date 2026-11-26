@@ -712,7 +712,10 @@ fn extract_all_from_archive(data: &[u8]) -> std::io::Result<std::collections::Ha
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)?;
-        let name = file.name().to_string();
+        let name = file
+            .name()
+            .map(|n| n.to_string())
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("Bad zip entry name: {}", e)))?;
 
         if name == "manifest.json" || name == "ferro.db" {
             continue;

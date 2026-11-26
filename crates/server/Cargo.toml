@@ -10,6 +10,7 @@ publish = false
 
 [features]
 default = ["webauthn"]
+vendored-openssl = ["ferro-server-integrations/vendored-openssl"]
 s3 = ["ferro-core/s3", "object_store/aws"]
 gcs = ["ferro-core/gcs", "object_store/gcp"]
 azure = ["ferro-core/azure", "object_store/azure"]
@@ -100,7 +101,7 @@ ferro-server-admin-api = { path = "../server-admin-api" }
 breaker = { workspace = true }
 ferro-server-resilience = { path = "../server-resilience" }
 ferro-server-api-core = { path = "../server-api-core" }
-zip = "2"
+zip = "9"
 ferro-selective-sync = { path = "../selective-sync" }
 ferro-server-sharing = { path = "../server-sharing" }
 ferro-server-user-mgmt = { path = "../server-user-mgmt" }
