@@ -324,8 +324,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ghcr.io/wyattau/ferro:latest
+            ghcr.io/wyattau/ferro:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -348,7 +348,7 @@ jobs:
       - name: Deploy to staging
         run: |
           kubectl set image deployment/ferro-server \
-            ferro-server=ghcr.io/${{ github.repository }}:${{ github.sha }} \
+            ferro-server=ghcr.io/wyattau/ferro:${{ github.sha }} \
             -n ferro-staging
           kubectl rollout status deployment/ferro-server -n ferro-staging --timeout=300s
 
@@ -370,6 +370,6 @@ jobs:
       - name: Deploy to production
         run: |
           kubectl set image deployment/ferro-server \
-            ferro-server=ghcr.io/${{ github.repository }}:${{ github.sha }} \
+            ferro-server=ghcr.io/wyattau/ferro:${{ github.sha }} \
             -n ferro
           kubectl rollout status deployment/ferro-server -n ferro --timeout=300s

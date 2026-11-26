@@ -229,7 +229,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Sign container image
         env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/ferro:${{ github.ref_name }}
+          IMAGE: ghcr.io/wyattau/ferro:${{ github.ref_name }}
         run: |
           cosign sign --yes $IMAGE
           cosign verify $IMAGE
@@ -243,7 +243,7 @@ jobs:
       - name: Run Trivy vulnerability scanner on container
         uses: aquasecurity/trivy-action@bfa4b33a029b9aa80ddb784b45574c30e072c59e # v0.36.0
         with:
-          image-ref: 'ghcr.io/${{ github.repository_owner }}/ferro:${{ github.ref_name }}'
+          image-ref: 'ghcr.io/wyattau/ferro:${{ github.ref_name }}'
           format: 'table'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
