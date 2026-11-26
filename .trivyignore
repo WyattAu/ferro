@@ -1,0 +1,20 @@
+# Justified suppressions — every entry needs a reason + a review date.
+# The alternatives (upgrade path or removal) are tracked in the notes.
+
+# zip 2.4.2 (CRITICAL CVE-2026-115905 parser differential; HIGH
+# CVE-2026-115909 memory DoS): present ONLY as a build-dependency of
+# utoipa-swagger-ui 8.1.0, unpacking the vendored swagger-ui archive on the
+# build runner. Never in the running binary's untrusted-zip paths (runtime
+# zip is 9.0.5). Cleared by the utoipa-6/swagger-10 alignment (tracked).
+# Review: 2027-01-31.
+CVE-2026-115905
+CVE-2026-115909
+
+# bun.lock JS deps (frontend/docs toolchain, not shipped in any image):
+# dev-toolchain advisories fixed by the next frontend dependency pass
+# (source-map-js 1.2.2, devalue 5.9.3, seroval 1.6.3, vite 8.3.3).
+# Review: 2027-01-31.
+CVE-2026-93749
+CVE-2026-92708
+CVE-2026-104845
+CVE-2026-112942
