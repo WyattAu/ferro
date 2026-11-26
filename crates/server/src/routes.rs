@@ -276,7 +276,7 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
         )
         .route("/recent", axum::routing::get(favorites::list_recent))
         .route("/trash", axum::routing::get(trash::list_trash::<AppState>))
-        .route("/trash/{path}", axum::routing::delete(trash::move_to_trash::<AppState>))
+        .route("/trash/:path", axum::routing::delete(trash::move_to_trash::<AppState>))
         .route("/trash/restore", axum::routing::post(trash::restore_trash::<AppState>))
         .route("/trash/purge", axum::routing::delete(trash::purge_trash::<AppState>))
         .route("/trash/empty", axum::routing::delete(trash::empty_trash::<AppState>))
@@ -308,10 +308,7 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
             "/tags/:path",
             axum::routing::get(tags::get_tags::<AppState>).post(tags::add_tags::<AppState>),
         )
-        .route(
-            "/tags/{path}/{tag}",
-            axum::routing::delete(tags::remove_tag::<AppState>),
-        )
+        .route("/tags/{path}/:tag", axum::routing::delete(tags::remove_tag::<AppState>))
         .route("/tags/search", axum::routing::get(tags::search_by_tag::<AppState>))
         .route(
             "/comments",
@@ -562,7 +559,7 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
             axum::routing::delete(file_requests::delete_file_request),
         )
         // QR Code sharing
-        .route("/shares/{token}/qr", axum::routing::get(qr_sharing::share_qr_code))
+        .route("/shares/:token/qr", axum::routing::get(qr_sharing::share_qr_code))
         // Group Management
         .route(
             "/groups",
@@ -611,7 +608,7 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
             "/sync/blocks/assemble",
             axum::routing::post(sync::blocks::assemble_file),
         )
-        .route("/sync/blocks/{hash}", axum::routing::get(sync::blocks::get_block))
+        .route("/sync/blocks/:hash", axum::routing::get(sync::blocks::get_block))
         // Selective sync profiles
         .route(
             "/sync/profiles",
@@ -635,7 +632,7 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
             "/upload/:upload_id/complete",
             axum::routing::post(upload::complete_upload),
         )
-        .route("/upload/{upload_id}", axum::routing::delete(upload::cancel_upload))
+        .route("/upload/:upload_id", axum::routing::delete(upload::cancel_upload))
         .route("/uploads", axum::routing::get(upload::list_uploads))
         // API key management
         .route(
@@ -756,10 +753,7 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
             "/transcode",
             axum::routing::post(transcode::start_transcode).get(transcode::list_transcode_jobs),
         )
-        .route(
-            "/transcode/{id}/status",
-            axum::routing::get(transcode::transcode_status),
-        )
+        .route("/transcode/:id/status", axum::routing::get(transcode::transcode_status))
         // Whiteboard endpoints
         .route(
             "/whiteboard",
@@ -1220,9 +1214,9 @@ pub fn build_router_with_static(
             axum::routing::get(remote_mount::test_mount::<AppState>),
         )
         // Extended share endpoints (G-24, G-25)
-        .route("/s/{token}/upload", axum::routing::post(shares_ext::upload_to_share))
-        .route("/s/{token}/uploads", axum::routing::get(shares_ext::list_share_uploads))
-        .route("/s/{token}/view", axum::routing::get(shares_ext::serve_view_share))
+        .route("/s/:token/upload", axum::routing::post(shares_ext::upload_to_share))
+        .route("/s/:token/uploads", axum::routing::get(shares_ext::list_share_uploads))
+        .route("/s/:token/view", axum::routing::get(shares_ext::serve_view_share))
         .nest(
             "/wopi",
             ferro_server_wopi::routes::<AppState>().layer(axum::Extension(ferro_server_wopi::WopiState {

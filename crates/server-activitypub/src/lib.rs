@@ -427,9 +427,9 @@ pub async fn federated_share(
 pub fn routes(state: FederationState) -> Router {
     Router::new()
         .route("/.well-known/webfinger", axum::routing::get(webfinger::webfinger))
-        .route("/fed/actor/{username}", axum::routing::get(get_actor))
-        .route("/fed/actor/{username}/followers", axum::routing::get(list_followers))
-        .route("/fed/actor/{username}/following", axum::routing::get(list_following))
+        .route("/fed/actor/:username", axum::routing::get(get_actor))
+        .route("/fed/actor/:username/followers", axum::routing::get(list_followers))
+        .route("/fed/actor/:username/following", axum::routing::get(list_following))
         .route("/fed/inbox", axum::routing::post(inbox).get(list_inbox))
         .route("/fed/outbox", axum::routing::get(list_outbox))
         .route("/fed/nodeinfo", axum::routing::get(nodeinfo))
