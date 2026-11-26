@@ -172,6 +172,10 @@ pub enum OfflineError {
 /// SQLite-backed change queue store.
 pub struct SqliteChangeQueue {
     db: Arc<std::sync::Mutex<rusqlite::Connection>>,
+    /// Maximum pending operations before enqueue rejects (QueueFull).
+    /// Defaults to MAX_PENDING_OPS; tests override with a small cap so the
+    /// fullness path is provable without an O(n^2) fill of 50k rows.
+    max_pending: usize,
 }
 
 /// # Safety
@@ -182,7 +186,18 @@ pub use common::DbHandle;
 impl SqliteChangeQueue {
     /// Create a new queue backed by a SQLite connection.
     pub fn new(db: DbHandle) -> Self {
-        Self { db }
+        Self {
+            db,
+            max_pending: MAX_PENDING_OPS,
+        }
+    }
+
+    /// Test-only constructor with a reduced cap: proving the QueueFull
+    /// rejection does not need a 50k-row fill (each enqueue's pending_count
+    /// is O(n), so the fill is O(n^2) and stalls the suite for minutes).
+    #[cfg(test)]
+    fn with_max_pending(db: DbHandle, cap: usize) -> Self {
+        Self { db, max_pending: cap }
     }
 
     /// Initialize the queue table.
@@ -259,8 +274,8 @@ impl SqliteChangeQueue {
 impl ChangeQueueStore for SqliteChangeQueue {
     async fn enqueue(&self, op: QueuedOperation) -> Result<(), OfflineError> {
         let count = self.pending_count().await;
-        if count >= MAX_PENDING_OPS {
-            return Err(OfflineError::QueueFull(count, MAX_PENDING_OPS));
+        if count >= self.max_pending {
+            return Err(OfflineError::QueueFull(count, self.max_pending));
         }
         self.persist(&op);
         Ok(())
@@ -346,6 +361,13 @@ impl ChangeQueueStore for SqliteChangeQueue {
 mod tests {
     use super::*;
     use std::sync::Arc;
+
+    fn store_with_cap(cap: usize) -> SqliteChangeQueue {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        let queue = SqliteChangeQueue::with_max_pending(Arc::new(std::sync::Mutex::new(conn)), cap);
+        queue.init().unwrap();
+        queue
+    }
 
     fn store() -> SqliteChangeQueue {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
@@ -498,14 +520,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_queue_full() {
-        let q = store();
+        const CAP: usize = 200;
+        let q = store_with_cap(CAP);
         // Fill to near max
-        for i in 0..MAX_PENDING_OPS {
+        for i in 0..CAP {
             q.enqueue(QueuedOperation::put(&format!("/f{i}"), None, None, "u"))
                 .await
                 .unwrap();
         }
-        assert_eq!(q.pending_count().await, MAX_PENDING_OPS);
+        assert_eq!(q.pending_count().await, CAP);
         let result = q.enqueue(QueuedOperation::put("/overflow", None, None, "u")).await;
         assert!(matches!(result, Err(OfflineError::QueueFull(_, _))));
     }
