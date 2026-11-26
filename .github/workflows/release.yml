@@ -30,7 +30,7 @@ jobs:
           echo "Waiting for core CI checks to complete on main..."
           # 100 attempts x 50s = ~83 min of polling — main CI takes ~1h
           for i in $(seq 1 100); do
-            STATUS=$(gh api repos/${{ github.repository }}/commits/main/check-runs --jq '[.check_runs[] | select(.name == "Clippy" or .name == "Rustfmt" or .name == "MSRV (1.92)" or .name == "Test" or .name == "Security Audit")] | (length == 5) and all(.status == "completed" and .conclusion == "success")')
+            STATUS=$(gh api --paginate --slurp repos/${{ github.repository }}/commits/main/check-runs --jq '[.[].check_runs[] | select(.name == "Clippy" or .name == "Rustfmt" or .name == "MSRV (1.92)" or .name == "Test" or .name == "Security Audit")] | (length == 5) and all(.status == "completed" and .conclusion == "success")')
             if [ "$STATUS" = "true" ]; then
               echo "All core CI checks on main are passing. Proceeding with release."
               exit 0
@@ -39,7 +39,7 @@ jobs:
             sleep 50
           done
           echo "ERROR: Core CI checks did not pass within 30 minutes."
-          gh api repos/${{ github.repository }}/commits/main/check-runs --jq '.check_runs[] | select(.name == "Clippy" or .name == "Rustfmt" or .name == "MSRV (1.92)" or .name == "Test" or .name == "Security Audit") | "\(.name): \(.status) \(.conclusion)"'
+          gh api --paginate --slurp repos/${{ github.repository }}/commits/main/check-runs --jq '.[].check_runs[] | select(.name == "Clippy" or .name == "Rustfmt" or .name == "MSRV (1.92)" or .name == "Test" or .name == "Security Audit") | "\(.name): \(.status) \(.conclusion)"'
           exit 1
 
   build:
