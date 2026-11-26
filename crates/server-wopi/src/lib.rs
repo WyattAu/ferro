@@ -1175,7 +1175,7 @@ mod tests {
             .await
             .unwrap();
 
-        let token_payload = build_token_payload("/doc.txt/contents", "user1", 9999999999);
+        let token_payload = build_token_payload("/doc.txt", "user1", 9999999999);
         let token = sign_token(&token_payload, secret);
 
         let app = routes::<()>().layer(axum::Extension(state));
