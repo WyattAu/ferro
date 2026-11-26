@@ -99,7 +99,7 @@ jobs:
       - name: Fetch dependencies
         run: cargo fetch --locked --target ${{ matrix.target }}
       - name: Build
-        run: cargo build --locked --release -p ferro-server --target ${{ matrix.target }} --features "s3,gcs,azure"
+        run: cargo build --locked --release -p ferro-server --target ${{ matrix.target }} --features "s3,gcs,azure,vendored-openssl"
       - name: Smoke test (Linux/macOS)
         if: runner.os != 'Windows'
         run: |

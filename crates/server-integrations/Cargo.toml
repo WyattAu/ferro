@@ -38,3 +38,8 @@ tokio-util = { version = "0.7", features = ["rt"] }
 [dev-dependencies]
 tokio = { workspace = true }
 tempfile = "3"
+
+[features]
+# Static openssl for cross-compiled release targets (musl/aarch64): builds
+# openssl-sys from source instead of probing the host for a musl openssl.
+vendored-openssl = ["native-tls/vendored"]
