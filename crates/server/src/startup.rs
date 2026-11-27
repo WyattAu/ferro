@@ -1167,9 +1167,6 @@ pub async fn run_server(state: AppState, cli: &Cli, shutdown_token: Cancellation
         use std::os::unix::io::AsRawFd;
         let raw_fd = std_listener.as_raw_fd();
         let on: libc::c_int = 1;
-        let idle: libc::c_int = 30;
-        let intvl: libc::c_int = 10;
-        let cnt: libc::c_int = 3;
         // SAFETY: `raw_fd` is a valid file descriptor from the accepted socket.
         // `on`, `idle`, `intvl`, `cnt` are valid `c_int` values passed by pointer
         // to the kernel; `size_of_val` correctly reports their sizes. `setsockopt`
@@ -1184,27 +1181,35 @@ pub async fn run_server(state: AppState, cli: &Cli, shutdown_token: Cancellation
                 &on as *const _ as *const libc::c_void,
                 std::mem::size_of_val(&on) as libc::socklen_t,
             );
-            libc::setsockopt(
-                raw_fd,
-                libc::IPPROTO_TCP,
-                libc::TCP_KEEPIDLE,
-                &idle as *const _ as *const libc::c_void,
-                std::mem::size_of_val(&idle) as libc::socklen_t,
-            );
-            libc::setsockopt(
-                raw_fd,
-                libc::IPPROTO_TCP,
-                libc::TCP_KEEPINTVL,
-                &intvl as *const _ as *const libc::c_void,
-                std::mem::size_of_val(&intvl) as libc::socklen_t,
-            );
-            libc::setsockopt(
-                raw_fd,
-                libc::IPPROTO_TCP,
-                libc::TCP_KEEPCNT,
-                &cnt as *const _ as *const libc::c_void,
-                std::mem::size_of_val(&cnt) as libc::socklen_t,
-            );
+            // The fine-tuning constants are Linux-only (macOS names the
+            // idle option TCP_KEEPALIVE and ignores INTVL/CNT knobs).
+            #[cfg(target_os = "linux")]
+            {
+                let idle: libc::c_int = 30;
+                let intvl: libc::c_int = 10;
+                let cnt: libc::c_int = 3;
+                libc::setsockopt(
+                    raw_fd,
+                    libc::IPPROTO_TCP,
+                    libc::TCP_KEEPIDLE,
+                    &idle as *const _ as *const libc::c_void,
+                    std::mem::size_of_val(&idle) as libc::socklen_t,
+                );
+                libc::setsockopt(
+                    raw_fd,
+                    libc::IPPROTO_TCP,
+                    libc::TCP_KEEPINTVL,
+                    &intvl as *const _ as *const libc::c_void,
+                    std::mem::size_of_val(&intvl) as libc::socklen_t,
+                );
+                libc::setsockopt(
+                    raw_fd,
+                    libc::IPPROTO_TCP,
+                    libc::TCP_KEEPCNT,
+                    &cnt as *const _ as *const libc::c_void,
+                    std::mem::size_of_val(&cnt) as libc::socklen_t,
+                );
+            }
         }
     }
     let listener = tokio::net::TcpListener::from_std(std_listener)?;

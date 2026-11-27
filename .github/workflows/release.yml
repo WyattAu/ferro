@@ -104,9 +104,11 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           BINARY="target/${{ matrix.target }}/release/${{ matrix.binary }}"
-          timeout 15 "$BINARY" --host 127.0.0.1 --port 9876 --data-dir /tmp/ferro-smoke 2>/dev/null &
+          # qemu-emulated targets (aarch64 on x86 runners) start slowly:
+          # give the binary 90s and poll alongside it.
+          timeout 90 "$BINARY" --host 127.0.0.1 --port 9876 --data-dir /tmp/ferro-smoke 2>/dev/null &
           SERVER_PID=$!
-          for i in $(seq 1 10); do
+          for i in $(seq 1 85); do
             sleep 1
             if curl -sf http://127.0.0.1:9876/healthz > /dev/null 2>&1; then
               echo "Smoke test PASSED: /healthz returned 200 after ${i}s"
