@@ -183,7 +183,10 @@ jobs:
 
   docker:
     needs: build
-    if: success()
+    # success() is false when ANY needs job has conclusion=failure, including
+    # continue-on-error ones. The desktop targets are non-blocking by design;
+    # gate on the build result itself instead.
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
