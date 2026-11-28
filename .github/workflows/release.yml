@@ -114,12 +114,16 @@ jobs:
           BINARY="target/${{ matrix.target }}/release/${{ matrix.binary }}"
           # qemu-emulated targets (aarch64 on x86 runners) start slowly:
           # give the binary 90s and poll alongside it.
-          timeout 90 "$BINARY" --host 127.0.0.1 --port 9876 --data-dir /tmp/ferro-smoke > /tmp/smoke-server.log 2>&1 &
+          # macOS runners lack GNU `timeout`; a shell watchdog provides the
+          # kill-after-90s portably.
+          "$BINARY" --host 127.0.0.1 --port 9876 --data-dir /tmp/ferro-smoke > /tmp/smoke-server.log 2>&1 &
           SERVER_PID=$!
+          ( sleep 90 && kill $SERVER_PID 2>/dev/null ) & KILLER_PID=$!
           for i in $(seq 1 85); do
             sleep 1
             if curl -sf http://127.0.0.1:9876/healthz > /dev/null 2>&1; then
               echo "Smoke test PASSED: /healthz returned 200 after ${i}s"
+              kill $KILLER_PID 2>/dev/null || true
               kill $SERVER_PID 2>/dev/null || true
               exit 0
             fi
@@ -127,6 +131,7 @@ jobs:
           echo "Smoke test FAILED: /healthz did not return 200"
           echo "---- server output (why it did not start) ----"
           cat /tmp/smoke-server.log || true
+          kill $KILLER_PID 2>/dev/null || true
           kill $SERVER_PID 2>/dev/null || true
           exit 1
       - name: Cleanup smoke test server
