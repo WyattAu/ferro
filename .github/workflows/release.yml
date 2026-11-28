@@ -133,6 +133,9 @@ jobs:
           cat /tmp/smoke-server.log || true
           kill $KILLER_PID 2>/dev/null || true
           kill $SERVER_PID 2>/dev/null || true
+          echo "---- foreground re-run (crash diagnosis, 30s cap) ----"
+          timeout 30 "$BINARY" --host 127.0.0.1 --port 9877 --data-dir /tmp/ferro-smoke2 2>&1 | head -40 || true
+          echo "---- foreground re-run done ----"
           exit 1
       - name: Cleanup smoke test server
         if: always() && runner.os != 'Windows'
