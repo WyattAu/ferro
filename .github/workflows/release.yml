@@ -217,7 +217,6 @@ jobs:
           tags: |
             ghcr.io/${{ env.OWNER }}/ferro:latest
             ghcr.io/${{ env.OWNER }}/ferro:${{ github.ref_name }}
-          cache-to: type=gha,mode=max
 
   sign:
     name: Sign Container Image
